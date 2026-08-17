@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, Trash2, X } from "lucide-react";
 import { formatearFecha } from "@/lib/ucpUtils";
 
 // Campana de notificaciones internas. Hace polling cada 30 s.
@@ -52,6 +52,18 @@ export default function CampanaNotificaciones({ usuarioId, alinear = "derecha" }
     cargar();
   };
 
+  const borrar = async (e, n) => {
+    e.stopPropagation(); // no marcar como leída ni navegar
+    setNotifs((ns) => ns.filter((x) => x.id !== n.id)); // quita al instante
+    try { await base44.entities.Notificaciones.delete(n.id); } catch { cargar(); }
+  };
+
+  const borrarTodas = async () => {
+    const ids = notifs.map((n) => n.id);
+    setNotifs([]);
+    try { await Promise.all(ids.map((id) => base44.entities.Notificaciones.delete(id))); } catch { cargar(); }
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -71,11 +83,18 @@ export default function CampanaNotificaciones({ usuarioId, alinear = "derecha" }
         <div className={`absolute ${alinear === "izquierda" ? "left-0" : "right-0"} mt-2 w-80 max-w-[90vw] bg-card text-card-foreground rounded-2xl border border-border shadow-xl z-50 overflow-hidden`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <p className="text-sm font-semibold">Notificaciones</p>
-            {noLeidas.length > 0 && (
-              <button onClick={marcarTodas} className="text-xs text-primary hover:underline flex items-center gap-1">
-                <CheckCheck className="h-3.5 w-3.5" /> Marcar todas leídas
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {noLeidas.length > 0 && (
+                <button onClick={marcarTodas} className="text-xs text-primary hover:underline flex items-center gap-1">
+                  <CheckCheck className="h-3.5 w-3.5" /> Marcar leídas
+                </button>
+              )}
+              {notifs.length > 0 && (
+                <button onClick={borrarTodas} className="text-xs text-rose-600 hover:underline flex items-center gap-1" title="Borrar todas las notificaciones">
+                  <Trash2 className="h-3.5 w-3.5" /> Borrar todas
+                </button>
+              )}
+            </div>
           </div>
           <div className="max-h-80 overflow-y-auto">
             {notifs.length === 0 ? (
@@ -89,11 +108,21 @@ export default function CampanaNotificaciones({ usuarioId, alinear = "derecha" }
                 >
                   <div className="flex items-start gap-2.5">
                     <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${n.leida ? "bg-transparent" : "bg-primary"}`} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium leading-snug">{n.titulo}</p>
                       {n.mensaje && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.mensaje}</p>}
                       <p className="text-[10px] text-muted-foreground/70 mt-1">{formatearFecha(n.created_date)}</p>
                     </div>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => borrar(e, n)}
+                      onKeyDown={(e) => { if (e.key === "Enter") borrar(e, n); }}
+                      className="p-1 -m-1 rounded-lg text-muted-foreground/60 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors"
+                      title="Borrar notificación"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </span>
                   </div>
                 </button>
               ))
