@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Image as ImageIcon } from "lucide-react";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
 import HistorialFichajes from "@/components/ucp/HistorialFichajes";
+import { comprimirImagen } from "@/lib/imagen";
 
 const TIPOS = ["servicio_social", "voluntario", "residente", "practicante"];
 
@@ -76,9 +77,10 @@ export default function AlumnoPerfil() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      await base44.auth.updateMe({ foto_perfil: file_url });
-      setPerfil((p) => ({ ...p, foto_perfil: file_url }));
+      // La foto se comprime y se guarda directamente en la BD (no hay storage de archivos)
+      const dataUrl = await comprimirImagen(file, 640, 0.8);
+      await base44.auth.updateMe({ foto_perfil: dataUrl });
+      setPerfil((p) => ({ ...p, foto_perfil: dataUrl }));
       toast({ title: "Foto actualizada" });
     } catch (err) {
       toast({ title: "Error al subir foto", variant: "destructive" });

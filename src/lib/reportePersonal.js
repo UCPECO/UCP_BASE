@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { formatearFecha } from "@/lib/ucpUtils";
+import { textoEnvuelto, celdaCorta } from "@/lib/pdfUtils";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
@@ -109,8 +110,8 @@ export function generarReportePersonalPdfMensual({ usuarios, registros, bonos, i
   personas.forEach((p, idx) => {
     if (y > 270) { doc.addPage(); y = 20; }
     doc.text(String(idx + 1), 14, y);
-    doc.text((p.nombre || "").slice(0, 45), 22, y);
-    doc.text(p.rol, 100, y);
+    celdaCorta(doc, p.nombre, 22, y, 76);
+    celdaCorta(doc, p.rol, 100, y, 28);
     doc.text(`${p.horasMes} h`, 130, y);
     doc.text(`${p.acumulado} h`, 160, y);
     doc.text(String(p.incs), 190, y);
@@ -127,20 +128,24 @@ export function generarReportePersonalPdfMensual({ usuarios, registros, bonos, i
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text("Fecha", 14, y); doc.text("Persona", 42, y); doc.text("Tipo", 95, y);
-  doc.text("Prioridad", 125, y); doc.text("Estado", 150, y); doc.text("Descripción", 175, y);
+  doc.text("Prioridad", 125, y); doc.text("Estado", 150, y);
   y += 5;
   doc.setFont("helvetica", "normal");
   if (incsMes.length === 0) { doc.text("Sin incidencias en este mes.", 14, y); y += 5; }
   incsMes.forEach((i) => {
-    if (y > 275) { doc.addPage(); y = 20; }
+    if (y > 265) { doc.addPage(); y = 20; }
     const persona = personal.find((u) => u.id === i.usuario_afectado || u.email === i.usuario_afectado || u.id === i.creado_por);
     doc.text(formatearFecha(i.created_date), 14, y);
-    doc.text((persona ? (persona.nombre_completo || persona.full_name) : "—").slice(0, 30), 42, y);
-    doc.text((i.tipo_incidencia || "—").replace(/_/g, " "), 95, y);
-    doc.text(i.prioridad || "—", 125, y);
-    doc.text((i.estado_incidencia || "—").replace(/_/g, " "), 150, y);
-    doc.text((i.descripcion || "—").slice(0, 35), 175, y);
-    y += 5;
+    celdaCorta(doc, persona ? (persona.nombre_completo || persona.full_name) : "—", 42, y, 51);
+    celdaCorta(doc, (i.tipo_incidencia || "—").replace(/_/g, " "), 95, y, 28);
+    celdaCorta(doc, i.prioridad || "—", 125, y, 23);
+    celdaCorta(doc, (i.estado_incidencia || "—").replace(/_/g, " "), 150, y, 46);
+    y += 4;
+    // La descripción va en su propia línea envuelta: nunca se sale de la página
+    doc.setTextColor(90, 90, 90);
+    y = textoEnvuelto(doc, i.descripcion || "—", 42, y, 154, 3.6, 272);
+    doc.setTextColor(40, 40, 40);
+    y += 1.5;
   });
 
   // ===== Footer =====

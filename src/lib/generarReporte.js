@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { formatearFecha } from "@/lib/ucpUtils";
+import { textoEnvuelto } from "@/lib/pdfUtils";
 
 export function generarReportePdfMensual({ perfil, actividad, registros, bonos, mes, anio }) {
   const META = actividad?.meta_horas || 480;
@@ -59,11 +60,12 @@ export function generarReportePdfMensual({ perfil, actividad, registros, bonos, 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   let y = 50;
-  doc.text(`Nombre: ${perfil?.nombre_completo || perfil?.full_name || "—"}`, 14, y); y += 6;
-  doc.text(`Correo: ${perfil?.email || "—"}`, 14, y); y += 6;
-  doc.text(`Matrícula: ${perfil?.matricula || "—"}    Carrera: ${perfil?.carrera || "—"}`, 14, y); y += 6;
-  doc.text(`Tipo: ${(perfil?.tipo_participante || "—").replace(/_/g, " ")}    Período: ${perfil?.periodo_asignado || "—"}`, 14, y); y += 6;
-  doc.text(`Actividad: ${actividad?.nombre || "—"} (${actividad?.categoria || "—"})`, 14, y); y += 10;
+  y = textoEnvuelto(doc, `Nombre: ${perfil?.nombre_completo || perfil?.full_name || "—"}`, 14, y, 182, 6);
+  y = textoEnvuelto(doc, `Correo: ${perfil?.email || "—"}`, 14, y, 182, 6);
+  y = textoEnvuelto(doc, `Matrícula: ${perfil?.matricula || "—"}    Carrera: ${perfil?.carrera || "—"}`, 14, y, 182, 6);
+  y = textoEnvuelto(doc, `Tipo: ${(perfil?.tipo_participante || "—").replace(/_/g, " ")}    Período: ${perfil?.periodo_asignado || "—"}`, 14, y, 182, 6);
+  y = textoEnvuelto(doc, `Actividad: ${actividad?.nombre || "—"} (${actividad?.categoria || "—"})`, 14, y, 182, 6);
+  y += 4;
 
   // Resumen del mes
   doc.setFont("helvetica", "bold");
@@ -127,8 +129,7 @@ export function generarReportePdfMensual({ perfil, actividad, registros, bonos, 
       if (y > 270) { doc.addPage(); y = 20; }
       doc.text(formatearFecha(b.fecha), 14, y);
       doc.text(`${b.horas} h`, 60, y);
-      doc.text(b.motivo || "—", 90, y);
-      y += 5;
+      y = textoEnvuelto(doc, b.motivo || "—", 90, y, 106, 5, 270);
     });
   }
 

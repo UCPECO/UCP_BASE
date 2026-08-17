@@ -1,12 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { QrCode, LogIn, LogOut, Camera, CameraOff, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { QrCode, LogIn, LogOut, Camera, CameraOff, CheckCircle2, AlertCircle, Clock, Timer } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import StatusBadge from "@/components/ucp/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { calcularHoras, formatearFecha, fechaHoy, horaActual } from "@/lib/ucpUtils";
+
+// Fecha/hora actual en zona Centro de México como Date local
+function ahoraMexicoDate() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+}
+
+// Segundos transcurridos desde la entrada del fichaje
+function segundosTranscurridos(reg) {
+  if (!reg?.fecha || !reg?.hora_entrada) return 0;
+  const entrada = new Date(`${reg.fecha}T${reg.hora_entrada}:00`);
+  const diff = Math.floor((ahoraMexicoDate() - entrada) / 1000);
+  return Math.max(0, diff);
+}
+
+function formatoCronometro(seg) {
+  const h = Math.floor(seg / 3600);
+  const m = Math.floor((seg % 3600) / 60);
+  const s = seg % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
 export default function Fichar() {
   const { user } = useAuth();
@@ -18,8 +38,17 @@ export default function Fichar() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [qrResult, setQrResult] = useState("");
+  const [segundos, setSegundos] = useState(0);
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
+
+  // Cronómetro en vivo mientras hay un fichaje abierto
+  useEffect(() => {
+    if (!registroAbierto) return;
+    setSegundos(segundosTranscurridos(registroAbierto));
+    const t = setInterval(() => setSegundos(segundosTranscurridos(registroAbierto)), 1000);
+    return () => clearInterval(t);
+  }, [registroAbierto?.id]);
 
   const load = async () => {
     if (!user?.id) return;
@@ -155,9 +184,15 @@ export default function Fichar() {
           {registroAbierto ? (
             <>
               <div className="h-12 w-12 rounded-full bg-amber-500 flex items-center justify-center"><LogIn className="h-6 w-6 text-white" /></div>
-              <div>
-                <p className="font-semibold text-amber-900">Tienes un registro abierto</p>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-900">Tienes un fichaje abierto</p>
                 <p className="text-sm text-amber-700">Entrada: {registroAbierto.hora_entrada} · {formatearFecha(registroAbierto.fecha)}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-2xl font-bold text-amber-900 tabular-nums flex items-center gap-1.5">
+                  <Timer className="h-5 w-5" /> {formatoCronometro(segundos)}
+                </p>
+                <p className="text-xs text-amber-700">≈ {Math.round((segundos / 3600) * 100) / 100} h acumuladas</p>
               </div>
             </>
           ) : (
@@ -170,6 +205,11 @@ export default function Fichar() {
             </>
           )}
         </div>
+        {registroAbierto && (
+          <p className="text-xs text-amber-700 mt-3 pt-3 border-t border-amber-200">
+            Al terminar, escanea de nuevo el QR o usa el botón de salida: las horas se cuentan hasta ese momento.
+          </p>
+        )}
       </div>
 
       {/* Cámara QR */}

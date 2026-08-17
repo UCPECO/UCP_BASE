@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, Settings } from "lucide-react";
+import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, Settings, Cpu, Warehouse } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import KpiCard from "@/components/ucp/KpiCard";
+import AdminMateriales from "@/pages/admin/AdminMateriales";
+import AdminElectronicos from "@/pages/admin/AdminElectronicos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +18,18 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 
+const TABS = [
+  { id: "stock", label: "Stock y salidas", icon: Package },
+  { id: "bodega", label: "Entradas de bodega", icon: Warehouse },
+  { id: "electronicos", label: "Electrónicos reciclados", icon: Cpu },
+];
+
 export default function AdminInventario() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = TABS.some((t) => t.id === searchParams.get("tab")) ? searchParams.get("tab") : "stock";
+  const setTab = (id) => setSearchParams(id === "stock" ? {} : { tab: id });
+
   const [perfil, setPerfil] = useState(null);
   const [materiales, setMateriales] = useState([]);
   const [electronicos, setElectronicos] = useState([]);
@@ -141,96 +154,117 @@ export default function AdminInventario() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-heading flex items-center gap-2">
-            <Package className="h-7 w-7 text-primary" /> Inventario y Bodega
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Control de stock, salidas y alertas de inventario.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setDialogMin(true)}><Settings className="h-4 w-4 mr-2" /> Stock mínimo</Button>
-          <Button onClick={() => setDialogSalida(true)} className="bg-primary text-primary-foreground"><ArrowDownRight className="h-4 w-4 mr-2" /> Registrar salida</Button>
-        </div>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold font-heading flex items-center gap-2">
+          <Package className="h-7 w-7 text-primary" /> Inventario y Bodega
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">Todo el inventario en un solo lugar: stock, entradas de materiales y electrónicos.</p>
       </div>
 
-      {alertas.length > 0 && (
-        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-amber-800 font-semibold text-sm mb-2">
-            <AlertTriangle className="h-4 w-4" /> {alertas.length} alerta(s) de stock bajo
+      {/* Tabs internos */}
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+              tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <t.icon className="h-4 w-4" /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "stock" && (
+        <div className="space-y-6">
+          <div className="flex gap-2 justify-end flex-wrap">
+            <Button variant="outline" onClick={() => setDialogMin(true)}><Settings className="h-4 w-4 mr-2" /> Stock mínimo</Button>
+            <Button onClick={() => setDialogSalida(true)} className="bg-primary text-primary-foreground"><ArrowDownRight className="h-4 w-4 mr-2" /> Registrar salida</Button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {alertas.map((c) => (
-              <span key={c.value} className="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full">
-                {c.label}: {stockActual(c.value)} {MEDIDA_LABEL[c.medida] || "u"} (mín. {minDe(c.value)})
-              </span>
-            ))}
+
+          {alertas.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4">
+              <div className="flex items-center gap-2 text-amber-800 font-semibold text-sm mb-2">
+                <AlertTriangle className="h-4 w-4" /> {alertas.length} alerta(s) de stock bajo
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {alertas.map((c) => (
+                  <span key={c.value} className="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full">
+                    {c.label}: {stockActual(c.value)} {MEDIDA_LABEL[c.medida] || "u"} (mín. {minDe(c.value)})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard icon={Package} label="Categorías" value={Object.keys(stockPorCat).length} tone="primary" />
+            <KpiCard icon={ArrowDownRight} label="Salidas registradas" value={salidas.length} tone="blue" />
+            <KpiCard icon={AlertTriangle} label="Alertas" value={alertas.length} tone="rose" />
+            <KpiCard icon={Settings} label="Mínimos config." value={stocksMin.length} tone="accent" />
           </div>
+
+          <SectionCard title="Stock actual por categoría" subtitle="Entradas (bodega + electrónicos) menos salidas">
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="h-7 w-7 text-primary animate-spin" /></div>
+            ) : Object.keys(stockPorCat).length === 0 ? (
+              <EmptyState title="Sin movimientos" message="Registra materiales en las pestañas de entradas para ver el stock." icon={Package} />
+            ) : (
+              <div className="overflow-x-auto scrollbar-thin">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground uppercase border-b border-border">
+                      <th className="py-2 pr-4 font-medium">Categoría</th>
+                      <th className="py-2 px-4 font-medium">Entradas</th>
+                      <th className="py-2 px-4 font-medium">Salidas</th>
+                      <th className="py-2 px-4 font-medium">Stock actual</th>
+                      <th className="py-2 pl-4 font-medium">Mínimo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(stockPorCat).map(([cat, v]) => {
+                      const actual = v.entradas - v.salidas;
+                      const min = minDe(cat);
+                      const bajo = min > 0 && actual < min;
+                      return (
+                        <tr key={cat} className="border-b border-border/50 last:border-0">
+                          <td className="py-2.5 pr-4 font-medium">{CAT_LABEL_BODEGA[cat] || cat}</td>
+                          <td className="py-2.5 px-4">{v.entradas} {MEDIDA_LABEL[v.medida] || "u"}</td>
+                          <td className="py-2.5 px-4 text-rose-600">{v.salidas} {MEDIDA_LABEL[v.medida] || "u"}</td>
+                          <td className={"py-2.5 px-4 font-semibold " + (bajo ? "text-rose-600" : "text-primary")}>{actual} {MEDIDA_LABEL[v.medida] || "u"}</td>
+                          <td className="py-2.5 pl-4 text-muted-foreground">{min > 0 ? min + " " + (MEDIDA_LABEL[v.medida] || "u") : "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Movimientos recientes (salidas)" subtitle={salidas.length + " registros"}>
+            {salidas.length === 0 ? (
+              <EmptyState title="Sin salidas" message="Registra una salida de material con el botón de arriba." icon={ArrowDownRight} />
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin pr-1">
+                {salidas.map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/40">
+                    <div className="h-8 w-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0"><ArrowDownRight className="h-4 w-4" /></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{CAT_LABEL_BODEGA[s.categoria] || s.categoria} · {s.cantidad} {MEDIDA_LABEL[s.medida] || "u"}</p>
+                      <p className="text-xs text-muted-foreground">{formatearFecha(s.fecha)} · {s.registrado_por_nombre || "—"} {s.area ? "· " + s.area : ""} {s.motivo ? "· " + s.motivo : ""}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={Package} label="Categorías" value={Object.keys(stockPorCat).length} tone="primary" />
-        <KpiCard icon={ArrowDownRight} label="Salidas registradas" value={salidas.length} tone="blue" />
-        <KpiCard icon={AlertTriangle} label="Alertas" value={alertas.length} tone="rose" />
-        <KpiCard icon={Settings} label="Mínimos config." value={stocksMin.length} tone="accent" />
-      </div>
-
-      <SectionCard title="Stock actual por categoría" subtitle="Entradas (bodega + electrónicos) menos salidas">
-        {loading ? (
-          <div className="flex justify-center py-10"><Loader2 className="h-7 w-7 text-primary animate-spin" /></div>
-        ) : Object.keys(stockPorCat).length === 0 ? (
-          <EmptyState title="Sin movimientos" message="Registra materiales en bodega o electrónicos para ver el stock." icon={Package} />
-        ) : (
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-muted-foreground uppercase border-b border-border">
-                  <th className="py-2 pr-4 font-medium">Categoría</th>
-                  <th className="py-2 px-4 font-medium">Entradas</th>
-                  <th className="py-2 px-4 font-medium">Salidas</th>
-                  <th className="py-2 px-4 font-medium">Stock actual</th>
-                  <th className="py-2 pl-4 font-medium">Mínimo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(stockPorCat).map(([cat, v]) => {
-                  const actual = v.entradas - v.salidas;
-                  const min = minDe(cat);
-                  const bajo = min > 0 && actual < min;
-                  return (
-                    <tr key={cat} className="border-b border-border/50 last:border-0">
-                      <td className="py-2.5 pr-4 font-medium">{CAT_LABEL_BODEGA[cat] || cat}</td>
-                      <td className="py-2.5 px-4">{v.entradas} {MEDIDA_LABEL[v.medida] || "u"}</td>
-                      <td className="py-2.5 px-4 text-rose-600">{v.salidas} {MEDIDA_LABEL[v.medida] || "u"}</td>
-                      <td className={"py-2.5 px-4 font-semibold " + (bajo ? "text-rose-600" : "text-primary")}>{actual} {MEDIDA_LABEL[v.medida] || "u"}</td>
-                      <td className="py-2.5 pl-4 text-muted-foreground">{min > 0 ? min + " " + (MEDIDA_LABEL[v.medida] || "u") : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard title="Movimientos recientes (salidas)" subtitle={salidas.length + " registros"}>
-        {salidas.length === 0 ? (
-          <EmptyState title="Sin salidas" message="Registra una salida de material con el botón de arriba." icon={ArrowDownRight} />
-        ) : (
-          <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin pr-1">
-            {salidas.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/40">
-                <div className="h-8 w-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0"><ArrowDownRight className="h-4 w-4" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{CAT_LABEL_BODEGA[s.categoria] || s.categoria} · {s.cantidad} {MEDIDA_LABEL[s.medida] || "u"}</p>
-                  <p className="text-xs text-muted-foreground">{formatearFecha(s.fecha)} · {s.registrado_por_nombre || "—"} {s.area ? "· " + s.area : ""} {s.motivo ? "· " + s.motivo : ""}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </SectionCard>
+      {tab === "bodega" && <AdminMateriales embedded />}
+      {tab === "electronicos" && <AdminElectronicos embedded />}
 
       {/* Dialog salida */}
       <Dialog open={dialogSalida} onOpenChange={setDialogSalida}>

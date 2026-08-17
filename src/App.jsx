@@ -37,8 +37,6 @@ import AdminEventos from '@/pages/admin/AdminEventos';
 import AdminBonos from '@/pages/admin/AdminBonos';
 import AdminEstadisticas from '@/pages/admin/AdminEstadisticas';
 import AdminQr from '@/pages/admin/AdminQr';
-import AdminElectronicos from '@/pages/admin/AdminElectronicos';
-import AdminMateriales from '@/pages/admin/AdminMateriales';
 import AdminConfig from '@/pages/admin/AdminConfig';
 import AdminPasesLista from '@/pages/admin/AdminPasesLista';
 import AdminConstancias from '@/pages/admin/AdminConstancias';
@@ -99,8 +97,8 @@ const AuthenticatedApp = () => {
           <Route path="/encargado/evidencias" element={<EncargadoEvidencias />} />
           <Route path="/encargado/incidencias" element={<EncargadoIncidencias />} />
           <Route path="/encargado/actividades" element={<AdminActividades />} />
-          <Route path="/encargado/materiales" element={<AdminMateriales />} />
-          <Route path="/encargado/electronicos" element={<AdminElectronicos />} />
+          <Route path="/encargado/materiales" element={<Navigate to="/encargado/inventario?tab=bodega" replace />} />
+          <Route path="/encargado/electronicos" element={<Navigate to="/encargado/inventario?tab=electronicos" replace />} />
           <Route path="/encargado/eventos" element={<EncargadoEventos />} />
           <Route path="/encargado/pases-lista" element={<AdminPasesLista />} />
           <Route path="/encargado/constancias" element={<AdminConstancias />} />
@@ -116,8 +114,8 @@ const AuthenticatedApp = () => {
           <Route path="/admin/eventos" element={<AdminEventos />} />
           <Route path="/admin/bonos" element={<AdminBonos />} />
           <Route path="/admin/estadisticas" element={<AdminEstadisticas />} />
-          <Route path="/admin/materiales" element={<AdminMateriales />} />
-          <Route path="/admin/electronicos" element={<AdminElectronicos />} />
+          <Route path="/admin/materiales" element={<Navigate to="/admin/inventario?tab=bodega" replace />} />
+          <Route path="/admin/electronicos" element={<Navigate to="/admin/inventario?tab=electronicos" replace />} />
           <Route path="/admin/qr" element={<AdminQr />} />
           <Route path="/admin/pases-lista" element={<AdminPasesLista />} />
           <Route path="/admin/constancias" element={<AdminConstancias />} />

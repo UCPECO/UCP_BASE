@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, UserCircle, Calendar, QrCode, ClipboardCheck, Image,
-  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, ShieldCheck, Award, CalendarDays, Clock,   BarChart3, Package, Cpu, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText
+  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, ShieldCheck, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,8 +25,6 @@ const NAV = {
     { to: "/admin/bitacora", label: "Bitácora", icon: ScrollText },
     { to: "/admin/eventos", label: "Eventos", icon: CalendarDays },
     { to: "/admin/bonos", label: "Horas de premio", icon: Award },
-    { to: "/admin/materiales", label: "Bodega", icon: Package },
-    { to: "/admin/electronicos", label: "Electrónicos reciclados", icon: Cpu },
     { to: "/admin/qr", label: "Códigos QR", icon: QrCode },
     { to: "/admin/calendario", label: "Calendario", icon: CalendarDays },
     { to: "/admin/disponibilidad", label: "Disponibilidad", icon: Clock },
@@ -44,8 +42,6 @@ const NAV = {
     { to: "/encargado/evaluaciones", label: "Evaluaciones", icon: GraduationCap },
     { to: "/encargado/inventario", label: "Inventario", icon: Boxes },
     { to: "/encargado/actividades", label: "Mi área", icon: FolderKanban },
-    { to: "/encargado/materiales", label: "Bodega", icon: Package },
-    { to: "/encargado/electronicos", label: "Electrónicos", icon: Cpu },
     { to: "/encargado/eventos", label: "Eventos UCP", icon: CalendarDays },
     { to: "/encargado/calendario", label: "Calendario", icon: CalendarDays },
     { to: "/encargado/disponibilidad", label: "Disponibilidad", icon: Clock },

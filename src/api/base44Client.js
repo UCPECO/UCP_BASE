@@ -249,6 +249,7 @@ const entities = {
   Invitaciones: createEntityAPI('Invitaciones'),
   Configuracion_Sistema: createEntityAPI('Configuracion_Sistema'),
   Bitacora_Auditoria: createEntityAPI('Bitacora_Auditoria'),
+  Comentarios_Evidencia: createEntityAPI('Comentarios_Evidencia'),
 };
 
 // ===== FUNCTIONS =====

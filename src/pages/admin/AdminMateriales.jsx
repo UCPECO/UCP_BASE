@@ -36,7 +36,7 @@ const nuevaLinea = () => ({
   cantidad: 1,
 });
 
-export default function AdminMateriales() {
+export default function AdminMateriales({ embedded = false }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [materiales, setMateriales] = useState([]);
@@ -163,11 +163,13 @@ export default function AdminMateriales() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground">Bodega · Administración</p>
-        <h1 className="text-2xl sm:text-3xl font-bold font-heading mt-0.5">Materiales recibidos</h1>
-        <p className="text-sm text-muted-foreground mt-1">Registra artículos por categorizar (unidades) y materiales procesados por peso (kg).</p>
-      </div>
+      {!embedded && (
+        <div>
+          <p className="text-sm text-muted-foreground">Bodega · Administración</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-heading mt-0.5">Materiales recibidos</h1>
+          <p className="text-sm text-muted-foreground mt-1">Registra artículos por categorizar (unidades) y materiales procesados por peso (kg).</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={Package} label="Registros" value={materiales.length} tone="primary" />

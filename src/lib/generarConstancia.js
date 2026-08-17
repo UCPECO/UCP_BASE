@@ -57,17 +57,22 @@ export function generarConstanciaPDF(c) {
   doc.text(`Otorga la presente a:`, colX, cuerpoY, { align: "center" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.text(c.usuario_nombre || "—", colX, cuerpoY + 12, { align: "center" });
+  // Nombre envuelto para que nunca se salga del marco
+  const lineasNombre = doc.splitTextToSize(c.usuario_nombre || "—", W - 70);
+  lineasNombre.forEach((l, i) => {
+    doc.text(l, colX, cuerpoY + 12 + i * 9, { align: "center" });
+  });
+  const despuesNombre = cuerpoY + 12 + (lineasNombre.length - 1) * 9;
 
   if (c.matricula) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
-    doc.text(`Matrícula: ${c.matricula}`, colX, cuerpoY + 20, { align: "center" });
+    doc.text(`Matrícula: ${c.matricula}`, colX, despuesNombre + 9, { align: "center" });
   }
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(13);
-  let linea = cuerpoY + 32;
+  let linea = despuesNombre + (c.matricula ? 19 : 18);
   if (c.area) {
     doc.text(`Área: ${AREA_LABEL[c.area] || c.area}`, colX, linea, { align: "center" });
     linea += 8;

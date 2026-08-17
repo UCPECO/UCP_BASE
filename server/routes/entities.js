@@ -29,7 +29,8 @@ const entityMap = {
   'Respuestas_Pases_Lista': 'respuestas_pases_lista',
   'Invitaciones': 'invitaciones',
   'Configuracion_Sistema': 'configuracion_sistema',
-  'Bitacora_Auditoria': 'bitacora_auditoria'
+  'Bitacora_Auditoria': 'bitacora_auditoria',
+  'Comentarios_Evidencia': 'comentarios_evidencia'
 };
 
 // ===== Permisos por rol (según DOCUMENTO_ROLES) =====
@@ -37,7 +38,7 @@ const entityMap = {
 const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo']);
 const WRITE_ADMIN_ENCARGADO = new Set(['Actividades', 'Eventos', 'Constancias', 'Encuestas', 'Evaluaciones_Alumno', 'Pases_Lista']);
 const BODEGA_CREATE = new Set(['Materiales_Recibidos', 'Electronicos_Reciclados', 'Salidas_Materiales']); // crear: admin/encargado; editar/borrar: solo admin
-const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR']); // el participante solo toca lo propio
+const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Comentarios_Evidencia']); // el participante solo toca lo propio
 const READ_ADMIN_ONLY = new Set(['Invitaciones', 'Bitacora_Auditoria', 'Codigos_QR']);
 
 // Cache de columnas reales por tabla (evita SQL injection en identificadores
@@ -231,6 +232,17 @@ router.post('/:entity', authMiddleware, (req, res) => {
     data.estado_evidencia = 'pendiente';
     delete data.aprobado_por;
     delete data.comentario_revision;
+    delete data.bono_horas;
+    delete data.bono_motivo;
+  }
+  // Comentarios: el autor es siempre quien está autenticado, con su nombre real
+  if (req.params.entity === 'Comentarios_Evidencia') {
+    data.usuario = me.id;
+    const autor = db.prepare('SELECT nombre_completo, full_name, email FROM users WHERE id = ?').get(me.id);
+    data.usuario_nombre = autor?.nombre_completo || autor?.full_name || autor?.email || 'Usuario';
+    if (!data.evidencia || !data.comentario) {
+      return res.status(400).json({ error: 'Faltan evidencia y comentario' });
+    }
   }
 
   try {
@@ -271,9 +283,18 @@ router.put('/:entity/:id', authMiddleware, (req, res) => {
     delete data.usuario;
     delete data.role;
     if (req.params.entity === 'Evidencias') {
-      delete data.estado_evidencia;
+      // Al corregir, la evidencia vuelve sola a revisión (nunca se auto-aprueba)
+      data.estado_evidencia = 'pendiente';
       delete data.aprobado_por;
       delete data.comentario_revision;
+      delete data.bono_horas;
+      delete data.bono_motivo;
+    }
+    if (req.params.entity === 'Comentarios_Evidencia') {
+      // Un comentario solo puede editar su texto, no su autor ni su evidencia
+      delete data.usuario;
+      delete data.usuario_nombre;
+      delete data.evidencia;
     }
     if (req.params.entity === 'Registros_QR') {
       return res.status(403).json({ error: 'Los fichajes se cierran escaneando el QR de salida' });

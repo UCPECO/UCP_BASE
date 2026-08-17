@@ -233,28 +233,30 @@ router.post('/AsignarBonoEvidencia', authMiddleware, (req, res) => {
       return res.status(403).json({ error: 'Solo admin o encargado pueden aprobar evidencias' });
     }
 
-    const { evidencia_id } = req.body;
+    const { evidencia_id, bono_horas, bono_motivo } = req.body;
     if (!evidencia_id) return res.status(400).json({ error: 'Falta evidencia_id' });
 
     const evidencia = db.prepare('SELECT * FROM evidencias WHERE id = ?').get(evidencia_id);
     if (!evidencia) return res.status(404).json({ error: 'Evidencia no encontrada' });
 
+    // Las horas del bono las decide quien revisa; si no indica, se usa lo de la actividad
     let actividad = null;
     if (evidencia.actividad) {
       actividad = db.prepare('SELECT * FROM actividades WHERE id = ?').get(evidencia.actividad);
     }
+    const horas = Number(bono_horas) > 0 ? Number(bono_horas) : (actividad?.horas_asignadas || 1);
+    const motivo = bono_motivo || `Bono por evidencia aprobada: ${evidencia.titulo || evidencia.descripcion || ''}`;
 
     db.prepare(`
-      UPDATE evidencias SET estado_evidencia = ?, aprobado_por = ? WHERE id = ?
-    `).run('aprobada', user.id, evidencia_id);
+      UPDATE evidencias SET estado_evidencia = ?, aprobado_por = ?, bono_horas = ?, bono_motivo = ?, updated_date = datetime('now') WHERE id = ?
+    `).run('aprobada', user.id, horas, motivo, evidencia_id);
 
-    const horas = actividad?.horas_asignadas || 1;
     const bono = db.prepare(`
       INSERT INTO bonos (id, usuario, asignacion, horas, fecha, motivo)
       VALUES (lower(hex(randomblob(16))), ?, ?, ?, date('now'), ?)
-    `).run(evidencia.usuario, evidencia.asignacion || null, horas, `Bono por evidencia aprobada: ${evidencia.titulo || ''}`);
+    `).run(evidencia.usuario, evidencia.asignacion || null, horas, motivo);
 
-    res.json({ ok: true, bono: { id: bono.lastInsertRowid } });
+    res.json({ ok: true, horas, bono: { id: bono.lastInsertRowid } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

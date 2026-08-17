@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { formatearFecha } from "@/lib/ucpUtils";
+import { textoEnvuelto, celdaCorta } from "@/lib/pdfUtils";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
@@ -58,7 +59,7 @@ export function generarReporteBodega({ titulo, registros, categorias, catMedida,
     if (rMes.length === 0) return;
     if (y > 270) { doc.addPage(); y = 20; }
     const tot = rMes.reduce((a, m) => a + (m.cantidad || 0), 0);
-    doc.text(catLabel[c.value] || c.value, 14, y);
+    celdaCorta(doc, catLabel[c.value] || c.value, 14, y, 94);
     doc.text(String(rMes.length), 110, y);
     doc.text(`${tot} ${catMedida[c.value] === "kg" ? "kg" : "u"}`, 150, y);
     y += 5;
@@ -77,10 +78,18 @@ export function generarReporteBodega({ titulo, registros, categorias, catMedida,
   regsMes.forEach(m => {
     if (y > 275) { doc.addPage(); y = 20; }
     doc.text(formatearFecha(m.fecha_recepcion), 14, y);
-    doc.text((m.proveedor || "—").slice(0, 28), 40, y);
-    doc.text((catLabel[m.categoria] || m.categoria || "—").slice(0, 22), 100, y);
+    celdaCorta(doc, m.proveedor || "—", 40, y, 58);
+    celdaCorta(doc, catLabel[m.categoria] || m.categoria || "—", 100, y, 48);
     doc.text(`${m.cantidad || 0} ${medidaDe(m) === "kg" ? "kg" : "u"}`, 150, y);
     y += 5;
+    // Descripción/material extra en línea envuelta si existe
+    const extra = [m.subcategoria, m.material, m.descripcion].filter(Boolean).join(" · ");
+    if (extra) {
+      doc.setTextColor(90, 90, 90);
+      y = textoEnvuelto(doc, extra, 40, y - 1, 145, 3.8, 275);
+      doc.setTextColor(40, 40, 40);
+      y += 1;
+    }
   });
 
   const paginas = doc.getNumberOfPages();

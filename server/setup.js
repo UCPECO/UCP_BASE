@@ -338,6 +338,72 @@ db.exec(`
   );
 `);
 
+// Tabla de comentarios en evidencias (hilo de conversación alumno ↔ revisor)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS comentarios_evidencia (
+    id TEXT PRIMARY KEY,
+    evidencia TEXT NOT NULL,
+    usuario TEXT NOT NULL,
+    usuario_nombre TEXT,
+    comentario TEXT NOT NULL,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// ===== Migraciones idempotentes =====
+// Las bases ya desplegadas no reciben columnas nuevas con CREATE TABLE IF NOT EXISTS,
+// así que cada columna que el frontend usa se agrega aquí si falta.
+function addColumnIfMissing(table, column, ddl) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!cols.includes(column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+    console.log(`Migración: ${table}.${column} agregada`);
+  }
+}
+
+// Evidencias: campos que el frontend siempre usó pero la tabla no tenía
+addColumnIfMissing('evidencias', 'tipo_evidencia', "tipo_evidencia TEXT DEFAULT 'foto'");
+addColumnIfMissing('evidencias', 'fecha_captura', 'fecha_captura TEXT');
+addColumnIfMissing('evidencias', 'ubicacion_gps', 'ubicacion_gps TEXT');
+addColumnIfMissing('evidencias', 'bono_horas', 'bono_horas REAL DEFAULT 0');
+addColumnIfMissing('evidencias', 'bono_motivo', 'bono_motivo TEXT');
+
+// Bodega (materiales recibidos)
+addColumnIfMissing('materiales_recibidos', 'proveedor', 'proveedor TEXT');
+addColumnIfMissing('materiales_recibidos', 'tipo_proveedor', 'tipo_proveedor TEXT');
+addColumnIfMissing('materiales_recibidos', 'tipo_registro', "tipo_registro TEXT DEFAULT 'articulo'");
+addColumnIfMissing('materiales_recibidos', 'categoria', 'categoria TEXT');
+addColumnIfMissing('materiales_recibidos', 'subcategoria', 'subcategoria TEXT');
+addColumnIfMissing('materiales_recibidos', 'material', 'material TEXT');
+addColumnIfMissing('materiales_recibidos', 'medida', 'medida TEXT');
+addColumnIfMissing('materiales_recibidos', 'descripcion', 'descripcion TEXT');
+addColumnIfMissing('materiales_recibidos', 'creado_por', 'creado_por TEXT');
+
+// Electrónicos reciclados
+addColumnIfMissing('electronicos_reciclados', 'proveedor', 'proveedor TEXT');
+addColumnIfMissing('electronicos_reciclados', 'tipo_proveedor', 'tipo_proveedor TEXT');
+addColumnIfMissing('electronicos_reciclados', 'tipo_registro', "tipo_registro TEXT DEFAULT 'articulo'");
+addColumnIfMissing('electronicos_reciclados', 'categoria', 'categoria TEXT');
+addColumnIfMissing('electronicos_reciclados', 'subcategoria', 'subcategoria TEXT');
+addColumnIfMissing('electronicos_reciclados', 'material', 'material TEXT');
+addColumnIfMissing('electronicos_reciclados', 'medida', 'medida TEXT');
+addColumnIfMissing('electronicos_reciclados', 'reparado_por', 'reparado_por TEXT');
+addColumnIfMissing('electronicos_reciclados', 'reparado_por_nombre', 'reparado_por_nombre TEXT');
+
+// Salidas de materiales
+addColumnIfMissing('salidas_materiales', 'categoria', 'categoria TEXT');
+addColumnIfMissing('salidas_materiales', 'medida', 'medida TEXT');
+addColumnIfMissing('salidas_materiales', 'area', 'area TEXT');
+addColumnIfMissing('salidas_materiales', 'motivo', 'motivo TEXT');
+addColumnIfMissing('salidas_materiales', 'retirado_por', 'retirado_por TEXT');
+addColumnIfMissing('salidas_materiales', 'registrado_por', 'registrado_por TEXT');
+addColumnIfMissing('salidas_materiales', 'registrado_por_nombre', 'registrado_por_nombre TEXT');
+
+// Stock mínimo
+addColumnIfMissing('stock_minimo', 'categoria', 'categoria TEXT');
+addColumnIfMissing('stock_minimo', 'medida', 'medida TEXT');
+addColumnIfMissing('stock_minimo', 'configurado_por', 'configurado_por TEXT');
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {
