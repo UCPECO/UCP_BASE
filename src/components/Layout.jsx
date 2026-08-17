@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
+import BotonInstalar from "@/components/ucp/BotonInstalar";
 
 const NAV = {
   admin: [
@@ -195,6 +196,7 @@ function SidebarContent({ items, name, role, onLogout, onClose, foto, usuarioId 
             </p>
           </div>
         </div>
+        <BotonInstalar />
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
