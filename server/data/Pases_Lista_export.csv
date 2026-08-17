@@ -1,0 +1,5 @@
+"area","estado","creado_por","mensaje","creado_por_nombre","id","created_date","updated_date","created_by_id","is_sample"
+"Redes Sociales","activo","6a7e9be6321b11bdda3d2ef5","","UCP ECO","6a7f40ba4b86306a72cc7fbc","2026-08-14T16:22:18.106000","2026-08-14T16:22:18.106000","6a7e9be6321b11bdda3d2ef5","false"
+"Bodega","activo","6a7e9be6321b11bdda3d2ef5","ESTAN EN BODEGA","UCP ECO","6a7f40a347098c6c6088f9ea","2026-08-14T16:21:55.520000","2026-08-14T16:21:55.520000","6a7e9be6321b11bdda3d2ef5","false"
+"Redes Sociales","cerrado","6a7e9be6321b11bdda3d2ef5","confiemre","UCP ECO","6a7ec26ec0f68e9005fc041f","2026-08-14T07:23:26.023000","2026-08-14T07:23:35.549000","6a7e9be6321b11bdda3d2ef5","false"
+"Bodega","cerrado","6a7e9be6321b11bdda3d2ef5","Prueba de pase de lista","UCP ECO","6a7ec1d59820e14f5b1151ec","2026-08-14T07:20:53.643000","2026-08-14T07:22:26.111000","6a7e9be6321b11bdda3d2ef5","false"

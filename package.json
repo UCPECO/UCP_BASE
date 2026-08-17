@@ -1,0 +1,21 @@
+{
+  "name": "ucp-horas-server",
+  "version": "1.0.0",
+  "description": "UCP Horas - app completa (frontend compilado + backend Express/SQLite)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node start-hostinger.js",
+    "build": "echo 'Frontend precompilado en dist/ - no requiere build'"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.4.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^11.0.0"
+  }
+}

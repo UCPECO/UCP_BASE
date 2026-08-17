@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+
+@layer base {
+  :root {
+    --background: 150 30% 98%;
+    --foreground: 165 35% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 165 35% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 165 35% 12%;
+    --primary: 168 58% 24%;
+    --primary-foreground: 150 40% 97%;
+    --secondary: 150 25% 94%;
+    --secondary-foreground: 168 50% 20%;
+    --muted: 150 20% 95%;
+    --muted-foreground: 168 15% 42%;
+    --accent: 35 85% 55%;
+    --accent-foreground: 30 60% 15%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 150 18% 88%;
+    --input: 150 18% 88%;
+    --ring: 168 58% 24%;
+    --chart-1: 168 58% 34%;
+    --chart-2: 35 85% 55%;
+    --chart-3: 200 70% 50%;
+    --chart-4: 280 60% 55%;
+    --chart-5: 340 70% 55%;
+    --radius: 0.75rem;
+    --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Fraunces', ui-serif, Georgia, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --sidebar-background: 168 58% 18%;
+    --sidebar-foreground: 150 30% 90%;
+    --sidebar-primary: 150 40% 95%;
+    --sidebar-primary-foreground: 168 58% 18%;
+    --sidebar-accent: 168 48% 26%;
+    --sidebar-accent-foreground: 150 40% 95%;
+    --sidebar-border: 168 40% 28%;
+    --sidebar-ring: 35 85% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+  h1, h2, h3 { @apply font-heading; }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--font-display); }
+  .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+}

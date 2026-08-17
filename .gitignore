@@ -1,0 +1,10 @@
+node_modules/
+server/node_modules/
+server/data.sqlite
+server/data.sqlite-shm
+server/data.sqlite-wal
+arranque.log
+server.pid
+*.bak
+__deploy_temp/
+*.zip
