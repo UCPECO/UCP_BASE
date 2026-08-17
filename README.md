@@ -199,4 +199,4 @@ JWT_SECRET=tu-clave-secreta-aqui
 
 ## Licencia
 
-Proyecto privado - Universidad Cristóbal Colón
+Proyecto privado - UCP
