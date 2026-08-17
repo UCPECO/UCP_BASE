@@ -5,7 +5,9 @@ import { Bell, Check, CheckCheck } from "lucide-react";
 import { formatearFecha } from "@/lib/ucpUtils";
 
 // Campana de notificaciones internas. Hace polling cada 30 s.
-export default function CampanaNotificaciones({ usuarioId }) {
+// `alinear`: "derecha" (default, barra superior móvil) o "izquierda" (menú lateral,
+// donde anclar a la derecha empuja el panel fuera de lugar).
+export default function CampanaNotificaciones({ usuarioId, alinear = "derecha" }) {
   const navigate = useNavigate();
   const [notifs, setNotifs] = useState([]);
   const [abierto, setAbierto] = useState(false);
@@ -66,7 +68,7 @@ export default function CampanaNotificaciones({ usuarioId }) {
       </button>
 
       {abierto && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-card text-card-foreground rounded-2xl border border-border shadow-xl z-50 overflow-hidden">
+        <div className={`absolute ${alinear === "izquierda" ? "left-0" : "right-0"} mt-2 w-80 max-w-[90vw] bg-card text-card-foreground rounded-2xl border border-border shadow-xl z-50 overflow-hidden`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <p className="text-sm font-semibold">Notificaciones</p>
             {noLeidas.length > 0 && (

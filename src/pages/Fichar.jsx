@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { QrCode, LogIn, LogOut, Camera, CameraOff, CheckCircle2, AlertCircle, Clock, Timer } from "lucide-react";
@@ -43,6 +44,8 @@ export default function Fichar() {
   const [areaManual, setAreaManual] = useState("");
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlProcesadaRef = useRef(false);
 
   // Cronómetro en vivo mientras hay un fichaje abierto
   useEffect(() => {
@@ -175,6 +178,27 @@ export default function Fichar() {
       load();
     } catch (e) { toast({ title: "Error al registrar salida", variant: "destructive" }); }
   };
+
+  // Al abrir /fichar?area=... desde la cámara nativa del teléfono (sin usar
+  // el escáner interno), se ficha automáticamente la entrada o la salida.
+  useEffect(() => {
+    if (loading || !user?.id || urlProcesadaRef.current) return;
+    const area = searchParams.get("area");
+    if (!area) return;
+    urlProcesadaRef.current = true;
+    const exp = searchParams.get("exp");
+    setSearchParams({}, { replace: true });
+    if (exp) {
+      const fechaExp = new Date(exp + "T23:59:59");
+      if (!isNaN(fechaExp.getTime()) && fechaExp < new Date()) {
+        toast({ title: "QR expirado", description: "Este código QR ya no es válido. Pide uno nuevo al encargado.", variant: "destructive" });
+        return;
+      }
+    }
+    toast({ title: "QR detectado", description: `Área: ${labelArea(area) || area}` });
+    if (registroAbierto) registrarSalida(false);
+    else registrarEntrada(area, false);
+  }, [loading, user?.id]);
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
 

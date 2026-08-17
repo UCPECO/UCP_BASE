@@ -645,7 +645,11 @@ export default function AdminPersonal() {
         </SectionCard>
       )}
 
-      <DetallePersonal usuario={detalleUser} onClose={() => setDetalleUser(null)} />
+      <DetallePersonal
+        usuario={detalleUser}
+        onClose={() => setDetalleUser(null)}
+        onUpdated={(u) => setUsers((us) => us.map((x) => (x.id === u.id ? { ...x, ...u } : x)))}
+      />
 
       {/* Diálogo: baja con motivo */}
       <Dialog open={!!bajaUser} onOpenChange={(o) => { if (!o) setBajaUser(null); }}>

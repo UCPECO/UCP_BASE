@@ -154,7 +154,7 @@ function SidebarContent({ items, name, role, onLogout, onClose, foto, usuarioId 
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <CampanaNotificaciones usuarioId={usuarioId} />
+          <CampanaNotificaciones usuarioId={usuarioId} alinear="izquierda" />
           {onClose && <button onClick={onClose} className="p-1 text-sidebar-foreground/70"><X className="h-5 w-5" /></button>}
         </div>
       </div>

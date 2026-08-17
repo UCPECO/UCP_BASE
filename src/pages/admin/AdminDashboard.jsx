@@ -67,7 +67,7 @@ export default function AdminDashboard() {
           <p className="text-sm text-muted-foreground">Panel de administración</p>
           <h1 className="text-2xl sm:text-3xl font-bold font-heading mt-0.5">Dashboard</h1>
         </div>
-        <Link to="/admin/alumnos"><Button variant="outline">Ver alumnos</Button></Link>
+        <Link to="/admin/personal"><Button variant="outline">Ver alumnos</Button></Link>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

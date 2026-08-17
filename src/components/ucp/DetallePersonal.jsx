@@ -9,10 +9,19 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CalendarDays, Clock, Award, AlertTriangle, Trash2, Save, UserX, RefreshCw,
   FolderKanban, CheckCircle2, FileDown, Image as ImageIcon, History, ExternalLink, ShieldCheck,
+  IdCard, Pencil, X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasPorValidar, sumarHorasBonos } from "@/lib/ucpUtils";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
+import { AREAS, labelArea } from "@/lib/areas";
+
+const ROL_LABEL = {
+  admin: "Administrador",
+  encargado: "Encargado",
+  servicio_social: "Servicio Social",
+  voluntario: "Voluntario",
+};
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
@@ -44,7 +53,16 @@ function Badge({ value }) {
   );
 }
 
-export default function DetallePersonal({ usuario, onClose }) {
+function Dato({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium break-words">{value || "—"}</p>
+    </div>
+  );
+}
+
+export default function DetallePersonal({ usuario, onClose, onUpdated }) {
   const { toast } = useToast();
   const [role, setRole] = useState(null);
   const [meId, setMeId] = useState(null);
@@ -52,6 +70,10 @@ export default function DetallePersonal({ usuario, onClose }) {
   const esAdmin = role === "admin";
   const esEncargado = role === "encargado";
   const puedeCorregir = esAdmin || esEncargado;
+  const [datos, setDatos] = useState(usuario);
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState({});
+  const [guardando, setGuardando] = useState(false);
   const [asignaciones, setAsignaciones] = useState([]);
   const [registros, setRegistros] = useState([]);
   const [bonos, setBonos] = useState([]);
@@ -96,10 +118,59 @@ export default function DetallePersonal({ usuario, onClose }) {
   useEffect(() => {
     if (usuario) {
       setLoading(true);
+      setDatos(usuario);
+      setEditando(false);
       setEditSalida({}); setEditHoras({}); setEditInc({});
       load();
     }
   }, [usuario?.id]);
+
+  // ---- Edición de datos personales (solo admin) ----
+  const empezarEdicion = () => {
+    setForm({
+      nombre_completo: datos?.nombre_completo || datos?.full_name || "",
+      email: datos?.email || "",
+      matricula: datos?.matricula || "",
+      telefono: datos?.telefono || "",
+      facultad: datos?.facultad || "",
+      carrera: datos?.carrera || "",
+      periodo_asignado: datos?.periodo_asignado || "",
+      area_asignada: datos?.area_asignada || "",
+      area_encargada: datos?.area_encargada || "",
+    });
+    setEditando(true);
+  };
+
+  const guardarDatos = async () => {
+    if (!form.nombre_completo?.trim() || !form.email?.trim()) {
+      toast({ title: "Nombre y correo son obligatorios", variant: "destructive" });
+      return;
+    }
+    setGuardando(true);
+    try {
+      const payload = {
+        nombre_completo: form.nombre_completo.trim(),
+        full_name: form.nombre_completo.trim(),
+        email: form.email.trim(),
+        matricula: form.matricula.trim(),
+        telefono: form.telefono.trim(),
+        facultad: form.facultad.trim(),
+        carrera: form.carrera.trim(),
+        periodo_asignado: form.periodo_asignado.trim(),
+        area_asignada: form.area_asignada,
+        area_encargada: form.area_encargada,
+      };
+      const actualizado = await base44.entities.User.update(datos.id, payload);
+      setDatos(actualizado);
+      onUpdated?.(actualizado);
+      setEditando(false);
+      toast({ title: "Datos actualizados", description: actualizado.nombre_completo || actualizado.full_name });
+    } catch (e) {
+      toast({ title: "Error al guardar", description: e.message, variant: "destructive" });
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const actsById = {};
   actividades.forEach((a) => { actsById[a.id] = a; });
@@ -206,17 +277,17 @@ export default function DetallePersonal({ usuario, onClose }) {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {usuario?.foto_perfil ? (
-              <img src={usuario.foto_perfil} alt="" className="h-8 w-8 rounded-full object-cover" />
+            {datos?.foto_perfil ? (
+              <img src={datos.foto_perfil} alt="" className="h-8 w-8 rounded-full object-cover" />
             ) : (
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary text-sm">
-                {(usuario?.nombre_completo || usuario?.full_name || "?").charAt(0)}
+                {(datos?.nombre_completo || datos?.full_name || "?").charAt(0)}
               </div>
             )}
-            {usuario?.nombre_completo || usuario?.full_name || "—"}
+            {datos?.nombre_completo || datos?.full_name || "—"}
           </DialogTitle>
           <DialogDescription>
-            {usuario?.email} · Rol: {usuario?.role} · {usuario?.matricula || "Sin matrícula"} ·{" "}
+            {datos?.email} · Rol: {ROL_LABEL[datos?.role] || datos?.role} · {datos?.matricula || "Sin matrícula"} ·{" "}
             <span className="font-semibold text-primary">{totalHoras} h</span> validadas
             {horasPorValidar > 0 && <> · <span className="font-semibold text-amber-600">{horasPorValidar} h</span> por validar</>}
           </DialogDescription>
@@ -241,8 +312,9 @@ export default function DetallePersonal({ usuario, onClose }) {
         {loading ? (
           <div className="flex justify-center py-10"><div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
         ) : (
-          <Tabs defaultValue="actividades">
+          <Tabs defaultValue="datos">
             <TabsList className="w-full justify-start flex-wrap h-auto">
+              <TabsTrigger value="datos" className="flex-1"><IdCard className="h-4 w-4 mr-1.5" /> Datos</TabsTrigger>
               <TabsTrigger value="actividades" className="flex-1"><FolderKanban className="h-4 w-4 mr-1.5" /> Actividades</TabsTrigger>
               <TabsTrigger value="asistencias" className="flex-1"><Clock className="h-4 w-4 mr-1.5" /> Fichaje</TabsTrigger>
               <TabsTrigger value="evidencias" className="flex-1"><ImageIcon className="h-4 w-4 mr-1.5" /> Evidencias</TabsTrigger>
@@ -250,6 +322,102 @@ export default function DetallePersonal({ usuario, onClose }) {
               <TabsTrigger value="incidencias" className="flex-1"><AlertTriangle className="h-4 w-4 mr-1.5" /> Incidencias</TabsTrigger>
               <TabsTrigger value="historial" className="flex-1"><History className="h-4 w-4 mr-1.5" /> Historial</TabsTrigger>
             </TabsList>
+
+            {/* DATOS PERSONALES */}
+            <TabsContent value="datos" className="mt-3">
+              {!editando ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                    <Dato label="Nombre completo" value={datos?.nombre_completo || datos?.full_name} />
+                    <Dato label="Correo" value={datos?.email} />
+                    <Dato label="Rol" value={ROL_LABEL[datos?.role] || datos?.role} />
+                    <Dato label="Tipo de participante" value={datos?.tipo_participante?.replace(/_/g, " ")} />
+                    <Dato label="Matrícula" value={datos?.matricula} />
+                    <Dato label="Teléfono" value={datos?.telefono} />
+                    <Dato label="Facultad" value={datos?.facultad} />
+                    <Dato label="Carrera" value={datos?.carrera} />
+                    <Dato label="Periodo / cohorte" value={datos?.periodo_asignado} />
+                    <Dato
+                      label={datos?.role === "encargado" ? "Área que encarga" : "Área asignada"}
+                      value={labelArea(datos?.role === "encargado" ? datos?.area_encargada : datos?.area_asignada)}
+                    />
+                    <Dato label="Estado" value={datos?.archivado ? "Baja (archivado)" : "Activo"} />
+                    {!!datos?.archivado && (
+                      <>
+                        <Dato label="Fecha de baja" value={formatearFecha(datos?.fecha_baja)} />
+                        <Dato label="Motivo de baja" value={datos?.motivo_baja} />
+                      </>
+                    )}
+                    <Dato label="Miembro desde" value={formatearFecha(datos?.created_date)} />
+                  </div>
+                  {esAdmin && (
+                    <div className="pt-2 border-t border-border">
+                      <Button size="sm" variant="outline" onClick={empezarEdicion}>
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar datos
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nombre completo *</Label>
+                      <Input value={form.nombre_completo} onChange={(e) => setForm((f) => ({ ...f, nombre_completo: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Correo *</Label>
+                      <Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} autoComplete="off" name="email-editar-personal" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Matrícula</Label>
+                      <Input value={form.matricula} onChange={(e) => setForm((f) => ({ ...f, matricula: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Teléfono</Label>
+                      <Input value={form.telefono} onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Facultad</Label>
+                      <Input value={form.facultad} onChange={(e) => setForm((f) => ({ ...f, facultad: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Carrera</Label>
+                      <Input value={form.carrera} onChange={(e) => setForm((f) => ({ ...f, carrera: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Periodo / cohorte</Label>
+                      <Input value={form.periodo_asignado} onChange={(e) => setForm((f) => ({ ...f, periodo_asignado: e.target.value }))} placeholder="Ej. Ago-Dic 2026" />
+                    </div>
+                    {datos?.role === "encargado" ? (
+                      <div className="space-y-1">
+                        <Label className="text-xs">Área que encarga</Label>
+                        <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.area_encargada} onChange={(e) => setForm((f) => ({ ...f, area_encargada: e.target.value }))}>
+                          <option value="">Sin área</option>
+                          {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                        </select>
+                      </div>
+                    ) : (datos?.role === "servicio_social" || datos?.role === "voluntario") && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">Área asignada</Label>
+                        <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.area_asignada} onChange={(e) => setForm((f) => ({ ...f, area_asignada: e.target.value }))}>
+                          <option value="">Sin área</option>
+                          {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-border">
+                    <Button size="sm" disabled={guardando} onClick={guardarDatos}>
+                      <Save className="h-3.5 w-3.5 mr-1.5" /> {guardando ? "Guardando..." : "Guardar cambios"}
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={guardando} onClick={() => setEditando(false)}>
+                      <X className="h-3.5 w-3.5 mr-1.5" /> Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
 
             {/* ACTIVIDADES */}
             <TabsContent value="actividades" className="space-y-2 mt-3">

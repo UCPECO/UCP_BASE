@@ -9,51 +9,64 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { generarQrUrl } from "@/lib/ucpUtils";
-
-const TIPOS = ["general", "por_actividad", "por_evento"];
+import { AREAS, labelArea } from "@/lib/areas";
 
 export default function AdminQr() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [codigos, setCodigos] = useState([]);
-  const [actividades, setActividades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ubicacion: "", fecha_expiracion: "" });
+  const [generandoTodas, setGenerandoTodas] = useState(false);
 
   const load = async () => {
     try {
-      const [cods, acts] = await Promise.all([
-        base44.entities.Codigos_QR.list("-created_date", 100),
-        base44.entities.Actividades.list("nombre", 100),
-      ]);
+      const cods = await base44.entities.Codigos_QR.list("-created_date", 100);
       setCodigos(cods);
-      setActividades(acts);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
 
+  const crearQrArea = async (area, expiracion = "") => {
+    const url = `${window.location.origin}/fichar?area=${encodeURIComponent(area)}${expiracion ? `&exp=${expiracion}` : ""}`;
+    await base44.entities.Codigos_QR.create({
+      nombre: `QR - ${area}`,
+      tipo: "por_area",
+      url,
+      ubicacion: area,
+      fecha_expiracion: expiracion,
+      creado_por: user.id,
+      activo: true,
+      escaneos: 0,
+    });
+  };
+
   const handleSubmit = async () => {
     if (!form.ubicacion) { toast({ title: "El área es requerida", variant: "destructive" }); return; }
-    const url = `${window.location.origin}/fichar?area=${encodeURIComponent(form.ubicacion)}&exp=${form.fecha_expiracion || ""}`;
     try {
-      await base44.entities.Codigos_QR.create({
-        nombre: `QR - ${form.ubicacion}`,
-        tipo: "general",
-        url,
-        ubicacion: form.ubicacion,
-        fecha_expiracion: form.fecha_expiracion,
-        creado_por: user.id,
-        activo: true,
-        escaneos: 0,
-      });
-      toast({ title: "Código QR creado" });
+      await crearQrArea(form.ubicacion, form.fecha_expiracion);
+      toast({ title: "Código QR creado", description: labelArea(form.ubicacion) });
       setShowForm(false);
       setForm({ ubicacion: "", fecha_expiracion: "" });
       load();
     } catch (e) { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  // Crea de una vez los QR de las áreas que aún no tienen uno activo
+  const generarTodasLasAreas = async () => {
+    const conActivo = new Set(codigos.filter((c) => c.activo).map((c) => c.ubicacion));
+    const faltantes = AREAS.filter((a) => !conActivo.has(a.value));
+    if (faltantes.length === 0) { toast({ title: "Ya existe un QR activo para cada área" }); return; }
+    setGenerandoTodas(true);
+    try {
+      for (const a of faltantes) await crearQrArea(a.value);
+      toast({ title: `${faltantes.length} código(s) QR creado(s)`, description: faltantes.map((a) => a.label).join(" · ") });
+      load();
+    } catch (e) { toast({ title: "Error al generar", variant: "destructive" }); }
+    finally { setGenerandoTodas(false); }
   };
 
   const toggleActivo = async (c) => {
@@ -76,17 +89,22 @@ export default function AdminQr() {
           <h1 className="text-2xl sm:text-3xl font-bold font-heading">Códigos QR</h1>
           <p className="text-sm text-muted-foreground mt-1">{codigos.length} código(s) · {codigos.filter(c => c.activo).length} activos</p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}><Plus className="h-4 w-4 mr-2" /> Nuevo QR</Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" disabled={generandoTodas} onClick={generarTodasLasAreas}>
+            <QrCode className="h-4 w-4 mr-2" /> {generandoTodas ? "Generando..." : "QR de todas las áreas"}
+          </Button>
+          <Button onClick={() => setShowForm(!showForm)}><Plus className="h-4 w-4 mr-2" /> Nuevo QR</Button>
+        </div>
       </div>
 
       {showForm && (
-        <SectionCard title="Nuevo código QR" subtitle="Solo define el área y la expiración">
+        <SectionCard title="Nuevo código QR" subtitle="Un QR por área: al escanearlo con la cámara del teléfono se ficha la entrada o salida automáticamente">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div>
-              <Label className="mb-1.5 block">Área (actividad) *</Label>
+              <Label className="mb-1.5 block">Área *</Label>
               <select className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" value={form.ubicacion} onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}>
-                <option value="">Selecciona una actividad...</option>
-                {actividades.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
+                <option value="">Selecciona un área...</option>
+                {AREAS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
             </div>
             <div>
@@ -116,7 +134,7 @@ export default function AdminQr() {
               <div className="inline-block p-2 bg-white rounded-xl border border-border">
                 <img src={generarQrUrl(c.url)} alt={c.ubicacion} className="h-32 w-32" />
               </div>
-              <p className="font-semibold mt-3">{c.ubicacion || "Sin área"}</p>
+              <p className="font-semibold mt-3">{labelArea(c.ubicacion) || "Sin área"}</p>
               <p className="text-xs text-muted-foreground mt-1">Expira: {c.fecha_expiracion ? new Date(c.fecha_expiracion + "T00:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "Sin expiración"}</p>
               <p className="text-xs text-muted-foreground mt-1">{c.escaneos || 0} escaneos</p>
               <div className="flex justify-center gap-2 mt-3">
