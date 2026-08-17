@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { calcularHoras, formatearFecha, horaActual } from "@/lib/ucpUtils";
+import { labelArea } from "@/lib/areas";
 import { cerrarRegistroConIncidencia } from "@/lib/cerrarFichaje";
 
 export default function AdminRegistros() {
@@ -126,10 +127,11 @@ export default function AdminRegistros() {
                     </div>
                     <div>
                       <p className="font-semibold text-sm">{u?.nombre_completo || u?.full_name || "—"}</p>
-                      <p className="text-xs text-muted-foreground">{formatearFecha(r.fecha)} · {r.hora_entrada} → {r.hora_salida || "—"} {r.estado_registro === "cerrado" && `· ${hrs}h`}</p>
+                      <p className="text-xs text-muted-foreground">{formatearFecha(r.fecha)} · {r.hora_entrada} → {r.hora_salida || "—"} {r.estado_registro === "cerrado" && `· ${hrs}h`}{r.area ? ` · ${labelArea(r.area) || r.area}` : ""}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
+                    {r.es_manual ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-600">manual</span> : null}
                     <StatusBadge status={r.estado_registro} />
                     {(r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && (
                       r.validado ? (

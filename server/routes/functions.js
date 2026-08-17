@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { notificar, verificarConstanciaAutomatica } from '../lib/gestion.js';
+import { notificar, notificarEncargadosDeArea, verificarConstanciaAutomatica } from '../lib/gestion.js';
 
 const router = Router();
 
@@ -32,10 +32,11 @@ function aMinutos(hhmm) {
 router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
   try {
     const user = req.user;
-    const { asignacion_id } = req.body;
+    const { asignacion_id, manual, area } = req.body;
     if (!asignacion_id) return res.status(400).json({ error: 'Falta asignacion_id' });
 
     const { hora, fecha, diaSemana, minutos } = ahoraMexico();
+    const esManual = manual ? 1 : 0;
 
     // Evitar fichajes duplicados: si ya tiene un registro abierto, se devuelve ese
     const abierto = db.prepare(`
@@ -88,13 +89,32 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
     });
     if (coincidente) claseInfo = coincidente.materia || null;
 
+    // Área del fichaje: la del QR, la indicada en manual, o la asignada al usuario
+    const areaFichaje = area || user.area_asignada || null;
+
     const registro = db.prepare(`
-      INSERT INTO registros_qr (id, usuario, asignacion, fecha, hora_entrada, estado_registro)
-      VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?)
-    `).run(user.id, asignacion_id, fecha, hora, 'abierto');
+      INSERT INTO registros_qr (id, usuario, asignacion, fecha, hora_entrada, estado_registro, es_manual, area)
+      VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, ?, ?)
+    `).run(user.id, asignacion_id, fecha, hora, 'abierto', esManual, areaFichaje);
 
     const row = db.prepare('SELECT * FROM registros_qr WHERE rowid = ?').get(registro.lastInsertRowid);
-    res.json({ tipo: 'presente', registro: row, clase: claseInfo });
+
+    // Fichaje manual: incidencia leve + aviso al encargado del área
+    if (esManual) {
+      const nombre = user.nombre_completo || user.full_name || user.email;
+      const areaTxt = areaFichaje || 'sin área indicada';
+      db.prepare(`
+        INSERT INTO incidencias (id, tipo_incidencia, usuario_afectado, asignacion, registro, descripcion, prioridad, estado_incidencia, creado_por)
+        VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, 'baja', 'reportada', ?)
+      `).run('fichaje_manual', user.id, asignacion_id, row.id,
+        `${nombre} registró su ENTRADA de forma manual (sin escanear QR) a las ${hora}. Área indicada: ${areaTxt}.`,
+        user.id);
+      notificarEncargadosDeArea(areaFichaje,
+        'Fichaje manual de entrada',
+        `${nombre} fichó su entrada sin escanear el QR (${fecha} ${hora}, área: ${areaTxt}). Revísalo en Registros.`);
+    }
+
+    res.json({ tipo: 'presente', registro: row, clase: claseInfo, es_manual: !!esManual });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -104,7 +124,7 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
 router.post('/RegistrarSalidaFichaje', authMiddleware, (req, res) => {
   try {
     const user = req.user;
-    const { registro_id } = req.body;
+    const { registro_id, manual } = req.body;
     if (!registro_id) return res.status(400).json({ error: 'Falta registro_id' });
 
     const registro = db.prepare('SELECT * FROM registros_qr WHERE id = ?').get(registro_id);
@@ -130,6 +150,24 @@ router.post('/RegistrarSalidaFichaje', authMiddleware, (req, res) => {
     db.prepare(`
       UPDATE registros_qr SET hora_salida = ?, estado_registro = ?, horas = ?, fecha_modificacion = ? WHERE id = ?
     `).run(horaSalida, estado, horas, ahora.iso, registro_id);
+
+    // Salida manual en un fichaje que había entrado con QR: marcarlo y avisar
+    let incidenciaManual = null;
+    if (manual && !registro.es_manual) {
+      db.prepare('UPDATE registros_qr SET es_manual = 1 WHERE id = ?').run(registro_id);
+      const nombre = user.nombre_completo || user.full_name || user.email;
+      const areaTxt = registro.area || user.area_asignada || 'sin área indicada';
+      const incM = db.prepare(`
+        INSERT INTO incidencias (id, tipo_incidencia, usuario_afectado, asignacion, registro, descripcion, prioridad, estado_incidencia, creado_por)
+        VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, 'baja', 'reportada', ?)
+      `).run('fichaje_manual', user.id, registro.asignacion || null, registro_id,
+        `${nombre} registró su SALIDA de forma manual (sin escanear QR) a las ${horaSalida}. Área: ${areaTxt}.`,
+        user.id);
+      incidenciaManual = { id: incM.lastInsertRowid };
+      notificarEncargadosDeArea(registro.area || user.area_asignada,
+        'Fichaje manual de salida',
+        `${nombre} fichó su salida sin escanear el QR (${ahora.fecha} ${horaSalida}, área: ${areaTxt}). Revísalo en Registros.`);
+    }
 
     // Verificar límite de 17:15 para participantes
     let incidencia = null;

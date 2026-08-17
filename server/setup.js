@@ -437,6 +437,8 @@ const validadoNuevo = addColumnIfMissing('registros_qr', 'validado', 'validado I
 addColumnIfMissing('registros_qr', 'validado_por', 'validado_por TEXT');
 addColumnIfMissing('registros_qr', 'comentario_admin', 'comentario_admin TEXT');
 addColumnIfMissing('registros_qr', 'modificado_por', 'modificado_por TEXT');
+addColumnIfMissing('registros_qr', 'es_manual', 'es_manual INTEGER DEFAULT 0');
+addColumnIfMissing('registros_qr', 'area', 'area TEXT');
 // Los fichajes cerrados que ya existían cuentan como validados (son históricos)
 if (validadoNuevo) {
   const r = db.prepare(`UPDATE registros_qr SET validado = 1 WHERE estado_registro IN ('cerrado', 'incompleto')`).run();

@@ -7,6 +7,7 @@ import StatusBadge from "@/components/ucp/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { calcularHoras, formatearFecha, fechaHoy, horaActual } from "@/lib/ucpUtils";
+import { AREAS, labelArea } from "@/lib/areas";
 
 // Fecha/hora actual en zona Centro de México como Date local
 function ahoraMexicoDate() {
@@ -39,6 +40,7 @@ export default function Fichar() {
   const [scanning, setScanning] = useState(false);
   const [qrResult, setQrResult] = useState("");
   const [segundos, setSegundos] = useState(0);
+  const [areaManual, setAreaManual] = useState("");
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
 
@@ -53,6 +55,8 @@ export default function Fichar() {
   const load = async () => {
     if (!user?.id) return;
     try {
+      const me = await base44.auth.me().catch(() => null);
+      if (me?.area_asignada) setAreaManual((a) => a || me.area_asignada);
       const asigs = await base44.entities.Asignaciones.filter({ usuario: user.id, estado: "activo" }, "-created_date", 5);
       const activa = asigs[0] || null;
       setAsignacion(activa);
@@ -121,26 +125,29 @@ export default function Fichar() {
           return;
         }
       }
-      toast({ title: "QR válido", description: `Área: ${area}` });
+      toast({ title: "QR válido", description: `Área: ${labelArea(area) || area}` });
       if (registroAbierto) {
-        registrarSalida();
+        registrarSalida(false);
       } else {
-        registrarEntrada();
+        registrarEntrada(area, false);
       }
     } catch {
       toast({ title: "QR no válido para fichaje", variant: "destructive" });
     }
   };
 
-  const registrarEntrada = async () => {
+  const registrarEntrada = async (area = null, manual = false) => {
     if (!asignacion) { toast({ title: "No tienes asignación activa", variant: "destructive" }); return; }
+    if (manual && !areaManual) { toast({ title: "Indica el área", description: "El fichaje manual requiere que indiques en qué área estás trabajando.", variant: "destructive" }); return; }
     try {
-      const res = await base44.functions.invoke("ProcesarFichajeQR", { asignacion_id: asignacion.id });
+      const res = await base44.functions.invoke("ProcesarFichajeQR", { asignacion_id: asignacion.id, manual, area: manual ? areaManual : area });
       const data = res.data;
       if (data?.tipo === "presente") {
         setRegistroAbierto(data.registro);
         if (data?.ya_abierto) {
           toast({ title: "Ya tienes un fichaje abierto", description: `Entrada: ${data.registro.hora_entrada}. Escanea para registrar tu salida.` });
+        } else if (data?.es_manual) {
+          toast({ title: "✓ Entrada registrada (manual)", description: `Hora: ${data.registro.hora_entrada} · Se avisó al encargado del área.` });
         } else {
           toast({ title: "✓ Entrada registrada", description: `Hora: ${data.registro.hora_entrada}${data.clase ? ` · ${data.clase}` : ""}` });
         }
@@ -153,16 +160,16 @@ export default function Fichar() {
     } catch (e) { toast({ title: "Error al registrar entrada", variant: "destructive" }); }
   };
 
-  const registrarSalida = async () => {
+  const registrarSalida = async (manual = false) => {
     if (!registroAbierto) return;
     try {
-      const res = await base44.functions.invoke("RegistrarSalidaFichaje", { registro_id: registroAbierto.id });
+      const res = await base44.functions.invoke("RegistrarSalidaFichaje", { registro_id: registroAbierto.id, manual });
       const data = res.data;
       if (data?.error) { toast({ title: data.error, variant: "destructive" }); return; }
       const horas = data?.horas ?? calcularHoras(registroAbierto.hora_entrada, horaActual());
       toast({
-        title: "✓ Salida registrada",
-        description: `Horas: ${horas}h${data?.incidencia_generada ? " · Incidencia por rebasar 17:15" : ""}`,
+        title: manual ? "✓ Salida registrada (manual)" : "✓ Salida registrada",
+        description: `Horas: ${horas}h${data?.incidencia_generada ? " · Incidencia por rebasar 17:15" : ""}${manual ? " · Se avisó al encargado del área" : ""}`,
       });
       setRegistroAbierto(null);
       load();
@@ -231,17 +238,33 @@ export default function Fichar() {
 
       {/* Botones manuales */}
       <SectionCard title="Registro manual" subtitle="Si no puedes escanear, usa los botones">
+        {!registroAbierto && (
+          <div className="mb-3">
+            <label className="text-xs text-muted-foreground block mb-1">¿En qué área estás trabajando? *</label>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={areaManual}
+              onChange={(e) => setAreaManual(e.target.value)}
+            >
+              <option value="">Selecciona el área...</option>
+              {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+          </div>
+        )}
         <div className="flex gap-3">
           {!registroAbierto ? (
-            <Button onClick={registrarEntrada} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => registrarEntrada(null, true)} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
               <LogIn className="h-4 w-4 mr-2" /> Registrar entrada
             </Button>
           ) : (
-            <Button onClick={registrarSalida} className="flex-1 bg-rose-600 hover:bg-rose-700">
+            <Button onClick={() => registrarSalida(true)} className="flex-1 bg-rose-600 hover:bg-rose-700">
               <LogOut className="h-4 w-4 mr-2" /> Registrar salida
             </Button>
           )}
         </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          El fichaje manual queda marcado como <b>manual</b>, genera una incidencia leve y se notifica al encargado del área para su revisión.
+        </p>
       </SectionCard>
 
       {/* Asignación actual */}
@@ -269,9 +292,10 @@ export default function Fichar() {
                 <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div>
                     <p className="text-sm font-medium">{formatearFecha(r.fecha)}</p>
-                    <p className="text-xs text-muted-foreground">{r.hora_entrada} → {r.hora_salida || "—"}</p>
+                    <p className="text-xs text-muted-foreground">{r.hora_entrada} → {r.hora_salida || "—"}{r.area ? ` · ${labelArea(r.area) || r.area}` : ""}</p>
                   </div>
                   <div className="flex items-center gap-3">
+                    {r.es_manual ? <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-200 text-slate-600">manual</span> : null}
                     {r.estado_registro === "cerrado" && <span className="text-sm font-medium">{hrs}h</span>}
                     <StatusBadge status={r.estado_registro} />
                   </div>

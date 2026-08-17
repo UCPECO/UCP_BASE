@@ -30,6 +30,27 @@ export function notificar(usuarioId, titulo, mensaje, enlace = null) {
   }
 }
 
+// Avisa a los encargados de un área; si no hay ninguno, avisa a los admins
+export function notificarEncargadosDeArea(area, titulo, mensaje, enlace = '/encargado/registros') {
+  try {
+    let destinatarios = [];
+    if (area) {
+      destinatarios = db.prepare(`
+        SELECT id FROM users WHERE role = 'encargado' AND area_encargada = ? AND archivado = 0
+      `).all(area);
+    }
+    if (destinatarios.length === 0) {
+      destinatarios = db.prepare(`SELECT id FROM users WHERE role = 'admin' AND archivado = 0`).all();
+      enlace = '/admin/registros';
+    }
+    for (const d of destinatarios) notificar(d.id, titulo, mensaje, enlace);
+    return destinatarios.length;
+  } catch (e) {
+    console.error('Error notificando encargados:', e.message);
+    return 0;
+  }
+}
+
 // ===== Horas validadas de un usuario (fichajes validados + bonos) =====
 export function horasValidadasDe(usuarioId) {
   const regs = db.prepare(`

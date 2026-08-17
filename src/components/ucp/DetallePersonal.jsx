@@ -292,6 +292,7 @@ export default function DetallePersonal({ usuario, onClose }) {
                     <div className="flex items-center gap-3 flex-wrap">
                       <p className="text-sm font-medium">{formatearFecha(r.fecha)}</p>
                       <Badge value={r.estado_registro} />
+                      {r.es_manual ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-600">manual</span> : null}
                       {r.estado_registro !== "abierto" && (
                         r.validado ? (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">validado</span>
