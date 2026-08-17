@@ -1,6 +1,14 @@
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ucp-horas-secret-key-cambiar-en-produccion';
+// En producción debe definirse JWT_SECRET (variable de entorno).
+// Si no existe, se genera una aleatoria por proceso: más seguro que una
+// llave por defecto visible en el código (las sesiones se reinician al
+// reiniciar el servidor, pero nadie puede falsificar tokens).
+const JWT_SECRET = process.env.JWT_SECRET || randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET no definido; usando llave aleatoria temporal. Configura la variable de entorno JWT_SECRET en producción.');
+}
 
 export function generateToken(user) {
   return jwt.sign(

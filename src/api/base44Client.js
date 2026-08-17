@@ -254,10 +254,12 @@ const entities = {
 // ===== FUNCTIONS =====
 const functions = {
   invoke: async (name, payload = {}) => {
-    return apiFetch(`/functions/${name}`, {
+    // Devuelve { data } para coincidir con la forma del SDK original
+    const body = await apiFetch(`/functions/${name}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return { data: body };
   },
 };
 

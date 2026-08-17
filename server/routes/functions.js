@@ -35,10 +35,20 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
     if (!asignacion_id) return res.status(400).json({ error: 'Falta asignacion_id' });
 
     const { hora, fecha, diaSemana, minutos } = ahoraMexico();
+
+    // Evitar fichajes duplicados: si ya tiene un registro abierto, se devuelve ese
+    const abierto = db.prepare(`
+      SELECT * FROM registros_qr WHERE usuario = ? AND estado_registro = 'abierto' ORDER BY created_date DESC LIMIT 1
+    `).get(user.id);
+    if (abierto) {
+      return res.json({ tipo: 'presente', registro: abierto, ya_abierto: true });
+    }
+
     const ROLES_PARTICIPANTE = ['voluntario', 'servicio_social'];
     const esParticipante = ROLES_PARTICIPANTE.includes(user.role);
 
-    if (!esParticipante) {
+    // La validación de horario laboral aplica a los participantes (quienes fichan)
+    if (esParticipante) {
       const config = db.prepare('SELECT * FROM configuracion_sistema LIMIT 1').get();
       const apertura = config?.hora_apertura || '08:00';
       const cierre = config?.hora_cierre || '18:00';
@@ -99,6 +109,9 @@ router.post('/RegistrarSalidaFichaje', authMiddleware, (req, res) => {
     const registro = db.prepare('SELECT * FROM registros_qr WHERE id = ?').get(registro_id);
     if (!registro) return res.status(404).json({ error: 'Registro no encontrado' });
     if (registro.usuario !== user.id) return res.status(403).json({ error: 'Sin permiso' });
+    if (registro.estado_registro !== 'abierto') {
+      return res.status(400).json({ error: 'Este registro ya fue cerrado' });
+    }
 
     const ahora = ahoraMexico();
     const horaSalida = ahora.hora;
@@ -152,7 +165,8 @@ router.post('/ObtenerPersonalArea', authMiddleware, (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const all = db.prepare('SELECT * FROM users WHERE archivado = 0 ORDER BY full_name').all();
+    const all = db.prepare('SELECT * FROM users WHERE archivado = 0 ORDER BY full_name').all()
+      .map(u => { const { password, ...rest } = u; return rest; });
     const users = area ? all.filter(u => u.area_asignada === area) : all;
     res.json({ users });
   } catch (error) {
@@ -170,7 +184,8 @@ router.post('/ObtenerPersonalCompleto', authMiddleware, (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const all = db.prepare('SELECT * FROM users WHERE archivado = 0 ORDER BY full_name').all();
+    const all = db.prepare('SELECT * FROM users WHERE archivado = 0 ORDER BY full_name').all()
+      .map(u => { const { password, ...rest } = u; return rest; });
     res.json({ users: all });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -211,6 +226,13 @@ router.post('/IniciarPaseLista', authMiddleware, (req, res) => {
 router.post('/AsignarBonoEvidencia', authMiddleware, (req, res) => {
   try {
     const user = req.user;
+
+    // Solo admin o encargado pueden aprobar evidencias y asignar bonos
+    const me = db.prepare('SELECT role FROM users WHERE id = ?').get(user.id);
+    if (!me || (me.role !== 'admin' && me.role !== 'encargado')) {
+      return res.status(403).json({ error: 'Solo admin o encargado pueden aprobar evidencias' });
+    }
+
     const { evidencia_id } = req.body;
     if (!evidencia_id) return res.status(400).json({ error: 'Falta evidencia_id' });
 
@@ -242,6 +264,13 @@ router.post('/AsignarBonoEvidencia', authMiddleware, (req, res) => {
 router.post('/EnviarInvitacion', authMiddleware, (req, res) => {
   try {
     const user = req.user;
+
+    // Solo el administrador puede crear/reenviar invitaciones
+    const me = db.prepare('SELECT role FROM users WHERE id = ?').get(user.id);
+    if (!me || me.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo el administrador puede enviar invitaciones' });
+    }
+
     const { email, rol, area, invitacion_id } = req.body;
 
     if (invitacion_id) {

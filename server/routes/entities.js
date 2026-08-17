@@ -5,7 +5,7 @@ import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 
-// Mapeo de nombres de entidades a tablas
+// Mapeo de nombres de entidades a tablas (lista blanca: solo estas existen)
 const entityMap = {
   'User': 'users',
   'Actividades': 'actividades',
@@ -32,33 +32,131 @@ const entityMap = {
   'Bitacora_Auditoria': 'bitacora_auditoria'
 };
 
-function getTable(entityName) {
-  return entityMap[entityName] || entityName.toLowerCase();
+// ===== Permisos por rol (según DOCUMENTO_ROLES) =====
+// 'admin' todo; 'encargado' gestión de su área; participantes (servicio_social/voluntario) solo lo suyo
+const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo']);
+const WRITE_ADMIN_ENCARGADO = new Set(['Actividades', 'Eventos', 'Constancias', 'Encuestas', 'Evaluaciones_Alumno', 'Pases_Lista']);
+const BODEGA_CREATE = new Set(['Materiales_Recibidos', 'Electronicos_Reciclados', 'Salidas_Materiales']); // crear: admin/encargado; editar/borrar: solo admin
+const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR']); // el participante solo toca lo propio
+const READ_ADMIN_ONLY = new Set(['Invitaciones', 'Bitacora_Auditoria', 'Codigos_QR']);
+
+// Cache de columnas reales por tabla (evita SQL injection en identificadores
+// y errores por columnas inexistentes, ej. updated_date)
+const columnCache = {};
+function validColumns(table) {
+  if (!columnCache[table]) {
+    columnCache[table] = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name));
+  }
+  return columnCache[table];
 }
 
-function snakeToCamel(obj) {
-  if (Array.isArray(obj)) return obj.map(snakeToCamel);
-  if (obj && typeof obj === 'object') {
-    const result = {};
-    for (const [key, value] of Object.entries(obj)) {
-      result[key] = value;
-    }
-    return result;
+// Rol fresco desde la BD (el JWT puede estar desactualizado si cambiaron el rol)
+function getMe(req) {
+  return db.prepare('SELECT id, role, area_encargada FROM users WHERE id = ?').get(req.user.id) || null;
+}
+
+function esAdmin(me) { return me?.role === 'admin'; }
+function esAdminOEncargado(me) { return me?.role === 'admin' || me?.role === 'encargado'; }
+
+// better-sqlite3 no acepta booleanos JS: convertir a 1/0
+function coerce(value) {
+  if (value === true) return 1;
+  if (value === false) return 0;
+  if (value === undefined) return null;
+  return value;
+}
+
+function stripPassword(rows) {
+  const clean = (r) => { if (r && 'password' in r) { const { password, ...rest } = r; return rest; } return r; };
+  return Array.isArray(rows) ? rows.map(clean) : clean(rows);
+}
+
+function getTable(req, res) {
+  const table = entityMap[req.params.entity];
+  if (!table) {
+    res.status(404).json({ error: 'Entidad desconocida' });
+    return null;
   }
-  return obj;
+  return table;
+}
+
+// Verifica permiso de escritura; devuelve true si autorizado
+function checkWrite(req, res, entity, existingRow) {
+  const me = getMe(req);
+  if (!me) { res.status(401).json({ error: 'No autorizado' }); return false; }
+  if (esAdmin(me)) return true;
+
+  if (WRITE_ADMIN_ONLY.has(entity)) {
+    res.status(403).json({ error: 'Solo el administrador puede modificar esto' });
+    return false;
+  }
+  if (WRITE_ADMIN_ENCARGADO.has(entity) || BODEGA_CREATE.has(entity)) {
+    if (!esAdminOEncargado(me)) {
+      res.status(403).json({ error: 'Solo admin o encargado' });
+      return false;
+    }
+    // En bodega, editar/borrar es solo admin (encargado solo crea)
+    if (BODEGA_CREATE.has(entity) && existingRow !== undefined) {
+      res.status(403).json({ error: 'Solo el administrador puede editar o eliminar registros de bodega' });
+      return false;
+    }
+    return true;
+  }
+  if (entity === 'Incidencias') {
+    // Crear: admin/encargado; resolver (update) y borrar: solo admin
+    if (existingRow !== undefined) {
+      res.status(403).json({ error: 'Solo el administrador puede resolver o eliminar incidencias' });
+      return false;
+    }
+    if (!esAdminOEncargado(me)) {
+      res.status(403).json({ error: 'Solo admin o encargado pueden reportar incidencias' });
+      return false;
+    }
+    return true;
+  }
+  if (entity === 'Bitacora_Auditoria') {
+    // Cualquiera autenticado puede crear entradas de bitácora; solo admin borra/edita
+    if (existingRow !== undefined) {
+      res.status(403).json({ error: 'La bitácora es inmutable' });
+      return false;
+    }
+    return true;
+  }
+  if (PARTICIPANT_OWN.has(entity)) {
+    // Dueño del registro o admin/encargado
+    if (esAdminOEncargado(me)) return true;
+    if (existingRow && existingRow.usuario === me.id) return true;
+    if (existingRow === undefined) return true; // creación: se fuerza usuario=self más abajo
+    res.status(403).json({ error: 'Solo puedes modificar tus propios registros' });
+    return false;
+  }
+  // Cualquier otra entidad: admin/encargado
+  if (!esAdminOEncargado(me)) {
+    res.status(403).json({ error: 'Sin permiso' });
+    return false;
+  }
+  return true;
 }
 
 // LIST - GET /api/:entity
 router.get('/:entity', authMiddleware, (req, res) => {
-  const table = getTable(req.params.entity);
+  const table = getTable(req, res);
+  if (!table) return;
+
+  const me = getMe(req);
+  if (READ_ADMIN_ONLY.has(req.params.entity) && !esAdmin(me)) {
+    return res.status(403).json({ error: 'Solo el administrador' });
+  }
+
+  const cols = validColumns(table);
   const { sort, limit, ...filters } = req.query;
-  
+
   try {
     let query = `SELECT * FROM ${table}`;
     const params = [];
-    
-    // Aplicar filtros
-    const filterKeys = Object.keys(filters).filter(k => k !== 'sort' && k !== 'limit');
+
+    // Aplicar filtros (solo columnas reales → sin inyección SQL)
+    const filterKeys = Object.keys(filters).filter(k => cols.has(k));
     if (filterKeys.length > 0) {
       const conditions = filterKeys.map(k => {
         params.push(filters[k]);
@@ -66,24 +164,28 @@ router.get('/:entity', authMiddleware, (req, res) => {
       });
       query += ` WHERE ${conditions.join(' AND ')}`;
     }
-    
-    // Ordenar
+
+    // Ordenar (columna validada)
     if (sort) {
       const direction = sort.startsWith('-') ? 'DESC' : 'ASC';
       const column = sort.startsWith('-') ? sort.slice(1) : sort;
-      query += ` ORDER BY ${column} ${direction}`;
-    } else {
+      if (cols.has(column)) {
+        query += ` ORDER BY ${column} ${direction}`;
+      } else if (cols.has('created_date')) {
+        query += ` ORDER BY created_date DESC`;
+      }
+    } else if (cols.has('created_date')) {
       query += ` ORDER BY created_date DESC`;
     }
-    
-    // Limitar
+
     if (limit) {
       query += ` LIMIT ?`;
-      params.push(parseInt(limit));
+      params.push(parseInt(limit) || 100);
     }
-    
-    const rows = db.prepare(query).all(...params);
-    res.json(snakeToCamel(rows));
+
+    let rows = db.prepare(query).all(...params);
+    if (table === 'users') rows = stripPassword(rows);
+    res.json(rows);
   } catch (error) {
     console.error('LIST error:', error);
     res.status(500).json({ error: error.message });
@@ -92,12 +194,19 @@ router.get('/:entity', authMiddleware, (req, res) => {
 
 // GET ONE - GET /api/:entity/:id
 router.get('/:entity/:id', authMiddleware, (req, res) => {
-  const table = getTable(req.params.entity);
-  
+  const table = getTable(req, res);
+  if (!table) return;
+
+  const me = getMe(req);
+  if (READ_ADMIN_ONLY.has(req.params.entity) && !esAdmin(me)) {
+    return res.status(403).json({ error: 'Solo el administrador' });
+  }
+
   try {
-    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
+    let row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
     if (!row) return res.status(404).json({ error: 'No encontrado' });
-    res.json(snakeToCamel(row));
+    if (table === 'users') row = stripPassword(row);
+    res.json(row);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -105,25 +214,39 @@ router.get('/:entity/:id', authMiddleware, (req, res) => {
 
 // CREATE - POST /api/:entity
 router.post('/:entity', authMiddleware, (req, res) => {
-  const table = getTable(req.params.entity);
-  const data = req.body;
-  
+  const table = getTable(req, res);
+  if (!table) return;
+  if (!checkWrite(req, res, req.params.entity, undefined)) return;
+
+  const cols = validColumns(table);
+  const data = { ...req.body };
+
+  // Participantes: el registro siempre queda a su nombre
+  const me = getMe(req);
+  if (PARTICIPANT_OWN.has(req.params.entity) && !esAdminOEncargado(me)) {
+    data.usuario = me.id;
+  }
+  // Evidencias de participante siempre nacen pendientes (sin auto-aprobarse)
+  if (req.params.entity === 'Evidencias' && !esAdminOEncargado(me)) {
+    data.estado_evidencia = 'pendiente';
+    delete data.aprobado_por;
+    delete data.comentario_revision;
+  }
+
   try {
     const id = data.id || uuidv4();
-    const fields = Object.keys(data);
-    const values = fields.map(f => data[f]);
-    
-    // Agregar id si no está
-    if (!fields.includes('id')) {
-      fields.unshift('id');
-      values.unshift(id);
-    }
-    
+    // Solo columnas que existen en la tabla
+    const fields = Object.keys(data).filter(f => cols.has(f) && f !== 'id');
+    const values = fields.map(f => coerce(data[f]));
+    fields.unshift('id');
+    values.unshift(id);
+
     const placeholders = fields.map(() => '?').join(', ');
     db.prepare(`INSERT INTO ${table} (${fields.join(', ')}) VALUES (${placeholders})`).run(...values);
-    
-    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
-    res.status(201).json(snakeToCamel(row));
+
+    let row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+    if (table === 'users') row = stripPassword(row);
+    res.status(201).json(row);
   } catch (error) {
     console.error('CREATE error:', error);
     res.status(500).json({ error: error.message });
@@ -132,30 +255,67 @@ router.post('/:entity', authMiddleware, (req, res) => {
 
 // UPDATE - PUT /api/:entity/:id
 router.put('/:entity/:id', authMiddleware, (req, res) => {
-  const table = getTable(req.params.entity);
-  const data = req.body;
-  
+  const table = getTable(req, res);
+  if (!table) return;
+
+  const existing = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'No encontrado' });
+  if (!checkWrite(req, res, req.params.entity, existing)) return;
+
+  const cols = validColumns(table);
+  const data = { ...req.body };
+
+  // Un participante nunca puede cambiar el dueño ni auto-aprobarse evidencias
+  const me = getMe(req);
+  if (!esAdminOEncargado(me)) {
+    delete data.usuario;
+    delete data.role;
+    if (req.params.entity === 'Evidencias') {
+      delete data.estado_evidencia;
+      delete data.aprobado_por;
+      delete data.comentario_revision;
+    }
+    if (req.params.entity === 'Registros_QR') {
+      return res.status(403).json({ error: 'Los fichajes se cierran escaneando el QR de salida' });
+    }
+  }
+
   try {
-    const fields = Object.keys(data);
+    // Solo columnas reales; updated_date solo si la tabla la tiene
+    const fields = Object.keys(data).filter(f => cols.has(f) && f !== 'id');
     if (fields.length === 0) return res.status(400).json({ error: 'No hay datos para actualizar' });
-    
+
     const setClause = fields.map(f => `${f} = ?`).join(', ');
-    const values = fields.map(f => data[f]);
+    const values = fields.map(f => coerce(data[f]));
     values.push(req.params.id);
-    
-    db.prepare(`UPDATE ${table} SET ${setClause}, updated_date = datetime('now') WHERE id = ?`).run(...values);
-    
-    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
-    res.json(snakeToCamel(row));
+
+    const updatedClause = cols.has('updated_date') ? `, updated_date = datetime('now')` : '';
+    db.prepare(`UPDATE ${table} SET ${setClause}${updatedClause} WHERE id = ?`).run(...values);
+
+    let row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
+    if (table === 'users') row = stripPassword(row);
+    res.json(row);
   } catch (error) {
+    console.error('UPDATE error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // DELETE - DELETE /api/:entity/:id
 router.delete('/:entity/:id', authMiddleware, (req, res) => {
-  const table = getTable(req.params.entity);
-  
+  const table = getTable(req, res);
+  if (!table) return;
+
+  const existing = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'No encontrado' });
+  if (!checkWrite(req, res, req.params.entity, existing)) return;
+
+  // Participante solo borra evidencias aún pendientes
+  const me = getMe(req);
+  if (req.params.entity === 'Evidencias' && !esAdminOEncargado(me) && existing.estado_evidencia !== 'pendiente') {
+    return res.status(403).json({ error: 'Solo puedes eliminar evidencias pendientes' });
+  }
+
   try {
     db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(req.params.id);
     res.json({ ok: true });
@@ -166,30 +326,33 @@ router.delete('/:entity/:id', authMiddleware, (req, res) => {
 
 // BULK CREATE - POST /api/:entity/bulk
 router.post('/:entity/bulk', authMiddleware, (req, res) => {
-  const table = getTable(req.params.entity);
+  const table = getTable(req, res);
+  if (!table) return;
+  if (!checkWrite(req, res, req.params.entity, undefined)) return;
+
   const items = req.body;
-  
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: 'Se esperaba un array' });
   }
-  
+
+  const cols = validColumns(table);
+
   try {
     const created = [];
-    for (const data of items) {
+    for (const raw of items) {
+      const data = { ...raw };
       const id = data.id || uuidv4();
-      const fields = Object.keys(data);
-      const values = fields.map(f => data[f]);
-      
-      if (!fields.includes('id')) {
-        fields.unshift('id');
-        values.unshift(id);
-      }
-      
+      const fields = Object.keys(data).filter(f => cols.has(f) && f !== 'id');
+      const values = fields.map(f => coerce(data[f]));
+      fields.unshift('id');
+      values.unshift(id);
+
       const placeholders = fields.map(() => '?').join(', ');
       db.prepare(`INSERT INTO ${table} (${fields.join(', ')}) VALUES (${placeholders})`).run(...values);
-      
-      const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
-      created.push(snakeToCamel(row));
+
+      let row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+      if (table === 'users') row = stripPassword(row);
+      created.push(row);
     }
     res.status(201).json(created);
   } catch (error) {
@@ -199,26 +362,33 @@ router.post('/:entity/bulk', authMiddleware, (req, res) => {
 
 // UPDATE MANY - PUT /api/:entity/bulk
 router.put('/:entity/bulk', authMiddleware, (req, res) => {
-  const table = getTable(req.params.entity);
+  const table = getTable(req, res);
+  if (!table) return;
+  if (!checkWrite(req, res, req.params.entity, {})) return;
+
+  const cols = validColumns(table);
   const { filter, $set } = req.body;
-  
+
   try {
-    let query = `UPDATE ${table} SET `;
-    const fields = Object.keys($set || {});
+    const fields = Object.keys($set || {}).filter(f => cols.has(f));
     if (fields.length === 0) return res.status(400).json({ error: 'No hay datos para actualizar' });
-    
+
     const setClause = fields.map(f => `${f} = ?`).join(', ');
-    const values = fields.map(f => $set[f]);
-    query += setClause;
-    
+    const values = fields.map(f => coerce($set[f]));
+
+    let query = `UPDATE ${table} SET ${setClause}`;
+    if (cols.has('updated_date')) query += `, updated_date = datetime('now')`;
+
     if (filter && Object.keys(filter).length > 0) {
-      const conditions = Object.keys(filter).map(k => {
-        values.push(filter[k]);
-        return `${k} = ?`;
-      });
-      query += ` WHERE ${conditions.join(' AND ')}`;
+      const conditions = Object.keys(filter)
+        .filter(k => cols.has(k))
+        .map(k => {
+          values.push(filter[k]);
+          return `${k} = ?`;
+        });
+      if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
     }
-    
+
     const result = db.prepare(query).run(...values);
     res.json({ updated: result.changes });
   } catch (error) {

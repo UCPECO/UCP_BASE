@@ -110,7 +110,11 @@ export default function Fichar() {
       const data = res.data;
       if (data?.tipo === "presente") {
         setRegistroAbierto(data.registro);
-        toast({ title: "✓ Entrada registrada", description: `Hora: ${data.registro.hora_entrada}${data.clase ? ` · ${data.clase}` : ""}` });
+        if (data?.ya_abierto) {
+          toast({ title: "Ya tienes un fichaje abierto", description: `Entrada: ${data.registro.hora_entrada}. Escanea para registrar tu salida.` });
+        } else {
+          toast({ title: "✓ Entrada registrada", description: `Hora: ${data.registro.hora_entrada}${data.clase ? ` · ${data.clase}` : ""}` });
+        }
       } else if (data?.tipo === "incidencia") {
         toast({ title: "Fichaje fuera de horario laboral", description: "Estás fuera del horario autorizado. Se registró una incidencia.", variant: "destructive" });
       } else if (data?.error) {
