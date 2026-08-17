@@ -1,6 +1,6 @@
 # UCP Horas - Self-Hosted
 
-Sistema de gestión de horas y actividades para la Universidad Cristóbal Colón (UCP). Versión self-hosted con backend propio usando Express + SQLite.
+Sistema de gestión de horas y actividades para la Unidos cuidando el planeta(UCP). Versión self-hosted con backend propio usando Express + SQLite.
 
 ## Características
 
