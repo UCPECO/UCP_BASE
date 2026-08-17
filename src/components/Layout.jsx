@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, UserCircle, Calendar, QrCode, ClipboardCheck, Image,
-  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, ShieldCheck, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText
+  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
@@ -126,7 +126,7 @@ export default function Layout({ children }) {
         <header className="lg:hidden sticky top-0 z-20 bg-sidebar text-sidebar-foreground px-4 h-14 flex items-center justify-between">
           <button onClick={() => setOpen(true)} className="p-2 -ml-2"><Menu className="h-5 w-5" /></button>
           <div className="flex items-center gap-2 font-heading font-bold">
-            <ShieldCheck className="h-5 w-5 text-accent" /> UCP
+            <img src="/branding/logo-mono.png" alt="UCP" className="h-6 w-6 object-contain" /> UCP
           </div>
           <div className="flex items-center">
             <CampanaNotificaciones usuarioId={usuarioId} />
@@ -147,9 +147,7 @@ function SidebarContent({ items, name, role, onLogout, onClose, foto, usuarioId 
     <>
       <div className="flex items-center justify-between px-5 h-16 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center">
-            <ShieldCheck className="h-5 w-5 text-accent-foreground" />
-          </div>
+          <img src="/branding/logo-mono.png" alt="UCP" className="h-9 w-9 object-contain" />
           <div>
             <p className="font-heading font-bold text-sidebar-primary leading-tight">UCP Tracker</p>
             <p className="text-[10px] text-sidebar-foreground/70 uppercase tracking-wider">Servicio Social</p>

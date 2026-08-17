@@ -13,8 +13,24 @@ const AREA_LABEL = {
   "Presentación y Relaciones": "Presentación y Relaciones",
 };
 
+// Carga el logo como dataURL para incrustarlo en el PDF. Si falla (offline,
+// primera carga sin caché), la constancia se genera sin logo.
+let logoDataURL = null;
+async function cargarLogo() {
+  if (logoDataURL) return logoDataURL;
+  const res = await fetch("/branding/logo-flat.png");
+  const blob = await res.blob();
+  logoDataURL = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+  return logoDataURL;
+}
+
 // Genera un PDF de constancia y lo descarga. Devuelve el doc para uso interno.
-export function generarConstanciaPDF(c) {
+export async function generarConstanciaPDF(c) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -26,32 +42,38 @@ export function generarConstanciaPDF(c) {
   doc.setLineWidth(0.5);
   doc.rect(13, 13, W - 26, H - 26);
 
+  // Logo
+  try {
+    const logo = await cargarLogo();
+    doc.addImage(logo, "PNG", W / 2 - 13, 15, 26, 26);
+  } catch (e) { /* sin logo si no se pudo cargar */ }
+
   // Encabezado
   doc.setFont("helvetica", "bold");
   doc.setTextColor(20, 90, 75);
   doc.setFontSize(26);
-  doc.text("Unidos Cuidando el Planeta", W / 2, 30, { align: "center" });
+  doc.text("Unidos Cuidando el Planeta", W / 2, 48, { align: "center" });
   doc.setFontSize(13);
   doc.setTextColor(120, 120, 120);
   doc.setFont("helvetica", "normal");
-  doc.text("Servicio Social y Voluntariado", W / 2, 38, { align: "center" });
+  doc.text("Servicio Social y Voluntariado", W / 2, 55, { align: "center" });
 
   // Línea separadora
   doc.setDrawColor(20, 120, 100);
   doc.setLineWidth(0.8);
-  doc.line(40, 44, W - 40, 44);
+  doc.line(40, 60, W - 40, 60);
 
   // Título del documento
   doc.setFont("helvetica", "bold");
   doc.setTextColor(20, 50, 40);
   doc.setFontSize(22);
-  doc.text(TIPOS_LABEL[c.tipo] || "Constancia", W / 2, 58, { align: "center" });
+  doc.text(TIPOS_LABEL[c.tipo] || "Constancia", W / 2, 71, { align: "center" });
 
   // Cuerpo
   doc.setFont("helvetica", "normal");
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(13);
-  const cuerpoY = 78;
+  const cuerpoY = 86;
   const colX = W / 2;
 
   doc.text(`Otorga la presente a:`, colX, cuerpoY, { align: "center" });

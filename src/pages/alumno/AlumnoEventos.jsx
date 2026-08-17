@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { CalendarDays, MapPin, Clock } from "lucide-react";
+import { MapPin, Clock } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { formatearFecha } from "@/lib/ucpUtils";
@@ -50,7 +50,7 @@ export default function AlumnoEventos() {
       </div>
 
       {eventos.length === 0 ? (
-        <SectionCard><EmptyState title="Sin eventos" message="No hay eventos programados por ahora." icon={CalendarDays} /></SectionCard>
+        <SectionCard><EmptyState title="Sin eventos" message="No hay eventos programados por ahora. ¡Pronto habrá noticias!" image="/branding/mascota-anuncio.png" /></SectionCard>
       ) : (
         <>
           <div>

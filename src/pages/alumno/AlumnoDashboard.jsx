@@ -36,11 +36,12 @@ export default function AlumnoDashboard() {
             {(perfil?.nombre_completo || perfil?.full_name || "?").charAt(0)}
           </div>
         )}
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="text-sm text-muted-foreground">Bienvenido de vuelta</p>
           <h1 className="text-2xl sm:text-3xl font-bold font-heading mt-0.5">{perfil?.nombre_completo || perfil?.full_name || "Alumno"}</h1>
           <p className="text-sm text-muted-foreground mt-1 capitalize">{perfil?.tipo_participante?.replace(/_/g, " ") || "—"} · {actividad?.nombre || "Sin asignación"}</p>
         </div>
+        <img src="/branding/mascota-saludo.png" alt="" aria-hidden="true" className="hidden sm:block h-20 w-20 object-contain shrink-0" />
       </div>
 
       {/* Progreso al inicio */}
