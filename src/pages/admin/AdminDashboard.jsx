@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Users, GraduationCap, Heart, CheckCircle2, Clock, Image, AlertTriangle, CalendarX } from "lucide-react";
+import { Users, GraduationCap, Heart, CheckCircle2, Clock, Image, AlertTriangle, CalendarX, UserX } from "lucide-react";
 import KpiCard from "@/components/ucp/KpiCard";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
@@ -15,6 +15,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [recientes, setRecientes] = useState([]);
+  const [inactivos, setInactivos] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -28,7 +29,7 @@ export default function AdminDashboard() {
           base44.entities.Horarios_Clase.list("dia_semana", 500),
         ]);
         const alumnos = users.filter(u => u.role === "servicio_social" || u.role === "voluntario");
-        const activos = alumnos.filter(u => u.activo !== false);
+        const activos = alumnos.filter(u => u.activo !== false && !u.archivado);
         const hoy = new Date().toISOString().split("T")[0];
         const userIdsConHorario = new Set(horarios.map(h => h.usuario));
         setStats({
@@ -42,6 +43,16 @@ export default function AdminDashboard() {
           sinHorario: activos.filter(u => !userIdsConHorario.has(u.id)).length,
         });
         setRecientes(regs.slice(0, 5));
+
+        // Alertas de inactividad: participantes activos sin fichar en más de 7 días (o nunca)
+        const ultimoFichaje = {};
+        regs.forEach(r => { if (!ultimoFichaje[r.usuario]) ultimoFichaje[r.usuario] = r.fecha; });
+        const hace7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        setInactivos(activos
+          .map(u => ({ user: u, ultima: ultimoFichaje[u.id] || null }))
+          .filter(x => !x.ultima || x.ultima < hace7)
+          .sort((a, b) => (a.ultima || "0000") < (b.ultima || "0000") ? -1 : 1)
+          .slice(0, 10));
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     })();
@@ -90,6 +101,24 @@ export default function AdminDashboard() {
           )}
         </SectionCard>
       </div>
+
+      {inactivos.length > 0 && (
+        <SectionCard title={`Sin actividad reciente (${inactivos.length})`} subtitle="Participantes activos sin fichar en más de 7 días" icon={UserX}>
+          <div className="space-y-2">
+            {inactivos.map(({ user: u, ultima }) => (
+              <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{u.nombre_completo || u.full_name || u.email}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {ultima ? `Último fichaje: ${formatearFecha(ultima)}` : "Nunca ha fichado"}
+                  </p>
+                </div>
+                <Link to="/admin/personal"><Button size="sm" variant="outline">Revisar</Button></Link>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
 
       <FiltrosAlumnosAdmin />
     </div>

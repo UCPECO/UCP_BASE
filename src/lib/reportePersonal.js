@@ -34,17 +34,20 @@ export function generarReportePersonalPdfMensual({ usuarios, registros, bonos, i
   const bonosPersonal = (bonos || []).filter((b) => personalIds.has(b.usuario));
   const incsPersonal = (incidencias || []).filter((i) => personalIds.has(i.usuario_afectado) || i.usuario_afectado == null);
 
-  // Totales del mes
-  const regsMes = regsPersonal.filter((r) => enMes(r.fecha, mes, anio) && r.estado_registro === "cerrado");
+  // Totales del mes (solo fichajes validados cuentan; los demás se reportan aparte)
+  const regsMesTodos = regsPersonal.filter((r) => enMes(r.fecha, mes, anio) && (r.estado_registro === "cerrado" || r.estado_registro === "incompleto"));
+  const regsMes = regsMesTodos.filter((r) => r.validado);
+  const regsMesPorValidar = regsMesTodos.filter((r) => !r.validado);
   const bonosMes = bonosPersonal.filter((b) => enMes(b.fecha, mes, anio));
   const incsMes = incsPersonal.filter((i) => enMes(i.created_date, mes, anio));
 
   const horasFichajeMes = regsMes.reduce((a, r) => a + horasRegistro(r), 0);
+  const horasPorValidarMes = regsMesPorValidar.reduce((a, r) => a + horasRegistro(r), 0);
   const horasBonoMes = bonosMes.reduce((a, b) => a + (b.horas || 0), 0);
   const totalMes = Math.round((horasFichajeMes + horasBonoMes) * 100) / 100;
 
-  // Acumulado histórico (solo personal de servicio social)
-  const horasFichajeHist = regsPersonal.filter((r) => r.estado_registro === "cerrado").reduce((a, r) => a + horasRegistro(r), 0);
+  // Acumulado histórico (solo validados)
+  const horasFichajeHist = regsPersonal.filter((r) => (r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && r.validado).reduce((a, r) => a + horasRegistro(r), 0);
   const horasBonoHist = bonosPersonal.reduce((a, b) => a + (b.horas || 0), 0);
   const totalAcumulado = Math.round((horasFichajeHist + horasBonoHist) * 100) / 100;
 
@@ -52,9 +55,9 @@ export function generarReportePersonalPdfMensual({ usuarios, registros, bonos, i
   const personas = personal.map((u) => {
     const regsU = (registros || []).filter((r) => r.usuario === u.id);
     const bonosU = bonosPersonal.filter((b) => b.usuario === u.id);
-    const fichajeMes = regsU.filter((r) => enMes(r.fecha, mes, anio) && r.estado_registro === "cerrado").reduce((a, r) => a + horasRegistro(r), 0);
+    const fichajeMes = regsU.filter((r) => enMes(r.fecha, mes, anio) && (r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && r.validado).reduce((a, r) => a + horasRegistro(r), 0);
     const bonoMes = bonosU.filter((b) => enMes(b.fecha, mes, anio)).reduce((a, b) => a + (b.horas || 0), 0);
-    const acum = regsU.filter((r) => r.estado_registro === "cerrado").reduce((a, r) => a + horasRegistro(r), 0) + bonosU.reduce((a, b) => a + (b.horas || 0), 0);
+    const acum = regsU.filter((r) => (r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && r.validado).reduce((a, r) => a + horasRegistro(r), 0) + bonosU.reduce((a, b) => a + (b.horas || 0), 0);
     const incs = incsPersonal.filter((i) => enMes(i.created_date, mes, anio) && (i.usuario_afectado === u.id || i.usuario_afectado === u.email || i.creado_por === u.id)).length;
     return {
       nombre: u.nombre_completo || u.full_name || "—",
@@ -89,11 +92,12 @@ export function generarReportePersonalPdfMensual({ usuarios, registros, bonos, i
   doc.setFontSize(10);
   let y = 53;
   doc.text(`Personal de servicio social: ${personas.length}`, 14, y); y += 6;
-  doc.text(`Horas por fichaje del mes: ${Math.round(horasFichajeMes * 100) / 100} h`, 14, y); y += 6;
+  doc.text(`Horas validadas por fichaje del mes: ${Math.round(horasFichajeMes * 100) / 100} h`, 14, y); y += 6;
+  doc.text(`Horas pendientes de validación del mes: ${Math.round(horasPorValidarMes * 100) / 100} h`, 14, y); y += 6;
   doc.text(`Horas de premio del mes: ${Math.round(horasBonoMes * 100) / 100} h`, 14, y); y += 6;
-  doc.text(`Total de horas del mes: ${totalMes} h`, 14, y); y += 6;
+  doc.text(`Total de horas del mes (validadas + premio): ${totalMes} h`, 14, y); y += 6;
   doc.text(`Incidencias del mes: ${incsMes.length}`, 14, y); y += 6;
-  doc.text(`Horas acumuladas (histórico): ${totalAcumulado} h`, 14, y); y += 10;
+  doc.text(`Horas acumuladas (histórico validado): ${totalAcumulado} h`, 14, y); y += 10;
 
   // ===== Tabla por persona =====
   doc.setFont("helvetica", "bold");

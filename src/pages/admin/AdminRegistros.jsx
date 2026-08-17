@@ -66,7 +66,29 @@ export default function AdminRegistros() {
     const a = document.createElement("a"); a.href = url; a.download = "registros.csv"; a.click();
   };
 
-  const filtered = filtro === "abierto" ? registros.filter(r => r.estado_registro === "abierto") : filtro === "cerrado" ? registros.filter(r => r.estado_registro === "cerrado") : registros;
+  const filtered = filtro === "abierto"
+    ? registros.filter(r => r.estado_registro === "abierto")
+    : filtro === "cerrado"
+      ? registros.filter(r => r.estado_registro === "cerrado" || r.estado_registro === "incompleto")
+      : filtro === "por_validar"
+        ? registros.filter(r => (r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && !r.validado)
+        : registros;
+
+  const validar = async (r) => {
+    try {
+      await base44.entities.Registros_QR.update(r.id, { validado: 1, validado_por: user.id });
+      toast({ title: "Fichaje validado", description: "Las horas ya cuentan para la meta del alumno" });
+      load();
+    } catch (e) { toast({ title: "Error al validar", variant: "destructive" }); }
+  };
+
+  const quitarValidacion = async (r) => {
+    try {
+      await base44.entities.Registros_QR.update(r.id, { validado: 0, validado_por: "" });
+      toast({ title: "Validación retirada" });
+      load();
+    } catch (e) { toast({ title: "Error", variant: "destructive" }); }
+  };
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
 
@@ -80,6 +102,7 @@ export default function AdminRegistros() {
         <div className="flex gap-2">
           <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
             <option value="abierto">Abiertos</option>
+            <option value="por_validar">Por validar</option>
             <option value="cerrado">Cerrados</option>
             <option value="todos">Todos</option>
           </select>
@@ -106,8 +129,22 @@ export default function AdminRegistros() {
                       <p className="text-xs text-muted-foreground">{formatearFecha(r.fecha)} · {r.hora_entrada} → {r.hora_salida || "—"} {r.estado_registro === "cerrado" && `· ${hrs}h`}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <StatusBadge status={r.estado_registro} />
+                    {(r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && (
+                      r.validado ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">validado</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">por validar</span>
+                      )
+                    )}
+                    {(r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && (
+                      r.validado ? (
+                        <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => quitarValidacion(r)} title="Quitar validación">Quitar validación</Button>
+                      ) : (
+                        <Button size="sm" variant="outline" className="text-emerald-700 border-emerald-300" onClick={() => validar(r)}>Validar</Button>
+                      )
+                    )}
                     {r.estado_registro === "abierto" && (
                       editId === r.id ? (
                         <div className="flex gap-2 items-end">

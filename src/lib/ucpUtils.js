@@ -12,11 +12,22 @@ export function calcularHoras(entrada, salida) {
   return Math.round((mins / 60) * 100) / 100;
 }
 
-// Suma horas de registros cerrados
+// Suma horas de registros cerrados Y validados (las horas que cuentan para la meta)
 export function sumarHorasRegistros(registros) {
   if (!registros) return 0;
   return registros.reduce((acc, r) => {
-    if (r.estado_registro === "cerrado") {
+    if ((r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && r.validado) {
+      return acc + (calcularHoras(r.hora_entrada, r.hora_salida) || 0);
+    }
+    return acc;
+  }, 0);
+}
+
+// Suma horas cerradas que aún no valida el encargado/admin
+export function sumarHorasPorValidar(registros) {
+  if (!registros) return 0;
+  return registros.reduce((acc, r) => {
+    if ((r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && !r.validado) {
       return acc + (calcularHoras(r.hora_entrada, r.hora_salida) || 0);
     }
     return acc;

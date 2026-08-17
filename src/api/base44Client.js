@@ -250,6 +250,8 @@ const entities = {
   Configuracion_Sistema: createEntityAPI('Configuracion_Sistema'),
   Bitacora_Auditoria: createEntityAPI('Bitacora_Auditoria'),
   Comentarios_Evidencia: createEntityAPI('Comentarios_Evidencia'),
+  Notificaciones: createEntityAPI('Notificaciones'),
+  Historial_Areas: createEntityAPI('Historial_Areas'),
 };
 
 // ===== FUNCTIONS =====

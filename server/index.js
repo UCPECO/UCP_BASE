@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import entityRoutes from './routes/entities.js';
 import functionRoutes from './routes/functions.js';
+import { cerrarFichajesOlvidados } from './lib/gestion.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -43,4 +44,7 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 UCP Horas Server running on http://localhost:${PORT}`);
   console.log(`📁 Database: ${path.join(__dirname, 'data.sqlite')}`);
+  // Cerrar fichajes olvidados al arrancar y luego cada 6 horas
+  cerrarFichajesOlvidados();
+  setInterval(cerrarFichajesOlvidados, 6 * 60 * 60 * 1000);
 });

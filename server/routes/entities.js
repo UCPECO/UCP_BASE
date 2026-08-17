@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { notificar, verificarConstanciaAutomatica } from '../lib/gestion.js';
 
 const router = Router();
 
@@ -30,7 +31,9 @@ const entityMap = {
   'Invitaciones': 'invitaciones',
   'Configuracion_Sistema': 'configuracion_sistema',
   'Bitacora_Auditoria': 'bitacora_auditoria',
-  'Comentarios_Evidencia': 'comentarios_evidencia'
+  'Comentarios_Evidencia': 'comentarios_evidencia',
+  'Notificaciones': 'notificaciones',
+  'Historial_Areas': 'historial_areas'
 };
 
 // ===== Permisos por rol (según DOCUMENTO_ROLES) =====
@@ -38,8 +41,10 @@ const entityMap = {
 const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo']);
 const WRITE_ADMIN_ENCARGADO = new Set(['Actividades', 'Eventos', 'Constancias', 'Encuestas', 'Evaluaciones_Alumno', 'Pases_Lista']);
 const BODEGA_CREATE = new Set(['Materiales_Recibidos', 'Electronicos_Reciclados', 'Salidas_Materiales']); // crear: admin/encargado; editar/borrar: solo admin
-const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Comentarios_Evidencia']); // el participante solo toca lo propio
+const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Comentarios_Evidencia', 'Notificaciones']); // el participante solo toca lo propio
 const READ_ADMIN_ONLY = new Set(['Invitaciones', 'Bitacora_Auditoria', 'Codigos_QR']);
+const READ_STAFF_ONLY = new Set(['Historial_Areas']); // solo admin/encargado pueden leerlo
+const NO_CLIENT_WRITE = new Set(['Historial_Areas']); // solo el servidor escribe (hooks internos)
 
 // Cache de columnas reales por tabla (evita SQL injection en identificadores
 // y errores por columnas inexistentes, ej. updated_date)
@@ -85,6 +90,11 @@ function getTable(req, res) {
 function checkWrite(req, res, entity, existingRow) {
   const me = getMe(req);
   if (!me) { res.status(401).json({ error: 'No autorizado' }); return false; }
+
+  if (NO_CLIENT_WRITE.has(entity)) {
+    res.status(403).json({ error: 'Esta entidad solo la escribe el sistema' });
+    return false;
+  }
   if (esAdmin(me)) return true;
 
   if (WRITE_ADMIN_ONLY.has(entity)) {
@@ -148,6 +158,9 @@ router.get('/:entity', authMiddleware, (req, res) => {
   if (READ_ADMIN_ONLY.has(req.params.entity) && !esAdmin(me)) {
     return res.status(403).json({ error: 'Solo el administrador' });
   }
+  if (READ_STAFF_ONLY.has(req.params.entity) && !esAdminOEncargado(me)) {
+    return res.status(403).json({ error: 'Solo admin o encargado' });
+  }
 
   const cols = validColumns(table);
   const { sort, limit, ...filters } = req.query;
@@ -201,6 +214,9 @@ router.get('/:entity/:id', authMiddleware, (req, res) => {
   const me = getMe(req);
   if (READ_ADMIN_ONLY.has(req.params.entity) && !esAdmin(me)) {
     return res.status(403).json({ error: 'Solo el administrador' });
+  }
+  if (READ_STAFF_ONLY.has(req.params.entity) && !esAdminOEncargado(me)) {
+    return res.status(403).json({ error: 'Solo admin o encargado' });
   }
 
   try {
@@ -258,6 +274,28 @@ router.post('/:entity', authMiddleware, (req, res) => {
 
     let row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
     if (table === 'users') row = stripPassword(row);
+
+    // ===== Hooks de gestión de personal =====
+    if (req.params.entity === 'Asignaciones' && row?.usuario) {
+      const act = row.actividad ? db.prepare('SELECT nombre FROM actividades WHERE id = ?').get(row.actividad) : null;
+      notificar(row.usuario, 'Nueva actividad asignada', `Te asignaron: ${act?.nombre || 'una actividad'}. Revisa los detalles.`, '/alumno/actividades');
+    }
+    if (req.params.entity === 'Bonos' && row?.usuario) {
+      notificar(row.usuario, `+${row.horas || 0} h de premio`, row.motivo || 'Se te asignaron horas de premio.', '/alumno');
+      verificarConstanciaAutomatica(row.usuario);
+    }
+    if (req.params.entity === 'Comentarios_Evidencia' && row?.evidencia) {
+      const ev = db.prepare('SELECT usuario, aprobado_por, descripcion FROM evidencias WHERE id = ?').get(row.evidencia);
+      if (ev) {
+        // Si comenta alguien distinto del dueño, avisar al dueño; si comenta el dueño, avisar al revisor
+        if (row.usuario !== ev.usuario) {
+          notificar(ev.usuario, 'Nuevo comentario en tu evidencia', row.comentario?.slice(0, 120) || '', '/alumno/evidencias');
+        } else if (ev.aprobado_por && ev.aprobado_por !== ev.usuario) {
+          notificar(ev.aprobado_por, 'El alumno respondió en una evidencia', (row.comentario || '').slice(0, 120), null);
+        }
+      }
+    }
+
     res.status(201).json(row);
   } catch (error) {
     console.error('CREATE error:', error);
@@ -315,6 +353,39 @@ router.put('/:entity/:id', authMiddleware, (req, res) => {
 
     let row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
     if (table === 'users') row = stripPassword(row);
+
+    // ===== Hooks de gestión de personal =====
+    if (table === 'users') {
+      // Historial de cambios de área y rol
+      for (const campo of ['area_asignada', 'area_encargada', 'role']) {
+        if (campo in req.body && String(existing[campo] ?? '') !== String(row[campo] ?? '')) {
+          db.prepare(`INSERT INTO historial_areas (id, usuario, campo, valor_anterior, valor_nuevo, cambiado_por) VALUES (?, ?, ?, ?, ?, ?)`)
+            .run(uuidv4(), row.id, campo, String(existing[campo] ?? ''), String(row[campo] ?? ''), me.id);
+        }
+      }
+      // Aviso de baja/reactivación
+      if ('archivado' in req.body && Number(existing.archivado) !== Number(row.archivado)) {
+        if (Number(row.archivado) === 1) {
+          notificar(row.id, 'Tu cuenta fue dada de baja', row.motivo_baja ? `Motivo: ${row.motivo_baja}` : 'Contacta al administrador para más información.', null);
+        } else {
+          notificar(row.id, 'Tu cuenta fue reactivada', 'Ya puedes seguir fichando y subiendo evidencias.', '/alumno');
+        }
+      }
+    }
+    if (req.params.entity === 'Evidencias' && row?.usuario && existing.estado_evidencia !== row.estado_evidencia) {
+      const avisos = {
+        aprobada: ['Evidencia aprobada ✅', 'Tu evidencia fue aprobada.'],
+        rechazada: ['Evidencia rechazada', row.comentario_revision ? `Motivo: ${row.comentario_revision}` : 'Fue rechazada.'],
+        regresada: ['Evidencia regresada para corrección', row.comentario_revision ? `Corrige: ${row.comentario_revision}` : 'Debes corregirla y reenviarla.'],
+      };
+      const aviso = avisos[row.estado_evidencia];
+      if (aviso) notificar(row.usuario, aviso[0], aviso[1], '/alumno/evidencias');
+    }
+    if (req.params.entity === 'Registros_QR' && !Number(existing.validado) && Number(row.validado) === 1) {
+      notificar(row.usuario, 'Fichaje validado', `Tu fichaje del ${row.fecha} (${row.horas || 0} h) ya cuenta para tu meta.`, '/alumno');
+      verificarConstanciaAutomatica(row.usuario);
+    }
+
     res.json(row);
   } catch (error) {
     console.error('UPDATE error:', error);

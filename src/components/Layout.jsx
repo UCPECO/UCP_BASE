@@ -7,6 +7,7 @@ import {
   Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, ShieldCheck, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
 
 const NAV = {
   admin: [
@@ -99,12 +100,13 @@ export default function Layout({ children }) {
   };
 
   const name = profile?.nombre_completo || profile?.full_name || user?.full_name || user?.email || "Usuario";
+  const usuarioId = profile?.id || user?.id;
 
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-30">
-        <SidebarContent items={items} name={name} role={role} foto={profile?.foto_perfil} onLogout={handleLogout} />
+        <SidebarContent items={items} name={name} role={role} foto={profile?.foto_perfil} usuarioId={usuarioId} onLogout={handleLogout} />
       </aside>
 
       {/* Sidebar mobile */}
@@ -112,7 +114,7 @@ export default function Layout({ children }) {
         <>
           <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setOpen(false)} />
           <aside className="lg:hidden fixed inset-y-0 left-0 w-64 bg-sidebar text-sidebar-foreground z-50 flex flex-col animate-fade-in">
-            <SidebarContent items={items} name={name} role={role} foto={profile?.foto_perfil} onLogout={handleLogout} onClose={() => setOpen(false)} />
+            <SidebarContent items={items} name={name} role={role} foto={profile?.foto_perfil} usuarioId={usuarioId} onLogout={handleLogout} onClose={() => setOpen(false)} />
           </aside>
         </>
       )}
@@ -125,7 +127,10 @@ export default function Layout({ children }) {
           <div className="flex items-center gap-2 font-heading font-bold">
             <ShieldCheck className="h-5 w-5 text-accent" /> UCP
           </div>
-          <button onClick={handleLogout} className="p-2 -mr-2"><LogOut className="h-5 w-5" /></button>
+          <div className="flex items-center">
+            <CampanaNotificaciones usuarioId={usuarioId} />
+            <button onClick={handleLogout} className="p-2 -mr-2"><LogOut className="h-5 w-5" /></button>
+          </div>
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in">
@@ -136,7 +141,7 @@ export default function Layout({ children }) {
   );
 }
 
-function SidebarContent({ items, name, role, onLogout, onClose, foto }) {
+function SidebarContent({ items, name, role, onLogout, onClose, foto, usuarioId }) {
   return (
     <>
       <div className="flex items-center justify-between px-5 h-16 border-b border-sidebar-border">
@@ -148,7 +153,10 @@ function SidebarContent({ items, name, role, onLogout, onClose, foto }) {
             <p className="font-heading font-bold text-sidebar-primary leading-tight">UCP Tracker</p>
             <p className="text-[10px] text-sidebar-foreground/70 uppercase tracking-wider">Servicio Social</p>
           </div>
-          {onClose && <button onClick={onClose} className="ml-auto p-1 text-sidebar-foreground/70"><X className="h-5 w-5" /></button>}
+        </div>
+        <div className="flex items-center gap-1">
+          <CampanaNotificaciones usuarioId={usuarioId} />
+          {onClose && <button onClick={onClose} className="p-1 text-sidebar-foreground/70"><X className="h-5 w-5" /></button>}
         </div>
       </div>
 

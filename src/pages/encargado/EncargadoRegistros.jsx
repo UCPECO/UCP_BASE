@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { ClipboardCheck, LogOut } from "lucide-react";
+import { ClipboardCheck, LogOut, ShieldCheck } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -20,19 +20,22 @@ export default function EncargadoRegistros() {
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState(null);
   const [comentario, setComentario] = useState("");
+  const [meArea, setMeArea] = useState("");
 
   const load = async () => {
     try {
-      const [regs, us, asigs, acts] = await Promise.all([
+      const [regs, us, asigs, acts, me] = await Promise.all([
         base44.entities.Registros_QR.list("-fecha", 500),
         base44.entities.User.list("full_name", 500),
         base44.entities.Asignaciones.list("-created_date", 500),
         base44.entities.Actividades.list("nombre", 200),
+        base44.auth.me().catch(() => null),
       ]);
-      setRegistros(regs.filter((r) => r.estado_registro === "abierto"));
+      setRegistros(regs);
       setUsers(us);
       setAsignaciones(asigs);
       setActividades(acts);
+      setMeArea(me?.area_encargada || "");
     } catch (e) {
       console.error(e);
     } finally {
@@ -56,13 +59,31 @@ export default function EncargadoRegistros() {
     } catch (e) { toast({ title: "Error", variant: "destructive" }); }
   };
 
+  const validar = async (r) => {
+    try {
+      await base44.entities.Registros_QR.update(r.id, { validado: 1, validado_por: user.id });
+      toast({ title: "Fichaje validado", description: "Las horas ya cuentan para la meta del alumno" });
+      load();
+    } catch (e) { toast({ title: "Error al validar", variant: "destructive" }); }
+  };
+
+  const abiertos = registros.filter((r) => r.estado_registro === "abierto");
+  // Fichajes cerrados sin validar, del área que encarga (si tiene área asignada)
+  const porValidar = registros.filter((r) => {
+    if (r.estado_registro !== "cerrado" && r.estado_registro !== "incompleto") return false;
+    if (r.validado) return false;
+    if (!meArea) return true;
+    const alumno = users.find((u) => u.id === r.usuario);
+    return alumno?.area_asignada === meArea;
+  });
+
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold font-heading">Registros abiertos</h1>
-        <p className="text-sm text-muted-foreground mt-1">{registros.length} registro(s) sin salida en todo el personal</p>
+        <p className="text-sm text-muted-foreground mt-1">{abiertos.length} registro(s) sin salida en todo el personal</p>
       </div>
 
       <div className="flex items-start gap-2.5 p-3 rounded-lg bg-primary/8 border border-primary/20 text-foreground text-xs">
@@ -72,11 +93,11 @@ export default function EncargadoRegistros() {
         </span>
       </div>
 
-      {registros.length === 0 ? (
+      {abiertos.length === 0 ? (
         <SectionCard><EmptyState title="Sin registros abiertos" message="Todos los fichajes están cerrados." icon={ClipboardCheck} /></SectionCard>
       ) : (
         <div className="space-y-3">
-          {registros.map((r) => {
+          {abiertos.map((r) => {
             const alumno = users.find((u) => u.id === r.usuario);
             const asig = asignaciones.find((a) => a.id === r.asignacion);
             const act = actividades.find((a) => a.id === asig?.actividad);
@@ -109,6 +130,31 @@ export default function EncargadoRegistros() {
           })}
         </div>
       )}
+
+      {/* Por validar: fichajes cerrados de mi área que aún no cuentan para la meta */}
+      <SectionCard title={`Por validar (${porValidar.length})`} subtitle="Fichajes cerrados que aún no cuentan para la meta del alumno" icon={ShieldCheck}>
+        {porValidar.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Todo validado. 👍</p>
+        ) : (
+          <div className="space-y-2">
+            {porValidar.slice(0, 30).map((r) => {
+              const alumno = users.find((u) => u.id === r.usuario);
+              const hrs = r.hora_salida ? calcularHoras(r.hora_entrada, r.hora_salida) : 0;
+              return (
+                <div key={r.id} className="flex items-center justify-between gap-3 flex-wrap p-3 rounded-lg border border-border">
+                  <div>
+                    <p className="text-sm font-medium">{alumno?.nombre_completo || alumno?.full_name || "—"}</p>
+                    <p className="text-xs text-muted-foreground">{formatearFecha(r.fecha)} · {r.hora_entrada} → {r.hora_salida || "—"} · {hrs} h</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="text-emerald-700 border-emerald-300" onClick={() => validar(r)}>
+                    <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Validar
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

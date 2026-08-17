@@ -16,7 +16,7 @@ import EventosGoogleCalendar from "@/components/ucp/EventosGoogleCalendar";
 import PaseListaAlumno from "@/components/ucp/PaseListaAlumno";
 
 export default function AlumnoDashboard() {
-  const { loading, perfil, asignacion, actividad, registros, totalHoras, horasAcumuladas, horasBono, meta, porcentaje, restantes, horario, eventos } = useAlumnoData();
+  const { loading, perfil, asignacion, actividad, registros, totalHoras, horasAcumuladas, horasPorValidar, horasBono, meta, porcentaje, restantes, horario, eventos } = useAlumnoData();
   const [registroAbierto, setRegistroAbierto] = useState(null);
 
   useEffect(() => {
@@ -52,6 +52,11 @@ export default function AlumnoDashboard() {
           <InfoMini label="Restantes" value={`${restantes} h`} />
           <InfoMini label="Estado" value={<StatusBadge status={asignacion?.estado} />} />
         </div>
+        {horasPorValidar > 0 && (
+          <p className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Tienes <strong>{horasPorValidar} h</strong> pendientes de validación por tu encargado. Solo las horas validadas cuentan para tu meta.
+          </p>
+        )}
       </SectionCard>
 
       {/* Pase de lista activo */}
@@ -95,7 +100,8 @@ export default function AlumnoDashboard() {
                   <th className="py-2 pr-4 font-medium">Entrada</th>
                   <th className="py-2 pr-4 font-medium">Salida</th>
                   <th className="py-2 pr-4 font-medium">Horas</th>
-                  <th className="py-2 font-medium">Estado</th>
+                  <th className="py-2 pr-4 font-medium">Estado</th>
+                  <th className="py-2 font-medium">Validación</th>
                 </tr>
               </thead>
               <tbody>
@@ -107,7 +113,14 @@ export default function AlumnoDashboard() {
                       <td className="py-3 pr-4">{r.hora_entrada}</td>
                       <td className="py-3 pr-4">{r.hora_salida || "—"}</td>
                       <td className="py-3 pr-4 font-medium">{r.estado_registro === "cerrado" ? `${hrs}h` : "—"}</td>
-                      <td className="py-3"><StatusBadge status={r.estado_registro} /></td>
+                      <td className="py-3 pr-4"><StatusBadge status={r.estado_registro} /></td>
+                      <td className="py-3">
+                        {r.estado_registro === "abierto" ? "—" : r.validado ? (
+                          <span className="text-xs font-medium text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">Validado</span>
+                        ) : (
+                          <span className="text-xs font-medium text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">Por validar</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

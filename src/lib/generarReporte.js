@@ -9,33 +9,31 @@ export function generarReportePdfMensual({ perfil, actividad, registros, bonos, 
   const nombreMes = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes];
 
   // Filtrar registros del mes
-  const regsMes = registros.filter(r => {
+  const regsMesTodos = registros.filter(r => {
     const f = new Date(r.fecha);
-    return f.getMonth() === mes && f.getFullYear() === anio && r.estado_registro === "cerrado";
+    return f.getMonth() === mes && f.getFullYear() === anio && (r.estado_registro === "cerrado" || r.estado_registro === "incompleto");
   });
+  const regsMes = regsMesTodos.filter(r => r.validado);
   const bonosMes = bonos.filter(b => {
     const f = new Date(b.fecha);
     return f.getMonth() === mes && f.getFullYear() === anio;
   });
 
-  const horasMes = regsMes.reduce((acc, r) => {
+  const horasDe = (r) => {
     const [h1, m1] = (r.hora_entrada || "0:0").split(":").map(Number);
     const [h2, m2] = (r.hora_salida || "0:0").split(":").map(Number);
     let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
     if (mins < 0) mins += 24 * 60;
-    return acc + mins / 60;
-  }, 0);
+    return mins / 60;
+  };
+
+  const horasMes = regsMes.reduce((acc, r) => acc + horasDe(r), 0);
+  const horasPorValidarMes = regsMesTodos.filter(r => !r.validado).reduce((acc, r) => acc + horasDe(r), 0);
   const horasBonoMes = bonosMes.reduce((acc, b) => acc + (b.horas || 0), 0);
   const totalMes = Math.round((horasMes + horasBonoMes) * 100) / 100;
 
-  // Total acumulado histórico
-  const horasTotalReg = registros.filter(r => r.estado_registro === "cerrado").reduce((acc, r) => {
-    const [h1, m1] = (r.hora_entrada || "0:0").split(":").map(Number);
-    const [h2, m2] = (r.hora_salida || "0:0").split(":").map(Number);
-    let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
-    if (mins < 0) mins += 24 * 60;
-    return acc + mins / 60;
-  }, 0);
+  // Total acumulado histórico (solo fichajes validados)
+  const horasTotalReg = registros.filter(r => (r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && r.validado).reduce((acc, r) => acc + horasDe(r), 0);
   const horasTotalBono = bonos.reduce((acc, b) => acc + (b.horas || 0), 0);
   const totalAcumulado = Math.round((horasTotalReg + horasTotalBono) * 100) / 100;
   const porcentaje = Math.min(100, Math.round((totalAcumulado / META) * 100));
@@ -75,10 +73,11 @@ export function generarReportePdfMensual({ perfil, actividad, registros, bonos, 
   doc.line(14, y - 2, 196, y - 2);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Horas por fichaje: ${Math.round(horasMes * 100) / 100} h`, 14, y); y += 6;
+  doc.text(`Horas por fichaje validadas: ${Math.round(horasMes * 100) / 100} h`, 14, y); y += 6;
+  doc.text(`Horas pendientes de validación: ${Math.round(horasPorValidarMes * 100) / 100} h`, 14, y); y += 6;
   doc.text(`Horas bono: ${Math.round(horasBonoMes * 100) / 100} h`, 14, y); y += 6;
-  doc.text(`Total del mes: ${totalMes} h`, 14, y); y += 6;
-  doc.text(`Registros cerrados: ${regsMes.length}`, 14, y); y += 10;
+  doc.text(`Total del mes (validadas + bono): ${totalMes} h`, 14, y); y += 6;
+  doc.text(`Registros cerrados: ${regsMesTodos.length} (${regsMes.length} validados)`, 14, y); y += 10;
 
   // Progreso general
   doc.setFont("helvetica", "bold");
@@ -97,22 +96,19 @@ export function generarReportePdfMensual({ perfil, actividad, registros, bonos, 
   doc.line(14, y - 2, 196, y - 2); y += 4;
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("Fecha", 14, y); doc.text("Entrada", 60, y); doc.text("Salida", 90, y); doc.text("Horas", 125, y); y += 5;
+  doc.text("Fecha", 14, y); doc.text("Entrada", 60, y); doc.text("Salida", 90, y); doc.text("Horas", 125, y); doc.text("Validado", 155, y); y += 5;
   doc.setFont("helvetica", "normal");
-  if (regsMes.length === 0) {
+  if (regsMesTodos.length === 0) {
     doc.text("Sin registros en este mes.", 14, y); y += 5;
   }
-  regsMes.forEach(r => {
+  regsMesTodos.forEach(r => {
     if (y > 270) { doc.addPage(); y = 20; }
-    const [h1, m1] = (r.hora_entrada || "0:0").split(":").map(Number);
-    const [h2, m2] = (r.hora_salida || "0:0").split(":").map(Number);
-    let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
-    if (mins < 0) mins += 24 * 60;
-    const hrs = Math.round((mins / 60) * 100) / 100;
+    const hrs = Math.round(horasDe(r) * 100) / 100;
     doc.text(formatearFecha(r.fecha), 14, y);
     doc.text(r.hora_entrada || "—", 60, y);
     doc.text(r.hora_salida || "—", 90, y);
     doc.text(`${hrs} h`, 125, y);
+    doc.text(r.validado ? "Sí" : "Por validar", 155, y);
     y += 5;
   });
 

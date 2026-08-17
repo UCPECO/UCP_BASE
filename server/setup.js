@@ -350,6 +350,32 @@ db.exec(`
   );
 `);
 
+// Tabla de notificaciones internas (campana)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notificaciones (
+    id TEXT PRIMARY KEY,
+    usuario TEXT NOT NULL,
+    titulo TEXT,
+    mensaje TEXT,
+    enlace TEXT,
+    leida INTEGER DEFAULT 0,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// Historial de cambios de área / rol del personal
+db.exec(`
+  CREATE TABLE IF NOT EXISTS historial_areas (
+    id TEXT PRIMARY KEY,
+    usuario TEXT NOT NULL,
+    campo TEXT,
+    valor_anterior TEXT,
+    valor_nuevo TEXT,
+    cambiado_por TEXT,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // ===== Migraciones idempotentes =====
 // Las bases ya desplegadas no reciben columnas nuevas con CREATE TABLE IF NOT EXISTS,
 // así que cada columna que el frontend usa se agrega aquí si falta.
@@ -358,7 +384,9 @@ function addColumnIfMissing(table, column, ddl) {
   if (!cols.includes(column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
     console.log(`Migración: ${table}.${column} agregada`);
+    return true;
   }
+  return false;
 }
 
 // Evidencias: campos que el frontend siempre usó pero la tabla no tenía
@@ -403,6 +431,47 @@ addColumnIfMissing('salidas_materiales', 'registrado_por_nombre', 'registrado_po
 addColumnIfMissing('stock_minimo', 'categoria', 'categoria TEXT');
 addColumnIfMissing('stock_minimo', 'medida', 'medida TEXT');
 addColumnIfMissing('stock_minimo', 'configurado_por', 'configurado_por TEXT');
+
+// Fichajes: validación por encargado/admin + campos del cierre manual
+const validadoNuevo = addColumnIfMissing('registros_qr', 'validado', 'validado INTEGER DEFAULT 0');
+addColumnIfMissing('registros_qr', 'validado_por', 'validado_por TEXT');
+addColumnIfMissing('registros_qr', 'comentario_admin', 'comentario_admin TEXT');
+addColumnIfMissing('registros_qr', 'modificado_por', 'modificado_por TEXT');
+// Los fichajes cerrados que ya existían cuentan como validados (son históricos)
+if (validadoNuevo) {
+  const r = db.prepare(`UPDATE registros_qr SET validado = 1 WHERE estado_registro IN ('cerrado', 'incompleto')`).run();
+  console.log(`Migración: ${r.changes} fichajes históricos marcados como validados`);
+}
+
+// Usuarios: datos de personal que el frontend ya usaba
+addColumnIfMissing('users', 'tipo_participante', 'tipo_participante TEXT');
+addColumnIfMissing('users', 'facultad', 'facultad TEXT');
+addColumnIfMissing('users', 'periodo_asignado', 'periodo_asignado TEXT');
+addColumnIfMissing('users', 'fecha_baja', 'fecha_baja TEXT');
+addColumnIfMissing('users', 'motivo_baja', 'motivo_baja TEXT');
+
+// Constancias: campos que el generador de PDF y el admin ya usaban
+addColumnIfMissing('constancias', 'usuario_nombre', 'usuario_nombre TEXT');
+addColumnIfMissing('constancias', 'matricula', 'matricula TEXT');
+addColumnIfMissing('constancias', 'tipo', 'tipo TEXT');
+addColumnIfMissing('constancias', 'area', 'area TEXT');
+addColumnIfMissing('constancias', 'horas_completadas', 'horas_completadas REAL');
+addColumnIfMissing('constancias', 'fecha_inicio', 'fecha_inicio TEXT');
+addColumnIfMissing('constancias', 'fecha_fin', 'fecha_fin TEXT');
+addColumnIfMissing('constancias', 'folio', 'folio TEXT');
+addColumnIfMissing('constancias', 'generado_por', 'generado_por TEXT');
+addColumnIfMissing('constancias', 'generado_por_nombre', 'generado_por_nombre TEXT');
+
+// Actividades: meta de horas para la constancia automática
+addColumnIfMissing('actividades', 'meta_horas', 'meta_horas REAL');
+
+// Eventos: a quién se muestran
+addColumnIfMissing('eventos', 'visible_para', "visible_para TEXT DEFAULT 'todos'");
+
+// Bitácora: campos que el frontend registra
+addColumnIfMissing('bitacora_auditoria', 'usuario_nombre', 'usuario_nombre TEXT');
+addColumnIfMissing('bitacora_auditoria', 'modulo', 'modulo TEXT');
+addColumnIfMissing('bitacora_auditoria', 'fecha', 'fecha TEXT');
 
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');

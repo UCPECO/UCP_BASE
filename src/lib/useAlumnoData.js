@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { sumarHorasRegistros, sumarHorasBonos, calcularPorcentaje, horasRestantes, META_HORAS_DEFAULT } from "@/lib/ucpUtils";
+import { sumarHorasRegistros, sumarHorasPorValidar, sumarHorasBonos, calcularPorcentaje, horasRestantes, META_HORAS_DEFAULT } from "@/lib/ucpUtils";
 
 // Carga los datos completos del alumno actual: perfil, asignación, actividad, registros, bonos
 export function useAlumnoData() {
@@ -48,6 +48,7 @@ export function useAlumnoData() {
   useEffect(() => { load(); }, [user?.id]);
 
   const horasAcumuladas = sumarHorasRegistros(registros);
+  const horasPorValidar = sumarHorasPorValidar(registros);
   const horasBono = sumarHorasBonos(bonos);
   const totalHoras = Math.round((horasAcumuladas + horasBono) * 100) / 100;
   const meta = actividad?.meta_horas || META_HORAS_DEFAULT;
@@ -56,6 +57,6 @@ export function useAlumnoData() {
 
   return {
     loading, perfil, asignacion, actividad, registros, bonos, horario, eventos,
-    horasAcumuladas, horasBono, totalHoras, meta, porcentaje, restantes, reload: load
+    horasAcumuladas, horasPorValidar, horasBono, totalHoras, meta, porcentaje, restantes, reload: load
   };
 }

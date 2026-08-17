@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CalendarDays, Clock, Award, AlertTriangle, Trash2, Save, UserX, RefreshCw,
-  FolderKanban, CheckCircle2, FileDown,
+  FolderKanban, CheckCircle2, FileDown, Image as ImageIcon, History, ExternalLink, ShieldCheck,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasBonos } from "@/lib/ucpUtils";
+import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasPorValidar, sumarHorasBonos } from "@/lib/ucpUtils";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -47,6 +47,7 @@ function Badge({ value }) {
 export default function DetallePersonal({ usuario, onClose }) {
   const { toast } = useToast();
   const [role, setRole] = useState(null);
+  const [meId, setMeId] = useState(null);
   const [loading, setLoading] = useState(true);
   const esAdmin = role === "admin";
   const esEncargado = role === "encargado";
@@ -56,6 +57,8 @@ export default function DetallePersonal({ usuario, onClose }) {
   const [bonos, setBonos] = useState([]);
   const [incidencias, setIncidencias] = useState([]);
   const [actividades, setActividades] = useState([]);
+  const [evidencias, setEvidencias] = useState([]);
+  const [historial, setHistorial] = useState([]);
   const [editSalida, setEditSalida] = useState({});
   const [editHoras, setEditHoras] = useState({});
   const [editInc, setEditInc] = useState({});
@@ -65,18 +68,22 @@ export default function DetallePersonal({ usuario, onClose }) {
   const load = async () => {
     if (!usuario) return;
     try {
-      const [asigs, regs, bons, incs, acts] = await Promise.all([
+      const [asigs, regs, bons, incs, acts, evs, hist] = await Promise.all([
         base44.entities.Asignaciones.list("-created_date", 500),
         base44.entities.Registros_QR.list("-fecha", 500),
         base44.entities.Bonos.list("-fecha", 500),
         base44.entities.Incidencias.list("-created_date", 500),
         base44.entities.Actividades.list("nombre", 200),
+        base44.entities.Evidencias.filter({ usuario: usuario.id }, "-created_date", 100).catch(() => []),
+        base44.entities.Historial_Areas.filter({ usuario: usuario.id }, "-created_date", 100).catch(() => []),
       ]);
       setAsignaciones(asigs.filter((a) => a.usuario === usuario.id));
       setRegistros(regs.filter((r) => r.usuario === usuario.id));
       setBonos(bons.filter((b) => b.usuario === usuario.id));
       setIncidencias(incs.filter((i) => i.usuario_afectado === usuario.id || i.usuario_afectado === usuario.email || i.creado_por === usuario.id));
       setActividades(acts);
+      setEvidencias(evs || []);
+      setHistorial(hist || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -84,7 +91,7 @@ export default function DetallePersonal({ usuario, onClose }) {
     }
   };
 
-  useEffect(() => { base44.auth.me().then((m) => setRole(m.role)).catch(() => {}); }, []);
+  useEffect(() => { base44.auth.me().then((m) => { setRole(m.role); setMeId(m.id); }).catch(() => {}); }, []);
 
   useEffect(() => {
     if (usuario) {
@@ -98,6 +105,15 @@ export default function DetallePersonal({ usuario, onClose }) {
   actividades.forEach((a) => { actsById[a.id] = a; });
 
   const totalHoras = Math.round((sumarHorasRegistros(registros) + sumarHorasBonos(bonos)) * 100) / 100;
+  const horasPorValidar = sumarHorasPorValidar(registros);
+
+  const validarRegistro = async (r) => {
+    try {
+      await base44.entities.Registros_QR.update(r.id, { validado: 1, validado_por: meId });
+      toast({ title: "Fichaje validado", description: `${formatearFecha(r.fecha)} ya cuenta para la meta` });
+      load();
+    } catch (e) { toast({ title: "Error al validar", variant: "destructive" }); }
+  };
 
   const generarReportePersonal = () => {
     const asig = asignaciones.find((a) => a.estado !== "cancelado") || asignaciones[0];
@@ -201,7 +217,8 @@ export default function DetallePersonal({ usuario, onClose }) {
           </DialogTitle>
           <DialogDescription>
             {usuario?.email} · Rol: {usuario?.role} · {usuario?.matricula || "Sin matrícula"} ·{" "}
-            <span className="font-semibold text-primary">{totalHoras} h</span> acumuladas
+            <span className="font-semibold text-primary">{totalHoras} h</span> validadas
+            {horasPorValidar > 0 && <> · <span className="font-semibold text-amber-600">{horasPorValidar} h</span> por validar</>}
           </DialogDescription>
         </DialogHeader>
 
@@ -225,11 +242,13 @@ export default function DetallePersonal({ usuario, onClose }) {
           <div className="flex justify-center py-10"><div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
         ) : (
           <Tabs defaultValue="actividades">
-            <TabsList className="w-full justify-start">
+            <TabsList className="w-full justify-start flex-wrap h-auto">
               <TabsTrigger value="actividades" className="flex-1"><FolderKanban className="h-4 w-4 mr-1.5" /> Actividades</TabsTrigger>
               <TabsTrigger value="asistencias" className="flex-1"><Clock className="h-4 w-4 mr-1.5" /> Fichaje</TabsTrigger>
+              <TabsTrigger value="evidencias" className="flex-1"><ImageIcon className="h-4 w-4 mr-1.5" /> Evidencias</TabsTrigger>
               <TabsTrigger value="premios" className="flex-1"><Award className="h-4 w-4 mr-1.5" /> Premios</TabsTrigger>
               <TabsTrigger value="incidencias" className="flex-1"><AlertTriangle className="h-4 w-4 mr-1.5" /> Incidencias</TabsTrigger>
+              <TabsTrigger value="historial" className="flex-1"><History className="h-4 w-4 mr-1.5" /> Historial</TabsTrigger>
             </TabsList>
 
             {/* ACTIVIDADES */}
@@ -273,20 +292,38 @@ export default function DetallePersonal({ usuario, onClose }) {
                     <div className="flex items-center gap-3 flex-wrap">
                       <p className="text-sm font-medium">{formatearFecha(r.fecha)}</p>
                       <Badge value={r.estado_registro} />
+                      {r.estado_registro !== "abierto" && (
+                        r.validado ? (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">validado</span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">por validar</span>
+                        )
+                      )}
                       <span className="text-xs text-muted-foreground">Entrada: <b>{r.hora_entrada || "—"}</b></span>
                       <span className="text-xs text-muted-foreground">Horas: <b className="text-primary">{horas} h</b></span>
                     </div>
-                    {esAdmin && (
+                    {(esAdmin || (puedeCorregir && r.estado_registro !== "abierto" && !r.validado)) && (
                       <div className="flex items-end gap-2 flex-wrap">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Corregir salida</Label>
-                          <Input type="time" value={salida} onChange={(e) => setEditSalida((s) => ({ ...s, [r.id]: e.target.value }))} className="h-8 w-32" />
-                        </div>
-                        <Button size="sm" onClick={() => guardarSalida(r)}><Save className="h-3.5 w-3.5 mr-1" /> Guardar</Button>
-                        {r.estado_registro === "abierto" && (
-                          <Button size="sm" variant="secondary" onClick={() => cerrarRegistro(r)}><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Cerrar ahora</Button>
+                        {esAdmin && (
+                          <>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Corregir salida</Label>
+                              <Input type="time" value={salida} onChange={(e) => setEditSalida((s) => ({ ...s, [r.id]: e.target.value }))} className="h-8 w-32" />
+                            </div>
+                            <Button size="sm" onClick={() => guardarSalida(r)}><Save className="h-3.5 w-3.5 mr-1" /> Guardar</Button>
+                            {r.estado_registro === "abierto" && (
+                              <Button size="sm" variant="secondary" onClick={() => cerrarRegistro(r)}><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Cerrar ahora</Button>
+                            )}
+                          </>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => eliminarRegistro(r)} className="text-rose-600"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        {puedeCorregir && r.estado_registro !== "abierto" && !r.validado && (
+                          <Button size="sm" variant="outline" onClick={() => validarRegistro(r)} className="text-emerald-700 border-emerald-300">
+                            <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Validar
+                          </Button>
+                        )}
+                        {esAdmin && (
+                          <Button size="sm" variant="ghost" onClick={() => eliminarRegistro(r)} className="text-rose-600"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -359,6 +396,55 @@ export default function DetallePersonal({ usuario, onClose }) {
                   </div>
                 );
               })}
+            </TabsContent>
+            {/* EVIDENCIAS */}
+            <TabsContent value="evidencias" className="space-y-2 mt-3">
+              {evidencias.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Sin evidencias enviadas.</p>
+              ) : evidencias.map((ev) => (
+                <div key={ev.id} className="p-3 rounded-lg border border-border flex items-start gap-3">
+                  {ev.archivo_url && (ev.archivo_url.startsWith("data:image") || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(ev.archivo_url)) ? (
+                    <a href={ev.archivo_url} target="_blank" rel="noreferrer" className="shrink-0">
+                      <img src={ev.archivo_url} alt="" className="h-14 w-14 rounded-lg object-cover border border-border" />
+                    </a>
+                  ) : ev.archivo_url ? (
+                    <a href={ev.archivo_url} target="_blank" rel="noreferrer" className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center shrink-0" title="Abrir enlace">
+                      <ExternalLink className="h-5 w-5 text-muted-foreground" />
+                    </a>
+                  ) : (
+                    <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium truncate">{ev.titulo || ev.descripcion?.slice(0, 60) || "Evidencia"}</p>
+                      <Badge value={ev.estado_evidencia} />
+                    </div>
+                    {ev.descripcion && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{ev.descripcion}</p>}
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">{formatearFecha(ev.created_date)}</p>
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+
+            {/* HISTORIAL */}
+            <TabsContent value="historial" className="space-y-2 mt-3">
+              {historial.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Sin cambios de área o rol registrados.</p>
+              ) : historial.map((h) => (
+                <div key={h.id} className="p-3 rounded-lg border border-border flex items-center gap-3 flex-wrap">
+                  <History className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <p className="text-sm">
+                    <span className="font-medium capitalize">{{ area_asignada: "Área asignada", area_encargada: "Área encargada", role: "Rol" }[h.campo] || h.campo}</span>
+                    {": "}
+                    <span className="text-muted-foreground">{h.valor_anterior || "—"}</span>
+                    {" → "}
+                    <span className="font-medium text-primary">{h.valor_nuevo || "—"}</span>
+                  </p>
+                  <span className="text-xs text-muted-foreground ml-auto">{formatearFecha(h.created_date)}</span>
+                </div>
+              ))}
             </TabsContent>
           </Tabs>
         )}

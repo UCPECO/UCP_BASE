@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { UserCog, Search, Mail, X, UserPlus, Eye, FileDown, Trash2, Archive, ArchiveRestore, Key, RefreshCw, Copy, Check } from "lucide-react";
+import { UserCog, Search, Mail, X, UserPlus, Eye, FileDown, Trash2, Archive, ArchiveRestore, Key, RefreshCw, Copy, Check, Download, CalendarX2 } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import DetallePersonal from "@/components/ucp/DetallePersonal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { generarReportePersonalPdfMensual } from "@/lib/reportePersonal";
 import { useAuth } from "@/lib/AuthContext";
 import { AREAS, labelArea } from "@/lib/areas";
+import { calcularHoras, fechaHoy } from "@/lib/ucpUtils";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
@@ -36,6 +38,9 @@ const NUEVO_VACIO = {
   area: "",
   matricula: "",
   telefono: "",
+  facultad: "",
+  carrera: "",
+  periodo: "",
 };
 
 function generarPasswordAleatoria() {
@@ -72,6 +77,11 @@ export default function AdminPersonal() {
   const [cambiandoPwdUser, setCambiandoPwdUser] = useState(null);
   const [nuevaPwd, setNuevaPwd] = useState("");
   const [guardandoPwd, setGuardandoPwd] = useState(false);
+  const [bajaUser, setBajaUser] = useState(null);
+  const [motivoBaja, setMotivoBaja] = useState("");
+  const [showCierrePeriodo, setShowCierrePeriodo] = useState(false);
+  const [periodoCierre, setPeriodoCierre] = useState("");
+  const [cerrandoPeriodo, setCerrandoPeriodo] = useState(false);
 
   const load = async () => {
     try {
@@ -112,9 +122,15 @@ export default function AdminPersonal() {
         role: nuevo.role,
         matricula: nuevo.matricula.trim(),
         telefono: nuevo.telefono.trim(),
+        facultad: nuevo.facultad.trim(),
+        carrera: nuevo.carrera.trim(),
       };
       if (nuevo.role === "encargado") payload.area_encargada = nuevo.area;
-      if (nuevo.role === "servicio_social" || nuevo.role === "voluntario") payload.area_asignada = nuevo.area;
+      if (nuevo.role === "servicio_social" || nuevo.role === "voluntario") {
+        payload.area_asignada = nuevo.area;
+        payload.tipo_participante = nuevo.role;
+        payload.periodo_asignado = nuevo.periodo.trim();
+      }
 
       const creado = await base44.auth.adminCreateUser(payload);
       setCredenciales({ email: creado.email, password: nuevo.password, nombre: creado.full_name });
@@ -199,18 +215,95 @@ export default function AdminPersonal() {
     }
   };
 
-  const toggleArchivar = async (u) => {
-    const nuevoVal = !u.archivado;
-    setSavingId(u.id);
+  const confirmarBaja = async () => {
+    if (!bajaUser) return;
+    setSavingId(bajaUser.id);
     try {
-      await base44.entities.User.update(u.id, { archivado: nuevoVal });
-      setUsers((us) => us.map((x) => (x.id === u.id ? { ...x, archivado: nuevoVal } : x)));
-      toast({ title: nuevoVal ? "Usuario archivado" : "Usuario reactivado", description: u.nombre_completo || u.full_name || u.email });
+      const hoy = fechaHoy();
+      await base44.entities.User.update(bajaUser.id, { archivado: 1, fecha_baja: hoy, motivo_baja: motivoBaja.trim() });
+      setUsers((us) => us.map((x) => (x.id === bajaUser.id ? { ...x, archivado: 1, fecha_baja: hoy, motivo_baja: motivoBaja.trim() } : x)));
+      toast({ title: "Usuario dado de baja", description: bajaUser.nombre_completo || bajaUser.full_name || bajaUser.email });
+      setBajaUser(null);
+      setMotivoBaja("");
     } catch (e) {
-      toast({ title: "Error al archivar", variant: "destructive" });
+      toast({ title: "Error al dar de baja", variant: "destructive" });
     } finally {
       setSavingId(null);
     }
+  };
+
+  const reactivar = async (u) => {
+    setSavingId(u.id);
+    try {
+      await base44.entities.User.update(u.id, { archivado: 0, fecha_baja: "", motivo_baja: "" });
+      setUsers((us) => us.map((x) => (x.id === u.id ? { ...x, archivado: 0, fecha_baja: "", motivo_baja: "" } : x)));
+      toast({ title: "Usuario reactivado", description: u.nombre_completo || u.full_name || u.email });
+    } catch (e) {
+      toast({ title: "Error al reactivar", variant: "destructive" });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const archivarPeriodo = async () => {
+    const periodo = periodoCierre.trim();
+    if (!periodo) { toast({ title: "Escribe el periodo a cerrar", variant: "destructive" }); return; }
+    const afectados = users.filter((u) => !u.archivado && u.periodo_asignado === periodo && (u.role === "servicio_social" || u.role === "voluntario"));
+    if (afectados.length === 0) { toast({ title: "Sin coincidencias", description: `Nadie activo tiene el periodo "${periodo}"`, variant: "destructive" }); return; }
+    setCerrandoPeriodo(true);
+    try {
+      const hoy = fechaHoy();
+      const motivo = `Cierre de periodo ${periodo}`;
+      await Promise.all(afectados.map((u) => base44.entities.User.update(u.id, { archivado: 1, fecha_baja: hoy, motivo_baja: motivo })));
+      setUsers((us) => us.map((x) => (afectados.some((a) => a.id === x.id) ? { ...x, archivado: 1, fecha_baja: hoy, motivo_baja: motivo } : x)));
+      toast({ title: "Periodo cerrado", description: `${afectados.length} persona(s) dadas de baja` });
+      setShowCierrePeriodo(false);
+      setPeriodoCierre("");
+    } catch (e) {
+      toast({ title: "Error al cerrar el periodo", variant: "destructive" });
+    } finally {
+      setCerrandoPeriodo(false);
+    }
+  };
+
+  const horasDe = (userId) => {
+    let validadas = 0, porValidar = 0;
+    for (const r of registros) {
+      if (r.usuario !== userId) continue;
+      if (r.estado_registro !== "cerrado" && r.estado_registro !== "incompleto") continue;
+      const h = calcularHoras(r.hora_entrada, r.hora_salida);
+      if (r.validado) validadas += h; else porValidar += h;
+    }
+    for (const b of bonos) if (b.usuario === userId) validadas += b.horas || 0;
+    return { validadas: Math.round(validadas * 100) / 100, porValidar: Math.round(porValidar * 100) / 100 };
+  };
+
+  const exportarCSV = () => {
+    const cabecera = ["Nombre", "Correo", "Matrícula", "Rol", "Área", "Periodo", "Estado", "Horas validadas", "Horas por validar"];
+    const filas = filtered.map((u) => {
+      const { validadas, porValidar } = horasDe(u.id);
+      return [
+        u.nombre_completo || u.full_name || "",
+        u.email || "",
+        u.matricula || "",
+        ROLES.find((r) => r.value === u.role)?.label || u.role || "",
+        labelArea(u.area_encargada || u.area_asignada || "") || "",
+        u.periodo_asignado || "",
+        u.archivado ? "Baja" : "Activo",
+        validadas,
+        porValidar,
+      ];
+    });
+    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = "﻿" + [cabecera, ...filas].map((f) => f.map(esc).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `personal_ucp_${fechaHoy()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "CSV exportado", description: `${filas.length} registros` });
   };
 
   const changePassword = async (userId) => {
@@ -249,7 +342,11 @@ export default function AdminPersonal() {
           <h1 className="text-2xl sm:text-3xl font-bold font-heading">Personal</h1>
           <p className="text-sm text-muted-foreground mt-1">Crea las cuentas y administra a todo el personal UCP (alumnos y encargados)</p>
         </div>
-        <Button onClick={() => { setShowCrear((s) => !s); setCredenciales(null); }}><UserPlus className="h-4 w-4 mr-2" /> Crear usuario</Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={exportarCSV}><Download className="h-4 w-4 mr-2" /> Exportar CSV</Button>
+          <Button variant="outline" onClick={() => setShowCierrePeriodo(true)}><CalendarX2 className="h-4 w-4 mr-2" /> Cerrar periodo</Button>
+          <Button onClick={() => { setShowCrear((s) => !s); setCredenciales(null); }}><UserPlus className="h-4 w-4 mr-2" /> Crear usuario</Button>
+        </div>
       </div>
 
       {showCrear && (
@@ -319,6 +416,22 @@ export default function AdminPersonal() {
                   <Label className="text-xs">Teléfono</Label>
                   <Input value={nuevo.telefono} onChange={(e) => setCampo("telefono", e.target.value)} placeholder="Opcional" />
                 </div>
+                {(nuevo.role === "servicio_social" || nuevo.role === "voluntario") && (
+                  <>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Facultad</Label>
+                      <Input value={nuevo.facultad} onChange={(e) => setCampo("facultad", e.target.value)} placeholder="Opcional" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Carrera</Label>
+                      <Input value={nuevo.carrera} onChange={(e) => setCampo("carrera", e.target.value)} placeholder="Opcional" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Periodo / cohorte</Label>
+                      <Input value={nuevo.periodo} onChange={(e) => setCampo("periodo", e.target.value)} placeholder="Ej. Ago-Dic 2026" />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button disabled={creando} onClick={crearUsuario}>
@@ -460,7 +573,7 @@ export default function AdminPersonal() {
                           </button>
                           {u.archivado ? (
                             <button
-                              onClick={() => toggleArchivar(u)}
+                              onClick={() => reactivar(u)}
                               disabled={savingId === u.id}
                               title="Reactivar (desarchivar)"
                               className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 disabled:opacity-30 transition-colors"
@@ -469,9 +582,9 @@ export default function AdminPersonal() {
                             </button>
                           ) : (
                             <button
-                              onClick={() => toggleArchivar(u)}
+                              onClick={() => { setBajaUser(u); setMotivoBaja(""); }}
                               disabled={savingId === u.id || u.id === me?.id}
-                              title={u.id === me?.id ? "No puedes archivarte a ti mismo" : "Archivar (ocultar sin borrar datos)"}
+                              title={u.id === me?.id ? "No puedes archivarte a ti mismo" : "Dar de baja (ocultar sin borrar datos)"}
                               className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <Archive className="h-4 w-4" />
@@ -522,6 +635,57 @@ export default function AdminPersonal() {
       )}
 
       <DetallePersonal usuario={detalleUser} onClose={() => setDetalleUser(null)} />
+
+      {/* Diálogo: baja con motivo */}
+      <Dialog open={!!bajaUser} onOpenChange={(o) => { if (!o) setBajaUser(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Dar de baja a {bajaUser?.nombre_completo || bajaUser?.full_name || bajaUser?.email}</DialogTitle>
+            <DialogDescription>Se oculta del personal activo sin borrar sus datos. Podrás reactivarlo después.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Motivo de la baja</Label>
+              <Input value={motivoBaja} onChange={(e) => setMotivoBaja(e.target.value)} placeholder="Ej. Fin de periodo, renuncia, etc." autoFocus />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBajaUser(null)}>Cancelar</Button>
+              <Button onClick={confirmarBaja} disabled={savingId === bajaUser?.id} className="bg-amber-600 hover:bg-amber-700">
+                {savingId === bajaUser?.id ? "Aplicando..." : "Confirmar baja"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo: cierre de periodo */}
+      <Dialog open={showCierrePeriodo} onOpenChange={setShowCierrePeriodo}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cerrar periodo / cohorte</DialogTitle>
+            <DialogDescription>
+              Da de baja a todos los alumnos activos cuyo periodo coincida exactamente. Motivo registrado: "Cierre de periodo X".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Periodo a cerrar</Label>
+              <Input value={periodoCierre} onChange={(e) => setPeriodoCierre(e.target.value)} placeholder="Ej. Ago-Dic 2026" />
+            </div>
+            {periodoCierre.trim() && (
+              <p className="text-xs text-muted-foreground">
+                Coinciden: <strong>{users.filter((u) => !u.archivado && u.periodo_asignado === periodoCierre.trim() && (u.role === "servicio_social" || u.role === "voluntario")).length}</strong> persona(s) activas.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowCierrePeriodo(false)}>Cancelar</Button>
+              <Button onClick={archivarPeriodo} disabled={cerrandoPeriodo} className="bg-amber-600 hover:bg-amber-700">
+                {cerrandoPeriodo ? "Cerrando..." : "Cerrar periodo"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

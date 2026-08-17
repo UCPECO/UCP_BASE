@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { notificar, verificarConstanciaAutomatica } from '../lib/gestion.js';
 
 const router = Router();
 
@@ -216,7 +217,16 @@ router.post('/IniciarPaseLista', authMiddleware, (req, res) => {
     `).run(area, user.id, nombreCreador, 'activo', mensaje || '');
 
     const paseLista = db.prepare('SELECT * FROM pases_lista WHERE rowid = ?').get(pase.lastInsertRowid);
-    res.json({ ok: true, pase_lista: paseLista, notificados: 0 });
+
+    // Avisar a todo el personal del área
+    const destinatarios = db.prepare(`
+      SELECT id FROM users WHERE archivado = 0 AND (area_asignada = ? OR area_encargada = ?) AND id != ?
+    `).all(area, area, user.id);
+    for (const d of destinatarios) {
+      notificar(d.id, `Pase de lista activo · ${area}`, mensaje || 'Responde tu asistencia desde tu panel.', '/alumno');
+    }
+
+    res.json({ ok: true, pase_lista: paseLista, notificados: destinatarios.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -255,6 +265,9 @@ router.post('/AsignarBonoEvidencia', authMiddleware, (req, res) => {
       INSERT INTO bonos (id, usuario, asignacion, horas, fecha, motivo)
       VALUES (lower(hex(randomblob(16))), ?, ?, ?, date('now'), ?)
     `).run(evidencia.usuario, evidencia.asignacion || null, horas, motivo);
+
+    notificar(evidencia.usuario, `Evidencia aprobada con bono +${horas} h`, motivo, '/alumno/evidencias');
+    verificarConstanciaAutomatica(evidencia.usuario);
 
     res.json({ ok: true, horas, bono: { id: bono.lastInsertRowid } });
   } catch (error) {

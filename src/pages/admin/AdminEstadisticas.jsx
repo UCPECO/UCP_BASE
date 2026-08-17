@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
-import { BarChart3, PieChart as PieIcon, GraduationCap, Users, AlertTriangle } from "lucide-react";
+import { BarChart3, PieChart as PieIcon, GraduationCap, Users, AlertTriangle, Trophy } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import KpiCard from "@/components/ucp/KpiCard";
 import EmptyState from "@/components/ucp/EmptyState";
-import { calcularHoras } from "@/lib/ucpUtils";
+import { calcularHoras, aMinutos, nombreUsuario } from "@/lib/ucpUtils";
 
 const COLOR_PRIMARY = "#1f6f5c";
 const COLOR_ACCENT = "#e08a3e";
@@ -18,24 +18,44 @@ export default function AdminEstadisticas() {
   useEffect(() => {
     (async () => {
       try {
-        const [users, regs, bonos, incs] = await Promise.all([
+        const [users, regs, bonos, incs, evs, configs] = await Promise.all([
           base44.entities.User.list("full_name", 500),
           base44.entities.Registros_QR.list("-fecha", 500),
           base44.entities.Bonos.list("-created_date", 500),
           base44.entities.Incidencias.list("-created_date", 500),
+          base44.entities.Evidencias.list("-created_date", 500),
+          base44.entities.Configuracion_Sistema.list(null, 1).catch(() => []),
         ]);
+        const config = configs?.[0] || {};
+        const limitePuntual = aMinutos(config.hora_apertura || "08:00") + (config.tolerancia_minutos ?? 15);
 
         const alumnos = users.filter(u => u.role === "servicio_social" || u.role === "voluntario");
 
-        // Horas por usuario
+        // Horas validadas por usuario (solo fichajes validados + bonos)
         const horasPorUsuario = {};
+        const porValidarPorUsuario = {};
+        const regsCerradosPorUsuario = {};
+        const puntualesPorUsuario = {};
+        const mesActual = new Date().toISOString().slice(0, 7);
+        const horasMesPorUsuario = {};
         regs.forEach(r => {
-          if (r.estado_registro === "cerrado" && r.usuario) {
-            horasPorUsuario[r.usuario] = (horasPorUsuario[r.usuario] || 0) + (calcularHoras(r.hora_entrada, r.hora_salida) || 0);
+          if (!r.usuario || (r.estado_registro !== "cerrado" && r.estado_registro !== "incompleto")) return;
+          const h = calcularHoras(r.hora_entrada, r.hora_salida) || 0;
+          regsCerradosPorUsuario[r.usuario] = (regsCerradosPorUsuario[r.usuario] || 0) + 1;
+          if (r.hora_entrada && aMinutos(r.hora_entrada) <= limitePuntual) {
+            puntualesPorUsuario[r.usuario] = (puntualesPorUsuario[r.usuario] || 0) + 1;
+          }
+          if (r.validado) {
+            horasPorUsuario[r.usuario] = (horasPorUsuario[r.usuario] || 0) + h;
+            if ((r.fecha || "").startsWith(mesActual)) horasMesPorUsuario[r.usuario] = (horasMesPorUsuario[r.usuario] || 0) + h;
+          } else {
+            porValidarPorUsuario[r.usuario] = (porValidarPorUsuario[r.usuario] || 0) + h;
           }
         });
         bonos.forEach(b => {
-          if (b.usuario) horasPorUsuario[b.usuario] = (horasPorUsuario[b.usuario] || 0) + (b.horas || 0);
+          if (!b.usuario) return;
+          horasPorUsuario[b.usuario] = (horasPorUsuario[b.usuario] || 0) + (b.horas || 0);
+          if ((b.fecha || "").startsWith(mesActual)) horasMesPorUsuario[b.usuario] = (horasMesPorUsuario[b.usuario] || 0) + (b.horas || 0);
         });
 
         // Horas acumuladas por facultad
@@ -49,7 +69,7 @@ export default function AdminEstadisticas() {
           .sort((a, b) => b.horas - a.horas);
 
         // Distribución: activos vs con incidencias
-        const activos = alumnos.filter(u => u.activo !== false);
+        const activos = alumnos.filter(u => u.activo !== false && !u.archivado);
         const idsConIncidencia = new Set(
           incs.filter(i => ["reportada", "en_revision", "en_proceso", "resuelta"].includes(i.estado_incidencia))
             .map(i => i.usuario_afectado)
@@ -62,13 +82,49 @@ export default function AdminEstadisticas() {
           { name: "Con incidencias", value: conIncidencias, color: COLOR_ROSE },
         ];
 
+        // Evidencias e incidencias por usuario
+        const evsPorUsuario = {};
+        const evsAprobPorUsuario = {};
+        evs.forEach(e => {
+          if (!e.usuario) return;
+          evsPorUsuario[e.usuario] = (evsPorUsuario[e.usuario] || 0) + 1;
+          if (e.estado_evidencia === "aprobada") evsAprobPorUsuario[e.usuario] = (evsAprobPorUsuario[e.usuario] || 0) + 1;
+        });
+        const incsPorUsuario = {};
+        incs.forEach(i => { if (i.usuario_afectado) incsPorUsuario[i.usuario_afectado] = (incsPorUsuario[i.usuario_afectado] || 0) + 1; });
+
+        // KPIs por persona
+        const kpisPersona = alumnos.map(u => {
+          const cerrados = regsCerradosPorUsuario[u.id] || 0;
+          const totalEvs = evsPorUsuario[u.id] || 0;
+          return {
+            id: u.id,
+            nombre: nombreUsuario(u),
+            validadas: Math.round((horasPorUsuario[u.id] || 0) * 100) / 100,
+            porValidar: Math.round((porValidarPorUsuario[u.id] || 0) * 100) / 100,
+            puntualidad: cerrados ? Math.round(((puntualesPorUsuario[u.id] || 0) / cerrados) * 100) : null,
+            evidencias: totalEvs ? Math.round(((evsAprobPorUsuario[u.id] || 0) / totalEvs) * 100) : null,
+            incidencias: incsPorUsuario[u.id] || 0,
+          };
+        }).sort((a, b) => b.validadas - a.validadas);
+
+        // Cuadro de honor: top 5 por horas del mes en curso
+        const cuadroHonor = alumnos
+          .map(u => ({ id: u.id, nombre: nombreUsuario(u), horasMes: Math.round((horasMesPorUsuario[u.id] || 0) * 100) / 100 }))
+          .filter(x => x.horasMes > 0)
+          .sort((a, b) => b.horasMes - a.horasMes)
+          .slice(0, 5);
+
         setData({
           totalAlumnos: alumnos.length,
           activos: activos.length,
           totalHoras: Math.round(Object.values(horasPorUsuario).reduce((a, b) => a + b, 0) * 100) / 100,
+          totalPorValidar: Math.round(Object.values(porValidarPorUsuario).reduce((a, b) => a + b, 0) * 100) / 100,
           incidenciasAbiertas: incs.filter(i => ["reportada", "en_revision", "en_proceso"].includes(i.estado_incidencia)).length,
           horasFacultad,
           distribucion,
+          kpisPersona,
+          cuadroHonor,
         });
       } catch (e) {
         console.error(e);
@@ -96,7 +152,7 @@ export default function AdminEstadisticas() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <SectionCard title="Horas acumuladas por facultad" subtitle="Suma de horas cerradas y bonos" icon={BarChart3} className="lg:col-span-2">
+        <SectionCard title="Horas acumuladas por facultad" subtitle="Suma de horas validadas y bonos" icon={BarChart3} className="lg:col-span-2">
           {data.horasFacultad.length === 0 ? (
             <EmptyState title="Sin datos" message="Aún no hay horas registradas por facultad." icon={BarChart3} />
           ) : (
@@ -124,6 +180,59 @@ export default function AdminEstadisticas() {
           </ResponsiveContainer>
         </SectionCard>
       </div>
+
+      {/* Cuadro de honor del mes */}
+      <SectionCard title="Cuadro de honor" subtitle="Top 5 por horas validadas en el mes en curso" icon={Trophy}>
+        {data.cuadroHonor.length === 0 ? (
+          <EmptyState title="Sin horas este mes" message="Aún no hay horas validadas en el mes en curso." icon={Trophy} />
+        ) : (
+          <div className="space-y-2">
+            {data.cuadroHonor.map((p, i) => (
+              <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-border">
+                <span className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${i === 0 ? "bg-amber-100 text-amber-700" : i === 1 ? "bg-slate-200 text-slate-600" : i === 2 ? "bg-orange-100 text-orange-700" : "bg-muted text-muted-foreground"}`}>
+                  {i + 1}
+                </span>
+                <p className="text-sm font-medium flex-1 min-w-0 truncate">{p.nombre}</p>
+                <p className="text-sm font-bold text-primary shrink-0">{p.horasMes} h</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+
+      {/* KPIs por persona */}
+      <SectionCard title={`Desempeño por persona (${data.kpisPersona.length})`} subtitle={`Horas validadas, puntualidad y evidencias · ${data.totalPorValidar} h pendientes de validar en total`} icon={Users}>
+        {data.kpisPersona.length === 0 ? (
+          <EmptyState title="Sin datos" message="No hay alumnos registrados." icon={Users} />
+        ) : (
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground uppercase tracking-wide border-b border-border">
+                  <th className="py-2 pr-4 font-medium">Nombre</th>
+                  <th className="py-2 px-3 font-medium text-right">H. validadas</th>
+                  <th className="py-2 px-3 font-medium text-right">Por validar</th>
+                  <th className="py-2 px-3 font-medium text-right">Puntualidad</th>
+                  <th className="py-2 px-3 font-medium text-right">Evidencias aprob.</th>
+                  <th className="py-2 pl-3 font-medium text-right">Incidencias</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.kpisPersona.map((p) => (
+                  <tr key={p.id} className="border-b border-border/50 last:border-0">
+                    <td className="py-2.5 pr-4 font-medium">{p.nombre}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-primary">{p.validadas} h</td>
+                    <td className="py-2.5 px-3 text-right">{p.porValidar > 0 ? <span className="text-amber-600 font-medium">{p.porValidar} h</span> : "—"}</td>
+                    <td className="py-2.5 px-3 text-right">{p.puntualidad === null ? "—" : `${p.puntualidad}%`}</td>
+                    <td className="py-2.5 px-3 text-right">{p.evidencias === null ? "—" : `${p.evidencias}%`}</td>
+                    <td className="py-2.5 pl-3 text-right">{p.incidencias > 0 ? <span className="text-rose-600 font-medium">{p.incidencias}</span> : "0"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }
