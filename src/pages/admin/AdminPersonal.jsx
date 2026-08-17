@@ -382,12 +382,12 @@ export default function AdminPersonal() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Correo electrónico *</Label>
-                  <Input type="email" value={nuevo.email} onChange={(e) => setCampo("email", e.target.value)} placeholder="correo@ejemplo.com" />
+                  <Input type="email" value={nuevo.email} onChange={(e) => setCampo("email", e.target.value)} placeholder="correo@ejemplo.com" autoComplete="off" name="email-nuevo-usuario" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Contraseña *</Label>
                   <div className="flex gap-2">
-                    <Input value={nuevo.password} onChange={(e) => setCampo("password", e.target.value)} placeholder="Mínimo 4 caracteres" />
+                    <Input value={nuevo.password} onChange={(e) => setCampo("password", e.target.value)} placeholder="Mínimo 4 caracteres" autoComplete="new-password" name="password-nuevo-usuario" />
                     <Button type="button" variant="outline" onClick={() => setCampo("password", generarPasswordAleatoria())} title="Generar contraseña aleatoria">
                       <RefreshCw className="h-4 w-4" />
                     </Button>
@@ -472,7 +472,7 @@ export default function AdminPersonal() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nombre, correo o matrícula..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder="Buscar por nombre, correo o matrícula..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" autoComplete="off" name="busqueda-personal" />
         </div>
         <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filtroRol} onChange={(e) => setFiltroRol(e.target.value)}>
           <option value="">Todos los roles</option>
@@ -497,7 +497,7 @@ export default function AdminPersonal() {
                   <th className="py-3 px-3 font-medium hidden lg:table-cell">Facultad / Carrera</th>
                   <th className="py-3 px-3 font-medium hidden xl:table-cell">Teléfono</th>
                   <th className="py-3 px-3 font-medium">Rol</th>
-                  <th className="py-3 px-3 font-medium hidden xl:table-cell">Área</th>
+                  <th className="py-3 px-3 font-medium">Área</th>
                   <th className="py-3 px-3 font-medium text-right">Acciones</th>
                 </tr>
               </thead>
@@ -536,27 +536,36 @@ export default function AdminPersonal() {
                           {ROLES.map((r) => <option key={r.value} value={r.value} className="bg-card text-foreground">{r.label}</option>)}
                         </select>
                       </td>
-                      <td className="py-3 px-3 hidden xl:table-cell">
+                      <td className="py-3 px-3">
                         {u.role === "encargado" ? (
-                          <select
-                            value={u.area_encargada || ""}
-                            disabled={savingId === u.id}
-                            onChange={(e) => changeArea(u.id, e.target.value)}
-                            className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50 cursor-pointer"
-                          >
-                            <option value="">Sin área</option>
-                            {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
-                          </select>
+                          <span className="inline-flex items-center gap-1 text-xs">
+                            <span className="text-muted-foreground">Encargado de:</span>
+                            <select
+                              value={u.area_encargada || ""}
+                              disabled={savingId === u.id}
+                              onChange={(e) => changeArea(u.id, e.target.value)}
+                              className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50 cursor-pointer"
+                            >
+                              <option value="">Sin área</option>
+                              {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
+                            </select>
+                          </span>
                         ) : (u.role === "servicio_social" || u.role === "voluntario") ? (
-                          <select
-                            value={u.area_asignada || ""}
-                            disabled={savingId === u.id}
-                            onChange={(e) => changeAreaAsignada(u.id, e.target.value)}
-                            className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50 cursor-pointer"
-                          >
-                            <option value="">Sin área</option>
-                            {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
-                          </select>
+                          <span className="inline-flex items-center gap-1 text-xs">
+                            <span className={`px-2 py-1 rounded-full font-medium ${u.area_asignada ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                              {labelArea(u.area_asignada || "") || "Sin área"}
+                            </span>
+                            <select
+                              value={u.area_asignada || ""}
+                              disabled={savingId === u.id}
+                              onChange={(e) => changeAreaAsignada(u.id, e.target.value)}
+                              className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50 cursor-pointer"
+                              title="Cambiar área asignada"
+                            >
+                              <option value="">Sin área</option>
+                              {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
+                            </select>
+                          </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
@@ -612,6 +621,8 @@ export default function AdminPersonal() {
                               value={nuevaPwd}
                               onChange={(e) => setNuevaPwd(e.target.value)}
                               className="h-9 flex-1 max-w-xs"
+                              autoComplete="new-password"
+                              name="nueva-contrasena-personal"
                               autoFocus
                             />
                             <div className="flex gap-2">
