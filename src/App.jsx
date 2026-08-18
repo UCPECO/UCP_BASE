@@ -49,6 +49,7 @@ import AlumnoEncuestas from '@/pages/alumno/AlumnoEncuestas';
 import EncargadoEvaluaciones from '@/pages/encargado/EncargadoEvaluaciones';
 import Calendario from '@/pages/Calendario';
 import Disponibilidad from '@/pages/Disponibilidad';
+import ChecklistBodega from '@/pages/ChecklistBodega';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -89,6 +90,7 @@ const AuthenticatedApp = () => {
           <Route path="/alumno/constancias" element={<AlumnoConstancias />} />
           <Route path="/alumno/encuestas" element={<AlumnoEncuestas />} />
           <Route path="/fichar" element={<Fichar />} />
+          <Route path="/checklist-bodega" element={<ChecklistBodega />} />
           {/* Encargado */}
           <Route path="/encargado" element={<EncargadoDashboard />} />
           <Route path="/encargado/personal" element={<EncargadoPersonal />} />

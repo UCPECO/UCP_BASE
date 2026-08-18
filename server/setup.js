@@ -475,6 +475,42 @@ addColumnIfMissing('bitacora_auditoria', 'usuario_nombre', 'usuario_nombre TEXT'
 addColumnIfMissing('bitacora_auditoria', 'modulo', 'modulo TEXT');
 addColumnIfMissing('bitacora_auditoria', 'fecha', 'fecha TEXT');
 
+// Checklist diario de cierre de jornada (área Bodega)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS checklist_bodega (
+    id TEXT PRIMARY KEY,
+    usuario TEXT,
+    usuario_nombre TEXT,
+    fecha TEXT,
+    items TEXT,
+    marcados INTEGER DEFAULT 0,
+    total_items INTEGER DEFAULT 9,
+    completo INTEGER DEFAULT 0,
+    notas TEXT,
+    created_date TEXT DEFAULT (datetime('now')),
+    updated_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// Reportes de huella de carbono (documentos formales con folio)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reportes_huella (
+    id TEXT PRIMARY KEY,
+    folio TEXT,
+    periodo_inicio TEXT,
+    periodo_fin TEXT,
+    desglose TEXT,
+    total_kg REAL DEFAULT 0,
+    total_unidades REAL DEFAULT 0,
+    total_co2e REAL DEFAULT 0,
+    generado_por TEXT,
+    generado_por_nombre TEXT,
+    notas TEXT,
+    created_date TEXT DEFAULT (datetime('now')),
+    updated_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {

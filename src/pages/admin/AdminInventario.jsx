@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, Settings, Cpu, Warehouse } from "lucide-react";
+import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, Settings, Cpu, Warehouse, Leaf } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import KpiCard from "@/components/ucp/KpiCard";
 import AdminMateriales from "@/pages/admin/AdminMateriales";
 import AdminElectronicos from "@/pages/admin/AdminElectronicos";
+import AdminHuellaCarbono from "@/pages/admin/AdminHuellaCarbono";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ const TABS = [
   { id: "stock", label: "Stock y salidas", icon: Package },
   { id: "bodega", label: "Entradas de bodega", icon: Warehouse },
   { id: "electronicos", label: "Electrónicos reciclados", icon: Cpu },
+  { id: "huella", label: "Huella de carbono", icon: Leaf },
 ];
 
 export default function AdminInventario() {
@@ -265,6 +267,7 @@ export default function AdminInventario() {
 
       {tab === "bodega" && <AdminMateriales embedded />}
       {tab === "electronicos" && <AdminElectronicos embedded />}
+      {tab === "huella" && <AdminHuellaCarbono />}
 
       {/* Dialog salida */}
       <Dialog open={dialogSalida} onOpenChange={setDialogSalida}>

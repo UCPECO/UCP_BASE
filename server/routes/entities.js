@@ -33,15 +33,17 @@ const entityMap = {
   'Bitacora_Auditoria': 'bitacora_auditoria',
   'Comentarios_Evidencia': 'comentarios_evidencia',
   'Notificaciones': 'notificaciones',
-  'Historial_Areas': 'historial_areas'
+  'Historial_Areas': 'historial_areas',
+  'Checklist_Bodega': 'checklist_bodega',
+  'Reportes_Huella': 'reportes_huella'
 };
 
 // ===== Permisos por rol (según DOCUMENTO_ROLES) =====
 // 'admin' todo; 'encargado' gestión de su área; participantes (servicio_social/voluntario) solo lo suyo
 const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo']);
-const WRITE_ADMIN_ENCARGADO = new Set(['Actividades', 'Eventos', 'Constancias', 'Encuestas', 'Evaluaciones_Alumno', 'Pases_Lista']);
+const WRITE_ADMIN_ENCARGADO = new Set(['Actividades', 'Eventos', 'Constancias', 'Encuestas', 'Evaluaciones_Alumno', 'Pases_Lista', 'Reportes_Huella']);
 const BODEGA_CREATE = new Set(['Materiales_Recibidos', 'Electronicos_Reciclados', 'Salidas_Materiales']); // crear: admin/encargado; editar/borrar: solo admin
-const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Comentarios_Evidencia', 'Notificaciones']); // el participante solo toca lo propio
+const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Comentarios_Evidencia', 'Notificaciones', 'Checklist_Bodega']); // el participante solo toca lo propio
 const READ_ADMIN_ONLY = new Set(['Invitaciones', 'Bitacora_Auditoria', 'Codigos_QR']);
 const READ_STAFF_ONLY = new Set(['Historial_Areas']); // solo admin/encargado pueden leerlo
 const NO_CLIENT_WRITE = new Set(['Historial_Areas']); // solo el servidor escribe (hooks internos)
@@ -263,6 +265,14 @@ router.post('/:entity', authMiddleware, (req, res) => {
 
   try {
     const id = data.id || uuidv4();
+
+    // Folio automático y consecutivo para reportes de huella de carbono: HC-<año>-####
+    if (req.params.entity === 'Reportes_Huella' && !data.folio) {
+      const anio = new Date().getFullYear();
+      const { n } = db.prepare(`SELECT COUNT(*) AS n FROM reportes_huella WHERE folio LIKE ?`).get(`HC-${anio}-%`);
+      data.folio = `HC-${anio}-${String(n + 1).padStart(4, '0')}`;
+    }
+
     // Solo columnas que existen en la tabla
     const fields = Object.keys(data).filter(f => cols.has(f) && f !== 'id');
     const values = fields.map(f => coerce(data[f]));

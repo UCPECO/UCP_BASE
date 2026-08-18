@@ -87,7 +87,11 @@ export default function Layout({ children }) {
   const [profile, setProfile] = useState(null);
 
   const role = user?.role || profile?.role || "voluntario";
-  const items = NAV[role] || NAV.voluntario;
+  // El checklist de bodega solo aparece al personal de esa área (y al admin)
+  const esDeBodega = role === "admin" || profile?.area_asignada === "Bodega" || profile?.area_encargada === "Bodega";
+  const items = esDeBodega
+    ? [...(NAV[role] || NAV.voluntario), { to: "/checklist-bodega", label: "Checklist bodega", icon: ClipboardCheck }]
+    : (NAV[role] || NAV.voluntario);
 
   useEffect(() => {
     base44.auth.me().then(setProfile).catch(() => {});
