@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { QrCode, Plus, Power, Download, Copy } from "lucide-react";
+import { QrCode, Plus, Power, Download, Copy, Trash2 } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,17 @@ export default function AdminQr() {
     load();
   };
 
+  const eliminarQr = async (c) => {
+    if (!confirm(`¿Eliminar el QR de "${labelArea(c.ubicacion) || c.ubicacion}"? Si ya lo imprimiste, ese código dejará de funcionar para fichar.`)) return;
+    try {
+      await base44.entities.Codigos_QR.delete(c.id);
+      toast({ title: "QR eliminado", description: labelArea(c.ubicacion) || c.ubicacion });
+      load();
+    } catch (e) {
+      toast({ title: "Error al eliminar", description: e.message, variant: "destructive" });
+    }
+  };
+
   const copiarUrl = (url) => {
     navigator.clipboard.writeText(url);
     toast({ title: "URL copiada" });
@@ -141,6 +152,7 @@ export default function AdminQr() {
                 <button onClick={() => copiarUrl(c.url)} className="p-2 hover:bg-muted rounded-lg" title="Copiar URL"><Copy className="h-4 w-4" /></button>
                 <a href={generarQrUrl(c.url)} download className="p-2 hover:bg-muted rounded-lg" title="Descargar"><Download className="h-4 w-4" /></a>
                 <button onClick={() => toggleActivo(c)} className="p-2 hover:bg-muted rounded-lg" title="Activar/Desactivar"><Power className="h-4 w-4" /></button>
+                <button onClick={() => eliminarQr(c)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg" title="Eliminar QR"><Trash2 className="h-4 w-4" /></button>
               </div>
             </div>
           ))}

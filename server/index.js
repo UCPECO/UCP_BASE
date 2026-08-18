@@ -8,7 +8,7 @@ import authRoutes from './routes/auth.js';
 import entityRoutes from './routes/entities.js';
 import functionRoutes from './routes/functions.js';
 import { cerrarFichajesOlvidados } from './lib/gestion.js';
-import { respaldarBD } from './database.js';
+import { respaldarBD, db } from './database.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -29,9 +29,17 @@ app.post('/api/upload', (req, res) => {
   res.json({ file_url: `/uploads/${Date.now()}.bin` });
 });
 
-// Health check
+// Health check (incluye versión de código y estado del esquema para diagnóstico)
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', mode: 'self-hosted' });
+  let tablas = {};
+  try {
+    const nombres = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((r) => r.name);
+    tablas = {
+      checklist_bodega: nombres.includes('checklist_bodega'),
+      reportes_huella: nombres.includes('reportes_huella'),
+    };
+  } catch (e) { /* diagnóstico no debe romper el health check */ }
+  res.json({ status: 'ok', mode: 'self-hosted', version: '2026-08-17-qr-huella', tablas });
 });
 
 // Static files (uploads)
