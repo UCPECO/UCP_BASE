@@ -31,26 +31,32 @@ export default function AdminHuellaCarbono() {
   const [hasta, setHasta] = useState(hoyISO());
   const [generando, setGenerando] = useState(false);
   const [descargandoId, setDescargandoId] = useState(null);
+  const [errorReportes, setErrorReportes] = useState(false);
 
   const esAdmin = perfil?.role === "admin";
 
   const cargar = async () => {
-    try {
-      const [me, mat, elec, reps] = await Promise.all([
-        base44.auth.me(),
-        base44.entities.Materiales_Recibidos.list("-fecha_recepcion", 1000),
-        base44.entities.Electronicos_Reciclados.list("-fecha_recepcion", 1000),
-        base44.entities.Reportes_Huella.list("-created_date", 200),
-      ]);
-      setPerfil(me);
-      setMateriales(mat || []);
-      setElectronicos(elec || []);
-      setReportes(reps || []);
-    } catch (e) {
-      toast({ title: "Error al cargar datos", variant: "destructive" });
-    } finally {
-      setLoading(false);
+    // Cada consulta es independiente: si una falla (ej. el servidor aún no
+    // tiene la tabla de reportes), el resto de la página sigue funcionando.
+    const [me, mat, elec, reps] = await Promise.allSettled([
+      base44.auth.me(),
+      base44.entities.Materiales_Recibidos.list("-fecha_recepcion", 1000),
+      base44.entities.Electronicos_Reciclados.list("-fecha_recepcion", 1000),
+      base44.entities.Reportes_Huella.list("-created_date", 200),
+    ]);
+    if (me.status === "fulfilled") setPerfil(me.value);
+    if (mat.status === "fulfilled") setMateriales(mat.value || []);
+    if (elec.status === "fulfilled") setElectronicos(elec.value || []);
+    if (reps.status === "fulfilled") {
+      setReportes(reps.value || []);
+    } else {
+      console.warn("Reportes_Huella no disponible aún:", reps.reason);
+      setErrorReportes(true);
     }
+    if (mat.status === "rejected" && elec.status === "rejected") {
+      toast({ title: "Error al cargar datos", description: "No se pudieron cargar las recepciones de material.", variant: "destructive" });
+    }
+    setLoading(false);
   };
 
   useEffect(() => { cargar(); }, []);
@@ -190,7 +196,12 @@ export default function AdminHuellaCarbono() {
 
       {/* Documentos generados */}
       <SectionCard title="Documentos generados" subtitle={`${reportes.length} reporte(s) con folio`} icon={FileBadge}>
-        {reportes.length === 0 ? (
+        {errorReportes && (
+          <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 text-sm">
+            El servidor aún no tiene activada la sección de documentos. Reinicia la aplicación Node.js en el panel de Hostinger para cargar el código nuevo.
+          </div>
+        )}
+        {reportes.length === 0 && !errorReportes ? (
           <EmptyState title="Sin documentos" message="Genera el primer reporte con el botón de arriba." icon={FileBadge} />
         ) : (
           <div className="space-y-2">
