@@ -497,7 +497,7 @@ export default function AdminPersonal() {
                   <th className="py-3 px-3 font-medium hidden lg:table-cell">Facultad / Carrera</th>
                   <th className="py-3 px-3 font-medium hidden xl:table-cell">Teléfono</th>
                   <th className="py-3 px-3 font-medium">Rol</th>
-                  <th className="py-3 px-3 font-medium">Área</th>
+                  <th className="py-3 px-3 font-medium hidden sm:table-cell">Área</th>
                   <th className="py-3 px-3 font-medium text-right">Acciones</th>
                 </tr>
               </thead>
@@ -536,7 +536,7 @@ export default function AdminPersonal() {
                           {ROLES.map((r) => <option key={r.value} value={r.value} className="bg-card text-foreground">{r.label}</option>)}
                         </select>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 hidden sm:table-cell">
                         {u.role === "encargado" ? (
                           <span className="inline-flex items-center gap-1 text-xs">
                             <span className="text-muted-foreground">Encargado de:</span>

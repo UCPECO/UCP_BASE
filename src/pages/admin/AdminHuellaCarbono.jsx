@@ -120,15 +120,15 @@ export default function AdminHuellaCarbono() {
       {/* Calculadora por periodo */}
       <SectionCard title="Calcular huella de carbono" subtitle="Suma todas las recepciones de material (bodega + electrónicos) dentro del periodo" icon={Calculator}>
         <div className="flex flex-wrap items-end gap-3 mb-5">
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1 min-w-[140px] sm:flex-none">
             <Label className="text-xs">Desde</Label>
-            <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="h-9 w-40" />
+            <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="h-9 w-full sm:w-40" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1 min-w-[140px] sm:flex-none">
             <Label className="text-xs">Hasta</Label>
-            <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-9 w-40" />
+            <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-9 w-full sm:w-40" />
           </div>
-          <Button onClick={generarDocumento} disabled={generando || calculo.desglose.length === 0}>
+          <Button onClick={generarDocumento} disabled={generando || calculo.desglose.length === 0} className="w-full sm:w-auto">
             {generando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
             {generando ? "Generando..." : "Generar documento PDF"}
           </Button>
@@ -144,30 +144,47 @@ export default function AdminHuellaCarbono() {
         {calculo.desglose.length === 0 ? (
           <EmptyState title="Sin recepciones" message="No hay entradas de material en este periodo." icon={Leaf} />
         ) : (
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-muted-foreground uppercase border-b border-border">
-                  <th className="py-2 pr-4 font-medium">Categoría</th>
-                  <th className="py-2 px-3 font-medium text-right">Cantidad</th>
-                  <th className="py-2 px-3 font-medium text-right">Peso est.</th>
-                  <th className="py-2 px-3 font-medium text-right">Factor</th>
-                  <th className="py-2 pl-3 font-medium text-right">CO₂e evitado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {calculo.desglose.map((d) => (
-                  <tr key={d.categoria} className="border-b border-border/50 last:border-0">
-                    <td className="py-2.5 pr-4 font-medium">{d.label} <span className="text-xs text-muted-foreground">({d.medida === "kg" ? "kg" : "unidades"})</span></td>
-                    <td className="py-2.5 px-3 text-right">{d.cantidad}</td>
-                    <td className="py-2.5 px-3 text-right">{d.kg_estimados.toLocaleString("es-MX")} kg</td>
-                    <td className="py-2.5 px-3 text-right text-muted-foreground">{d.factor}</td>
-                    <td className="py-2.5 pl-3 text-right font-semibold text-primary">{d.co2e.toLocaleString("es-MX")} kg</td>
+          <>
+            {/* Móvil: tarjetas apiladas */}
+            <div className="space-y-2 sm:hidden">
+              {calculo.desglose.map((d) => (
+                <div key={d.categoria} className="p-3 rounded-lg border border-border">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm">{d.label}</p>
+                    <p className="font-semibold text-primary text-sm whitespace-nowrap">{d.co2e.toLocaleString("es-MX")} kg</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {d.cantidad} {d.medida === "kg" ? "kg" : "u"} · peso est. {d.kg_estimados.toLocaleString("es-MX")} kg · factor {d.factor}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {/* Escritorio: tabla */}
+            <div className="overflow-x-auto scrollbar-thin hidden sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground uppercase border-b border-border">
+                    <th className="py-2 pr-4 font-medium">Categoría</th>
+                    <th className="py-2 px-3 font-medium text-right">Cantidad</th>
+                    <th className="py-2 px-3 font-medium text-right">Peso est.</th>
+                    <th className="py-2 px-3 font-medium text-right">Factor</th>
+                    <th className="py-2 pl-3 font-medium text-right">CO₂e evitado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {calculo.desglose.map((d) => (
+                    <tr key={d.categoria} className="border-b border-border/50 last:border-0">
+                      <td className="py-2.5 pr-4 font-medium">{d.label} <span className="text-xs text-muted-foreground">({d.medida === "kg" ? "kg" : "unidades"})</span></td>
+                      <td className="py-2.5 px-3 text-right">{d.cantidad}</td>
+                      <td className="py-2.5 px-3 text-right">{d.kg_estimados.toLocaleString("es-MX")} kg</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">{d.factor}</td>
+                      <td className="py-2.5 pl-3 text-right font-semibold text-primary">{d.co2e.toLocaleString("es-MX")} kg</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </SectionCard>
 

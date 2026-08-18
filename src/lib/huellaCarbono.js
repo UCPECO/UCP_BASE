@@ -155,7 +155,7 @@ export async function generarPdfHuella(reporte) {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(90, 90, 90);
-  doc.text("Emisiones de CO₂e evitadas por recepción y reciclaje de materiales", W / 2, 61, { align: "center" });
+  doc.text("Emisiones de CO2e evitadas por recepción y reciclaje de materiales", W / 2, 61, { align: "center" });
 
   // Periodo
   doc.setFontSize(10.5);
@@ -165,7 +165,7 @@ export async function generarPdfHuella(reporte) {
   // Tabla de desglose
   let y = 78;
   const cols = [M, M + 52, M + 74, M + 98, M + 122, W - M]; // bordes x de columnas
-  const cabecera = ["Categoría", "Cantidad", "Peso est. (kg)", "Factor", "CO₂e evitado (kg)"];
+  const cabecera = ["Categoría", "Cantidad", "Peso est. (kg)", "Factor", "CO2e evitado (kg)"];
 
   const dibujarCabecera = (yy) => {
     doc.setFillColor(20, 120, 100);
@@ -222,18 +222,18 @@ export async function generarPdfHuella(reporte) {
   doc.roundedRect(M, y, W - 2 * M, 26, 2, 2, "F");
   doc.setFontSize(11);
   doc.setTextColor(20, 90, 75);
-  doc.text(`CO₂e total evitado: ${(reporte.total_co2e || 0).toLocaleString("es-MX")} kg  (${toneladas} toneladas)`, W / 2, y + 8, { align: "center" });
+  doc.text(`CO2e total evitado: ${(reporte.total_co2e || 0).toLocaleString("es-MX")} kg  (${toneladas} toneladas)`, W / 2, y + 8, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(60, 60, 60);
-  doc.text(`Equivalente aproximado a: ${arboles.toLocaleString("es-MX")} árboles absorbiendo CO₂ durante un año`, W / 2, y + 15, { align: "center" });
+  doc.text(`Equivalente aproximado a: ${arboles.toLocaleString("es-MX")} árboles absorbiendo CO2 durante un año`, W / 2, y + 15, { align: "center" });
   doc.text(`o a ${kmAuto.toLocaleString("es-MX")} km recorridos por un automóvil a gasolina`, W / 2, y + 21, { align: "center" });
   y += 34;
 
   // Nota metodológica
   doc.setFontSize(7.5);
   doc.setTextColor(120, 120, 120);
-  const nota = "Metodología: las emisiones evitadas se estiman multiplicando el peso del material recibido por un factor de emisión evitada al reciclar en lugar de producir material virgen. Para artículos por unidad se usa un peso promedio estimado por categoría. Factores de referencia: plásticos 1.5, metales 2.5, cartón 0.9, vidrio 0.3, cobre 4.0, aluminio 9.0, hierro 1.5, PCB 5.0 kg CO₂e/kg; residuo electrónico 1.4 kg CO₂e/kg. Valores aproximados con fines de reporte interno.";
+  const nota = "Metodología: las emisiones evitadas se estiman multiplicando el peso del material recibido por un factor de emisión evitada al reciclar en lugar de producir material virgen. Para artículos por unidad se usa un peso promedio estimado por categoría. Factores de referencia: plásticos 1.5, metales 2.5, cartón 0.9, vidrio 0.3, cobre 4.0, aluminio 9.0, hierro 1.5, PCB 5.0 kg CO2e/kg; residuo electrónico 1.4 kg CO2e/kg. Valores aproximados con fines de reporte interno.";
   doc.text(doc.splitTextToSize(nota, W - 2 * M - 4), M + 2, y);
   y += 24;
 
