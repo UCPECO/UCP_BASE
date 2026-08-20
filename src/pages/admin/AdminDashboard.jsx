@@ -71,15 +71,16 @@ export default function AdminDashboard() {
         <Link to="/admin/personal"><Button variant="outline">Ver alumnos</Button></Link>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={Users} label="Alumnos activos" value={stats.total} tone="primary" />
-        <KpiCard icon={GraduationCap} label="Servicio social" value={stats.servicio} tone="blue" />
-        <KpiCard icon={Heart} label="Voluntarios" value={stats.voluntarios} tone="accent" />
-        <KpiCard icon={CheckCircle2} label="Completados" value={stats.completados} tone="primary" />
-        <KpiCard icon={Clock} label="Registros abiertos hoy" value={stats.registrosHoy} tone="accent" />
-        <KpiCard icon={Image} label="Evidencias pendientes" value={stats.evidenciasPend} tone="blue" />
-        <KpiCard icon={AlertTriangle} label="Incidencias pendientes" value={stats.incidenciasPend} tone="rose" />
-        <KpiCard icon={CalendarX} label="Alumnos sin horario" value={stats.sinHorario} tone="slate" />
+      {/* Primero lo que requiere acción; cada tarjeta es un atajo a su sección */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <KpiCard icon={Clock} label="Registros abiertos hoy" value={stats.registrosHoy} tone="accent" to="/admin/registros" />
+        <KpiCard icon={Image} label="Evidencias pendientes" value={stats.evidenciasPend} tone="blue" to="/admin/evidencias" />
+        <KpiCard icon={AlertTriangle} label="Incidencias pendientes" value={stats.incidenciasPend} tone="rose" to="/admin/incidencias" />
+        <KpiCard icon={CalendarX} label="Sin horario" value={stats.sinHorario} tone="slate" to="/admin/personal" />
+        <KpiCard icon={Users} label="Alumnos activos" value={stats.total} tone="primary" to="/admin/personal" />
+        <KpiCard icon={GraduationCap} label="Servicio social" value={stats.servicio} tone="blue" to="/admin/personal" />
+        <KpiCard icon={Heart} label="Voluntarios" value={stats.voluntarios} tone="accent" to="/admin/personal" />
+        <KpiCard icon={CheckCircle2} label="Completados" value={stats.completados} tone="primary" to="/admin/estadisticas" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

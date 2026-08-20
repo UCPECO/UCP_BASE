@@ -248,7 +248,58 @@ export default function AdminElectronicos({ embedded = false }) {
         action={<Button type="button" variant="outline" size="sm" onClick={agregarLinea}><Plus className="h-4 w-4 mr-1.5" /> Fila</Button>}
       >
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="overflow-x-auto -mx-2 px-2">
+          {/* Móvil: cada electrónico es una tarjeta apilada (sin tabla ancha) */}
+          <div className="md:hidden space-y-3">
+            {lineas.map((l, idx) => (
+              <div key={idx} className="rounded-xl border border-border bg-secondary/20 p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground">Electrónico #{idx + 1}</p>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => insertLinea(idx)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg" title="Agregar fila (misma empresa)"><Plus className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => quitarLinea(idx)} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Empresa o persona</Label>
+                  <Input className="h-9" value={l.proveedor} onChange={(e) => actualizarLinea(idx, "proveedor", e.target.value)} placeholder="Nombre" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo</Label>
+                    <select className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" value={l.tipo_proveedor} onChange={(e) => actualizarLinea(idx, "tipo_proveedor", e.target.value)}>
+                      <option value="empresa">Empresa</option>
+                      <option value="persona_privada">Persona</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Recepción</Label>
+                    <Input type="date" className="h-9" value={l.fecha_recepcion} onChange={(e) => actualizarLinea(idx, "fecha_recepcion", e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Material</Label>
+                  <SelectorElectronico value={l} onChange={(patch) => actualizarSelector(idx, patch)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Descripción</Label>
+                  <Input className="h-9" value={l.descripcion} onChange={(e) => actualizarLinea(idx, "descripcion", e.target.value)} placeholder="Opcional" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Reparado por</Label>
+                  <select className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" value={l.reparado_por} onChange={(e) => {
+                    const est = estudiantes.find((s) => s.id === e.target.value);
+                    actualizarLinea(idx, "reparado_por", e.target.value);
+                    actualizarLinea(idx, "reparado_por_nombre", est ? (est.nombre_completo || est.full_name || "") : "");
+                  }}>
+                    <option value="">Sin asignar</option>
+                    {estudiantes.map((s) => <option key={s.id} value={s.id}>{s.nombre_completo || s.full_name}</option>)}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Escritorio: tabla */}
+          <div className="overflow-x-auto -mx-2 px-2 hidden md:block">
             <table className="w-full text-sm min-w-[1330px]">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">

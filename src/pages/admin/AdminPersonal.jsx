@@ -521,7 +521,143 @@ export default function AdminPersonal() {
         <SectionCard><EmptyState title="Sin personal" message="No hay registros que coincidan con el filtro." icon={UserCog} /></SectionCard>
       ) : (
         <SectionCard title={`Personal registrado (${filtered.length})`} icon={UserCog}>
-          <div className="overflow-x-auto scrollbar-thin">
+          {/* ===== Vista móvil: tarjetas ===== */}
+          <div className="md:hidden space-y-3">
+            {filtered.map((u) => (
+              <div key={u.id} className={`rounded-xl border border-border bg-secondary/30 p-3 space-y-2.5 ${u.archivado ? "opacity-60" : ""}`}>
+                <div className="flex items-center gap-2.5">
+                  {u.foto_perfil ? (
+                    <img src={u.foto_perfil} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary text-sm shrink-0">
+                      {(u.nombre_completo || u.full_name || "?").charAt(0)}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{u.nombre_completo || u.full_name || "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email || "—"}{u.matricula ? ` · Mat. ${u.matricula}` : ""}</p>
+                    {u.etiqueta && <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">{u.etiqueta}</span>}
+                  </div>
+                  <button onClick={() => setDetalleUser(u)} title="Ver historial completo" className="p-2 rounded-lg hover:bg-muted text-primary shrink-0"><Eye className="h-4 w-4" /></button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Rol</Label>
+                    <select
+                      value={u.role || "voluntario"}
+                      disabled={savingId === u.id}
+                      onChange={(e) => changeRole(u.id, e.target.value)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
+                    >
+                      {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">{u.role === "encargado" ? "Área que encarga" : "Área"}</Label>
+                    {u.role === "encargado" ? (
+                      <select
+                        value={u.area_encargada || ""}
+                        disabled={savingId === u.id}
+                        onChange={(e) => changeArea(u.id, e.target.value)}
+                        className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
+                      >
+                        <option value="">Sin área</option>
+                        {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                      </select>
+                    ) : (esParticipante(u.role)) ? (
+                      <select
+                        value={u.area_asignada || ""}
+                        disabled={savingId === u.id}
+                        onChange={(e) => changeAreaAsignada(u.id, e.target.value)}
+                        className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
+                      >
+                        <option value="">Sin área</option>
+                        {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                      </select>
+                    ) : (
+                      <p className="text-xs text-muted-foreground h-9 flex items-center">—</p>
+                    )}
+                  </div>
+                  {esParticipante(u.role) && u.area_asignada === "Bodega" && (
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-[11px]">Etiqueta de bodega</Label>
+                      <select
+                        value={u.etiqueta || ""}
+                        disabled={savingId === u.id}
+                        onChange={(e) => changeEtiqueta(u.id, e.target.value)}
+                        className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
+                      >
+                        <option value="">Sin etiqueta</option>
+                        {ETIQUETAS_BODEGA.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-1 pt-2 border-t border-border/60">
+                  <button
+                    onClick={() => { setCambiandoPwdUser(cambiandoPwdUser?.id === u.id ? null : u); setNuevaPwd(""); }}
+                    disabled={guardandoPwd}
+                    title="Cambiar contraseña"
+                    className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 disabled:opacity-30 transition-colors"
+                  >
+                    <Key className="h-4 w-4" />
+                  </button>
+                  {u.archivado ? (
+                    <button onClick={() => reactivar(u)} disabled={savingId === u.id} title="Reactivar" className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600 disabled:opacity-30 transition-colors">
+                      <ArchiveRestore className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setBajaUser(u); setMotivoBaja(""); }}
+                      disabled={savingId === u.id || u.id === me?.id}
+                      title="Dar de baja"
+                      className="p-2 rounded-lg hover:bg-amber-50 text-amber-600 disabled:opacity-30 transition-colors"
+                    >
+                      <Archive className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteUser(u)}
+                    disabled={u.id === me?.id}
+                    title="Eliminar usuario"
+                    className="p-2 rounded-lg hover:bg-rose-50 text-rose-600 disabled:opacity-30 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                {cambiandoPwdUser?.id === u.id && (
+                  <div className="space-y-2 pt-2 border-t border-border/60">
+                    <Label className="text-[11px]">Nueva contraseña</Label>
+                    <div className="relative">
+                      <Input
+                        type={verPwd ? "text" : "password"}
+                        placeholder="Escribe la nueva contraseña..."
+                        value={nuevaPwd}
+                        onChange={(e) => setNuevaPwd(e.target.value)}
+                        className="h-9 pr-9"
+                        autoComplete="new-password"
+                        name="nueva-contrasena-personal-movil"
+                      />
+                      <button type="button" onClick={() => setVerPwd((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" tabIndex={-1}>
+                        {verPwd ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={guardandoPwd} onClick={() => changePassword(u.id)} className="h-9 flex-1">
+                        {guardandoPwd ? "Guardando..." : "Guardar contraseña"}
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={guardandoPwd} onClick={() => { setCambiandoPwdUser(null); setNuevaPwd(""); }} className="h-9">
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* ===== Vista escritorio: tabla ===== */}
+          <div className="overflow-x-auto scrollbar-thin hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">

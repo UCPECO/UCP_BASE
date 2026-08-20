@@ -265,34 +265,28 @@ export default function AdminInventario() {
             ) : Object.keys(stockPorCat).length === 0 ? (
               <EmptyState title="Sin movimientos" message="Registra materiales en las pestañas de entradas para ver el stock." icon={Package} />
             ) : (
-              <div className="overflow-x-auto scrollbar-thin">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted-foreground uppercase border-b border-border">
-                      <th className="py-2 pr-4 font-medium">Categoría</th>
-                      <th className="py-2 px-4 font-medium">Entradas</th>
-                      <th className="py-2 px-4 font-medium">Salidas</th>
-                      <th className="py-2 px-4 font-medium">Stock actual</th>
-                      <th className="py-2 pl-4 font-medium">Mínimo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(stockPorCat).map(([cat, v]) => {
-                      const actual = v.entradas - v.salidas;
-                      const min = minDe(cat);
-                      const bajo = min > 0 && actual < min;
-                      return (
-                        <tr key={cat} className="border-b border-border/50 last:border-0">
-                          <td className="py-2.5 pr-4 font-medium">{CAT_LABEL_BODEGA[cat] || cat}</td>
-                          <td className="py-2.5 px-4">{v.entradas} {MEDIDA_LABEL[v.medida] || "u"}</td>
-                          <td className="py-2.5 px-4 text-rose-600">{v.salidas} {MEDIDA_LABEL[v.medida] || "u"}</td>
-                          <td className={"py-2.5 px-4 font-semibold " + (bajo ? "text-rose-600" : "text-primary")}>{actual} {MEDIDA_LABEL[v.medida] || "u"}</td>
-                          <td className="py-2.5 pl-4 text-muted-foreground">{min > 0 ? min + " " + (MEDIDA_LABEL[v.medida] || "u") : "—"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              /* Lista adaptable (sin tabla): cabe en cualquier pantalla */
+              <div className="divide-y divide-border/60">
+                {Object.entries(stockPorCat).map(([cat, v]) => {
+                  const actual = v.entradas - v.salidas;
+                  const min = minDe(cat);
+                  const bajo = min > 0 && actual < min;
+                  return (
+                    <div key={cat} className="flex items-center gap-3 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{CAT_LABEL_BODEGA[cat] || cat}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Entradas {v.entradas} · Salidas <span className="text-rose-600">{v.salidas}</span>
+                          {min > 0 && <> · Mín. {min}</>} {MEDIDA_LABEL[v.medida] || "u"}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={"text-lg font-bold font-heading " + (bajo ? "text-rose-600" : "text-primary")}>{actual}</p>
+                        <p className="text-[10px] text-muted-foreground -mt-0.5">{MEDIDA_LABEL[v.medida] || "u"} en stock{bajo ? " · ¡bajo!" : ""}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </SectionCard>
