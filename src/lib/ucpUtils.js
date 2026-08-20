@@ -54,11 +54,6 @@ export function generarBarraVisual(totalHoras, meta) {
   return "█".repeat(filled) + "░".repeat(empty) + " " + pct + "%";
 }
 
-// Genera URL de imagen QR
-export function generarQrUrl(data) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data)}`;
-}
-
 // Horas restantes hacia la meta
 export function horasRestantes(totalHoras, meta) {
   const m = meta || META_HORAS_DEFAULT;

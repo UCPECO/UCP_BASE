@@ -39,7 +39,7 @@ app.get('/api/health', (req, res) => {
       reportes_huella: nombres.includes('reportes_huella'),
     };
   } catch (e) { /* diagnóstico no debe romper el health check */ }
-  res.json({ status: 'ok', mode: 'self-hosted', version: '2026-08-17-qr-huella', tablas });
+  res.json({ status: 'ok', mode: 'self-hosted', version: '2026-08-20-qr-token', tablas });
 });
 
 // Static files (uploads)

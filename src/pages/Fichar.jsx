@@ -112,47 +112,52 @@ export default function Fichar() {
 
   useEffect(() => () => { if (html5QrRef.current) { try { html5QrRef.current.stop(); } catch {} } }, []);
 
-  const handleQrDetected = (text) => {
-    try {
-      const url = new URL(text);
-      const area = url.searchParams.get("area");
-      const exp = url.searchParams.get("exp");
-      if (!area) {
-        toast({ title: "QR no válido", description: "El código no contiene un área.", variant: "destructive" });
-        return;
-      }
-      if (exp) {
-        const fechaExp = new Date(exp + "T23:59:59");
-        if (!isNaN(fechaExp.getTime()) && fechaExp < new Date()) {
-          toast({ title: "QR expirado", description: "El código QR ha expirado.", variant: "destructive" });
-          return;
-        }
-      }
-      toast({ title: "QR válido", description: `Área: ${labelArea(area) || area}` });
-      if (registroAbierto) {
-        registrarSalida(false);
-      } else {
-        registrarEntrada(area, false);
-      }
-    } catch {
-      toast({ title: "QR no válido para fichaje", variant: "destructive" });
-    }
+  // Extrae el token del QR. Formatos aceptados:
+  //  - URL nueva:  https://sitio/fichar?t=<token>
+  //  - token plano (por si el QR solo codifica el token)
+  // Las URLs viejas (?area=...) se detectan para dar un mensaje claro.
+  const extraerTokenQr = (text) => {
+    const limpio = (text || "").trim();
+    const m = limpio.match(/[?&]t=([A-Za-z0-9-]+)/);
+    if (m) return { token: m[1] };
+    if (/^[A-Za-z0-9-]{16,64}$/.test(limpio)) return { token: limpio };
+    if (/[?&]area=/.test(limpio)) return { legacy: true };
+    return { invalido: true, contenido: limpio.slice(0, 80) };
   };
 
-  const registrarEntrada = async (area = null, manual = false) => {
+  const handleQrDetected = (text) => {
+    const r = extraerTokenQr(text);
+    if (r.legacy) {
+      toast({ title: "QR del sistema anterior", description: "Este código ya no sirve. Pide al encargado el QR nuevo del área.", variant: "destructive" });
+      return;
+    }
+    if (r.invalido) {
+      toast({ title: "QR no reconocido", description: r.contenido ? `Contenido: "${r.contenido}"` : "No se pudo leer el código.", variant: "destructive" });
+      return;
+    }
+    ficharConToken(r.token);
+  };
+
+  const ficharConToken = (token) => {
+    if (registroAbierto) registrarSalida(false);
+    else registrarEntrada({ token });
+  };
+
+  const registrarEntrada = async ({ token = null, manual = false } = {}) => {
     if (!asignacion) { toast({ title: "No tienes asignación activa", variant: "destructive" }); return; }
     if (manual && !areaManual) { toast({ title: "Indica el área", description: "El fichaje manual requiere que indiques en qué área estás trabajando.", variant: "destructive" }); return; }
     try {
-      const res = await base44.functions.invoke("ProcesarFichajeQR", { asignacion_id: asignacion.id, manual, area: manual ? areaManual : area });
+      const res = await base44.functions.invoke("ProcesarFichajeQR", { asignacion_id: asignacion.id, manual, area: manual ? areaManual : null, token });
       const data = res.data;
       if (data?.tipo === "presente") {
         setRegistroAbierto(data.registro);
+        const areaTxt = data.registro?.area ? ` · Área: ${labelArea(data.registro.area) || data.registro.area}` : "";
         if (data?.ya_abierto) {
           toast({ title: "Ya tienes un fichaje abierto", description: `Entrada: ${data.registro.hora_entrada}. Escanea para registrar tu salida.` });
         } else if (data?.es_manual) {
-          toast({ title: "✓ Entrada registrada (manual)", description: `Hora: ${data.registro.hora_entrada} · Se avisó al encargado del área.` });
+          toast({ title: "✓ Entrada registrada (manual)", description: `Hora: ${data.registro.hora_entrada}${areaTxt} · Se avisó al encargado del área.` });
         } else {
-          toast({ title: "✓ Entrada registrada", description: `Hora: ${data.registro.hora_entrada}${data.clase ? ` · ${data.clase}` : ""}` });
+          toast({ title: "✓ Entrada registrada", description: `Hora: ${data.registro.hora_entrada}${areaTxt}${data.clase ? ` · ${data.clase}` : ""}` });
         }
       } else if (data?.tipo === "incidencia") {
         toast({ title: "Fichaje fuera de horario laboral", description: "Estás fuera del horario autorizado. Se registró una incidencia.", variant: "destructive" });
@@ -179,25 +184,20 @@ export default function Fichar() {
     } catch (e) { toast({ title: "Error al registrar salida", variant: "destructive" }); }
   };
 
-  // Al abrir /fichar?area=... desde la cámara nativa del teléfono (sin usar
+  // Al abrir /fichar?t=<token> desde la cámara nativa del teléfono (sin usar
   // el escáner interno), se ficha automáticamente la entrada o la salida.
   useEffect(() => {
     if (loading || !user?.id || urlProcesadaRef.current) return;
-    const area = searchParams.get("area");
-    if (!area) return;
+    const token = searchParams.get("t");
+    const areaLegacy = searchParams.get("area");
+    if (!token && !areaLegacy) return;
     urlProcesadaRef.current = true;
-    const exp = searchParams.get("exp");
     setSearchParams({}, { replace: true });
-    if (exp) {
-      const fechaExp = new Date(exp + "T23:59:59");
-      if (!isNaN(fechaExp.getTime()) && fechaExp < new Date()) {
-        toast({ title: "QR expirado", description: "Este código QR ya no es válido. Pide uno nuevo al encargado.", variant: "destructive" });
-        return;
-      }
+    if (token) {
+      ficharConToken(token);
+    } else {
+      toast({ title: "QR del sistema anterior", description: "Este código ya no sirve. Pide al encargado el QR nuevo del área.", variant: "destructive" });
     }
-    toast({ title: "QR detectado", description: `Área: ${labelArea(area) || area}` });
-    if (registroAbierto) registrarSalida(false);
-    else registrarEntrada(area, false);
   }, [loading, user?.id]);
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
@@ -277,7 +277,7 @@ export default function Fichar() {
         )}
         <div className="flex gap-3">
           {!registroAbierto ? (
-            <Button onClick={() => registrarEntrada(null, true)} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => registrarEntrada({ manual: true })} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
               <LogIn className="h-4 w-4 mr-2" /> Registrar entrada
             </Button>
           ) : (

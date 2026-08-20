@@ -32,11 +32,27 @@ function aMinutos(hhmm) {
 router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
   try {
     const user = req.user;
-    const { asignacion_id, manual, area } = req.body;
+    const { asignacion_id, manual, area, token } = req.body;
     if (!asignacion_id) return res.status(400).json({ error: 'Falta asignacion_id' });
 
     const { hora, fecha, diaSemana, minutos } = ahoraMexico();
     const esManual = manual ? 1 : 0;
+
+    // ===== Validación del QR por token (sistema nuevo) =====
+    // El QR impreso contiene un token aleatorio; el servidor resuelve el área
+    // desde la BD. Así nadie puede inventar ?area=X y un QR viejo/desactivado
+    // da un error claro en vez de "inválido".
+    let areaQr = null;
+    if (!esManual && token) {
+      const qr = db.prepare('SELECT * FROM codigos_qr WHERE token = ?').get(token);
+      if (!qr) return res.json({ error: 'QR no reconocido. Es de una versión anterior o ya fue eliminado: pide al encargado el código nuevo del área.' });
+      if (!qr.activo) return res.json({ error: 'Este código QR está desactivado. Pide al encargado que lo reactive o genere uno nuevo.' });
+      if (qr.fecha_expiracion && qr.fecha_expiracion < fecha) {
+        return res.json({ error: `Este código QR expiró el ${qr.fecha_expiracion}. Pide uno nuevo al encargado.` });
+      }
+      areaQr = qr.ubicacion || null;
+      db.prepare('UPDATE codigos_qr SET escaneos = COALESCE(escaneos, 0) + 1 WHERE id = ?').run(qr.id);
+    }
 
     // Evitar fichajes duplicados: si ya tiene un registro abierto, se devuelve ese
     const abierto = db.prepare(`
@@ -89,8 +105,9 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
     });
     if (coincidente) claseInfo = coincidente.materia || null;
 
-    // Área del fichaje: la del QR, la indicada en manual, o la asignada al usuario
-    const areaFichaje = area || user.area_asignada || null;
+    // Área del fichaje: la que resolvió el token del QR, la indicada en manual,
+    // el parámetro legacy, o la asignada al usuario
+    const areaFichaje = areaQr || area || user.area_asignada || null;
 
     const registro = db.prepare(`
       INSERT INTO registros_qr (id, usuario, asignacion, fecha, hora_entrada, estado_registro, es_manual, area)

@@ -94,7 +94,9 @@ const auth = {
   
   redirectToLogin: (returnUrl) => {
     const url = new URL('/login', window.location.origin);
-    if (returnUrl) url.searchParams.set('from', returnUrl);
+    // Debe llamarse 'returnTo': es el parámetro que safeReturnTo() lee en Login.
+    // (Antes se enviaba 'from' y al volver del login se perdía la URL del QR.)
+    if (returnUrl) url.searchParams.set('returnTo', returnUrl);
     window.location.href = url.toString();
   },
   

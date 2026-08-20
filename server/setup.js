@@ -439,6 +439,21 @@ addColumnIfMissing('registros_qr', 'comentario_admin', 'comentario_admin TEXT');
 addColumnIfMissing('registros_qr', 'modificado_por', 'modificado_por TEXT');
 addColumnIfMissing('registros_qr', 'es_manual', 'es_manual INTEGER DEFAULT 0');
 addColumnIfMissing('registros_qr', 'area', 'area TEXT');
+
+// Códigos QR: columnas que el frontend siempre usó pero la tabla no tenía.
+// Sin ellas los QR se creaban con url NULL y el código impreso codificaba el
+// texto "null" → al escanearlo salía "QR no válido para fichaje".
+addColumnIfMissing('codigos_qr', 'nombre', 'nombre TEXT');
+addColumnIfMissing('codigos_qr', 'url', 'url TEXT');
+addColumnIfMissing('codigos_qr', 'ubicacion', 'ubicacion TEXT');
+addColumnIfMissing('codigos_qr', 'creado_por', 'creado_por TEXT');
+addColumnIfMissing('codigos_qr', 'escaneos', 'escaneos INTEGER DEFAULT 0');
+addColumnIfMissing('codigos_qr', 'token', 'token TEXT');
+// Los QR del sistema anterior (sin token) ya no sirven para fichar: se desactivan
+try {
+  const r = db.prepare(`UPDATE codigos_qr SET activo = 0 WHERE (token IS NULL OR token = '') AND activo = 1`).run();
+  if (r.changes > 0) console.log(`Migración: ${r.changes} código(s) QR del sistema anterior desactivados (sin token)`);
+} catch {}
 // Los fichajes cerrados que ya existían cuentan como validados (son históricos)
 if (validadoNuevo) {
   const r = db.prepare(`UPDATE registros_qr SET validado = 1 WHERE estado_registro IN ('cerrado', 'incompleto')`).run();
