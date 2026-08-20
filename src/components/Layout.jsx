@@ -79,6 +79,22 @@ const NAV = {
 
 const ROLE_LABEL = ROL_LABEL;
 
+// Etiquetas cortas para la barra inferior móvil
+const TAB_LABEL = {
+  "/admin": "Inicio", "/admin/personal": "Personal", "/admin/registros": "Registros", "/admin/validacion": "Validación",
+  "/encargado": "Inicio", "/encargado/personal": "Personal", "/encargado/registros": "Registros", "/encargado/inventario": "Inventario",
+  "/alumno": "Inicio", "/alumno/evidencias": "Evidencias", "/alumno/actividades": "Actividades",
+};
+
+// Barra inferior móvil: lo esencial al alcance del pulgar.
+// Staff (admin/encargado): 4 accesos + Menú. Participantes: 2 + FICHAR
+// central destacado (su acción diaria) + 1 + Menú.
+const BOTTOM_STAFF = {
+  admin: ["/admin", "/admin/personal", "/admin/registros", "/admin/validacion"],
+  encargado: ["/encargado", "/encargado/personal", "/encargado/registros", "/encargado/inventario"],
+};
+const BOTTOM_PARTICIPANTE = { izquierda: ["/alumno", "/alumno/evidencias"], derecha: ["/alumno/actividades"] };
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -133,21 +149,104 @@ export default function Layout({ children }) {
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
         {/* Mobile topbar */}
         <header className="lg:hidden sticky top-0 z-20 bg-sidebar text-sidebar-foreground px-4 h-14 flex items-center justify-between">
-          <button onClick={() => setOpen(true)} className="p-2 -ml-2"><Menu className="h-5 w-5" /></button>
           <div className="flex items-center gap-2 font-heading font-bold">
             <img src="/branding/logo-mono.png" alt="UCP" className="h-6 w-6 object-contain" /> UCP
           </div>
           <div className="flex items-center">
             <CampanaNotificaciones usuarioId={usuarioId} />
-            <button onClick={handleLogout} className="p-2 -mr-2"><LogOut className="h-5 w-5" /></button>
+            <button onClick={handleLogout} className="p-2 -mr-2" title="Cerrar sesión"><LogOut className="h-5 w-5" /></button>
           </div>
         </header>
 
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in">
+        <main className="flex-1 p-3 pb-24 sm:p-6 lg:p-8 lg:pb-8 max-w-7xl w-full mx-auto animate-fade-in">
           <Outlet />
         </main>
+
+        {/* Barra inferior móvil */}
+        <BarraInferior
+          items={items}
+          esParticipante={!BOTTOM_STAFF[role]}
+          tabsStaff={BOTTOM_STAFF[role] || []}
+          onMenu={() => setOpen(true)}
+        />
       </div>
     </div>
+  );
+}
+
+// Tab individual de la barra inferior
+function TabInferior({ item, label }) {
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      className={({ isActive }) => cn(
+        "flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] rounded-xl mx-0.5 transition-all active:scale-95",
+        isActive ? "text-sidebar-primary" : "text-sidebar-foreground/60"
+      )}
+    >
+      {({ isActive }) => (
+        <>
+          <span className={cn("p-1 rounded-lg transition-colors", isActive && "bg-sidebar-primary/15")}>
+            <item.icon className="h-5 w-5" />
+          </span>
+          <span className="text-[10px] font-medium leading-none">{label}</span>
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+function BarraInferior({ items, esParticipante, tabsStaff, onMenu }) {
+  const buscar = (to) => items.find((i) => i.to === to);
+  const menuBtn = (
+    <button
+      onClick={onMenu}
+      className="flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] rounded-xl mx-0.5 text-sidebar-foreground/60 transition-all active:scale-95"
+    >
+      <span className="p-1"><Menu className="h-5 w-5" /></span>
+      <span className="text-[10px] font-medium leading-none">Menú</span>
+    </button>
+  );
+
+  return (
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-sidebar text-sidebar-foreground border-t border-sidebar-border shadow-[0_-4px_16px_rgba(0,0,0,0.15)] pb-[env(safe-area-inset-bottom)]">
+      {esParticipante ? (
+        <div className="grid grid-cols-5 items-end px-1">
+          {BOTTOM_PARTICIPANTE.izquierda.map((to) => {
+            const item = buscar(to);
+            return item ? <TabInferior key={to} item={item} label={TAB_LABEL[to]} /> : <div key={to} />;
+          })}
+          {/* Acción central destacada: fichar con QR */}
+          <div className="flex flex-col items-center">
+            <NavLink
+              to="/fichar"
+              className={({ isActive }) => cn(
+                "flex items-center justify-center h-14 w-14 -mt-5 rounded-full shadow-lg ring-4 ring-background transition-all active:scale-90",
+                isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "bg-primary text-primary-foreground"
+              )}
+              title="Fichar con QR"
+            >
+              <QrCode className="h-6 w-6" />
+            </NavLink>
+            <span className="text-[10px] font-medium text-sidebar-foreground/60 mt-0.5">Fichar</span>
+          </div>
+          {BOTTOM_PARTICIPANTE.derecha.map((to) => {
+            const item = buscar(to);
+            return item ? <TabInferior key={to} item={item} label={TAB_LABEL[to]} /> : <div key={to} />;
+          })}
+          {menuBtn}
+        </div>
+      ) : (
+        <div className="grid grid-cols-5 px-1">
+          {tabsStaff.map((to) => {
+            const item = buscar(to);
+            return item ? <TabInferior key={to} item={item} label={TAB_LABEL[to]} /> : <div key={to} />;
+          })}
+          {menuBtn}
+        </div>
+      )}
+    </nav>
   );
 }
 
@@ -175,13 +274,13 @@ function SidebarContent({ items, name, role, onLogout, onClose, foto, usuarioId 
             to={item.to}
             end={item.end}
             className={({ isActive }) => cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
+              "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors active:scale-[0.98]",
               isActive
                 ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                 : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             )}
           >
-            <item.icon className="h-4 w-4 shrink-0" />
+            <item.icon className="h-[18px] w-[18px] shrink-0" />
             {item.label}
           </NavLink>
         ))}
