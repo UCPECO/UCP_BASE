@@ -14,6 +14,14 @@ import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import StatusBadge from "@/components/ucp/StatusBadge";
 import { formatearFecha } from "@/lib/ucpUtils";
+import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
+
+// created_date viene como "YYYY-MM-DD HH:MM:SS" en UTC (SQLite datetime('now'))
+const horaRespuesta = (created) => {
+  try {
+    return new Date(String(created).replace(" ", "T") + "Z").toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  } catch { return ""; }
+};
 
 export default function AdminPasesLista() {
   const [perfil, setPerfil] = useState(null);
@@ -70,12 +78,14 @@ export default function AdminPasesLista() {
   useEffect(() => {
     cargarDatos();
   }, [cargarDatos]);
+  useRecargarAlVolver(cargarDatos);
 
-  // Suscripción a nuevas respuestas en tiempo real
+  // Suscripción a nuevas respuestas (polling cada 5s en el cliente: llega como
+  // evento "update" con la lista completa)
   useEffect(() => {
     const unsub = base44.entities.Respuestas_Pases_Lista.subscribe((event) => {
-      if (event.type === "create") {
-        setRespuestas((prev) => [event.data, ...prev]);
+      if (event.type === "update" && Array.isArray(event.data)) {
+        setRespuestas(event.data);
       }
     });
     return unsub;
@@ -107,7 +117,7 @@ export default function AdminPasesLista() {
     }
   };
 
-  const usuariosDelArea = (area) => usuarios.filter((u) => u.area_asignada === area);
+  const usuariosDelArea = (area) => usuarios.filter((u) => u.area_asignada === area && u.activo !== false);
   const respuestasDePase = (paseId) => respuestas.filter((r) => r.pase_lista === paseId);
   const presentesIds = (paseId) => new Set(respuestasDePase(paseId).map((r) => r.usuario));
 
@@ -227,7 +237,7 @@ export default function AdminPasesLista() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <div className="hidden sm:flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm">
                       <span className="flex items-center gap-1 text-emerald-600 font-medium">
                         <CheckCircle2 className="h-4 w-4" /> {presentesCount}
                       </span>
@@ -282,7 +292,7 @@ export default function AdminPasesLista() {
                               {presente ? (
                                 <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 shrink-0">
                                   <CheckCircle2 className="h-4 w-4" />
-                                  {resp?.fecha_respuesta ? new Date(resp.fecha_respuesta).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : ""}
+                                  {resp?.created_date ? horaRespuesta(resp.created_date) : ""}
                                 </span>
                               ) : (
                                 <span className="flex items-center gap-1 text-xs font-medium text-amber-600 shrink-0">

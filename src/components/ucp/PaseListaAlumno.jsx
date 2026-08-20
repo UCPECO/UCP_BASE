@@ -4,6 +4,15 @@ import { Bell, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { labelArea } from "@/lib/areas";
 
+// Un pase de lista solo se puede responder durante 6 horas desde su creación;
+// después se considera olvidado aunque nadie lo haya cerrado.
+const VIGENCIA_MS = 6 * 60 * 60 * 1000;
+const fechaUTC = (created) => new Date(String(created).replace(" ", "T") + "Z").getTime();
+const esVigente = (p) => {
+  const t = fechaUTC(p.created_date);
+  return !isNaN(t) && (Date.now() - t) < VIGENCIA_MS;
+};
+
 // Muestra pases de lista activos para el área del alumno y le permite
 // marcar su presencia. Se inserta en el dashboard del alumno.
 export default function PaseListaAlumno() {
@@ -16,11 +25,14 @@ export default function PaseListaAlumno() {
     base44.auth.me().then(setPerfil).catch(() => {});
   }, []);
 
+  const filtrarMios = (lista) =>
+    (lista || []).filter((p) => p.estado === "activo" && p.area === perfil?.area_asignada && esVigente(p));
+
   const cargar = async () => {
     if (!perfil) return;
     try {
       const activos = await base44.entities.Pases_Lista.filter({ estado: "activo" });
-      const deMiArea = activos.filter((p) => p.area === perfil.area_asignada);
+      const deMiArea = filtrarMios(activos);
       setPasesActivos(deMiArea);
 
       if (deMiArea.length > 0) {
@@ -39,11 +51,14 @@ export default function PaseListaAlumno() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil]);
 
-  // Suscripción: aparecer nuevos pases de lista en tiempo real
+  // Suscripción: el cliente hace polling cada 5s y entrega la lista completa
+  // como evento "update"; actualizamos sin otra petición al servidor.
   useEffect(() => {
     if (!perfil) return;
     const unsub = base44.entities.Pases_Lista.subscribe((event) => {
-      if (event.type === "create") cargar();
+      if (event.type === "update" && Array.isArray(event.data)) {
+        setPasesActivos(filtrarMios(event.data));
+      }
     });
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,12 +72,12 @@ export default function PaseListaAlumno() {
       await base44.entities.Respuestas_Pases_Lista.create({
         pase_lista: pase.id,
         usuario: perfil.id,
-        usuario_nombre: perfil.nombre_completo || perfil.full_name || "",
-        fecha_respuesta: new Date().toISOString(),
+        estado_respuesta: "presente",
       });
       setMisRespuestas((prev) => [...prev, { pase_lista: pase.id }]);
     } catch (e) {
-      console.error(e);
+      // Si la base de datos rechaza por duplicado, ya estaba respondido
+      setMisRespuestas((prev) => [...prev, { pase_lista: pase.id }]);
     } finally {
       setRespondiendo(null);
     }

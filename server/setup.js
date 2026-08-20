@@ -298,6 +298,18 @@ db.exec(`
   );
 `);
 
+// Integridad: una sola respuesta por persona por pase de lista.
+// Primero limpia duplicados históricos, luego crea el índice único.
+db.exec(`
+  DELETE FROM respuestas_pases_lista WHERE rowid NOT IN (
+    SELECT MIN(rowid) FROM respuestas_pases_lista GROUP BY pase_lista, usuario
+  );
+`);
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_respuestas_pase_usuario
+  ON respuestas_pases_lista (pase_lista, usuario);
+`);
+
 // Tabla de invitaciones
 db.exec(`
   CREATE TABLE IF NOT EXISTS invitaciones (

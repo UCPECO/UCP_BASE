@@ -264,6 +264,9 @@ router.post('/IniciarPaseLista', authMiddleware, (req, res) => {
       return res.status(403).json({ error: 'Solo puedes pasar lista en tu área asignada' });
     }
 
+    // Un solo pase activo por área: cerrar los anteriores para que no se acumulen
+    db.prepare(`UPDATE pases_lista SET estado = 'cerrado' WHERE estado = 'activo' AND area = ?`).run(area);
+
     const nombreCreador = me.nombre_completo || me.full_name || 'Encargado';
 
     const pase = db.prepare(`
@@ -273,10 +276,10 @@ router.post('/IniciarPaseLista', authMiddleware, (req, res) => {
 
     const paseLista = db.prepare('SELECT * FROM pases_lista WHERE rowid = ?').get(pase.lastInsertRowid);
 
-    // Avisar a todo el personal del área
+    // Avisar al personal del área que puede responder (participantes asignados, activos)
     const destinatarios = db.prepare(`
-      SELECT id FROM users WHERE archivado = 0 AND (area_asignada = ? OR area_encargada = ?) AND id != ?
-    `).all(area, area, user.id);
+      SELECT id FROM users WHERE archivado = 0 AND (activo IS NULL OR activo = 1) AND area_asignada = ? AND id != ?
+    `).all(area, user.id);
     for (const d of destinatarios) {
       notificar(d.id, `Pase de lista activo · ${area}`, mensaje || 'Responde tu asistencia desde tu panel.', '/alumno');
     }
