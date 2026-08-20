@@ -87,10 +87,9 @@ export default function Layout({ children }) {
   const [profile, setProfile] = useState(null);
 
   const role = user?.role || profile?.role || "voluntario";
-  // El checklist de bodega solo aparece al personal de esa área (y al admin)
-  const esDeBodega = role === "admin" || profile?.area_asignada === "Bodega" || profile?.area_encargada === "Bodega"
-    || profile?.area_asignada === "CU1" || profile?.area_encargada === "CU1"
-    || profile?.area_asignada === "CU2" || profile?.area_encargada === "CU2";
+  // El checklist de bodega solo aparece al personal de esa área (y al admin).
+  // CU1/CU2 son etiquetas internas: su área sigue siendo "Bodega".
+  const esDeBodega = role === "admin" || esAreaBodega(profile?.area_asignada) || esAreaBodega(profile?.area_encargada);
   let items = esDeBodega
     ? [...(NAV[role] || NAV.voluntario), { to: "/checklist-bodega", label: "Checklist bodega", icon: ClipboardCheck }]
     : (NAV[role] || NAV.voluntario);

@@ -466,6 +466,8 @@ addColumnIfMissing('users', 'facultad', 'facultad TEXT');
 addColumnIfMissing('users', 'periodo_asignado', 'periodo_asignado TEXT');
 addColumnIfMissing('users', 'fecha_baja', 'fecha_baja TEXT');
 addColumnIfMissing('users', 'motivo_baja', 'motivo_baja TEXT');
+// Etiqueta interna del personal de Bodega (CU1/CU2). No es un área.
+addColumnIfMissing('users', 'etiqueta', 'etiqueta TEXT');
 
 // Constancias: campos que el generador de PDF y el admin ya usaban
 addColumnIfMissing('constancias', 'usuario_nombre', 'usuario_nombre TEXT');

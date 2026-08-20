@@ -57,7 +57,7 @@ router.post('/admin-create-user', authMiddleware, (req, res) => {
   const {
     email, password, full_name, role,
     area_asignada, area_encargada,
-    telefono, carrera, matricula, facultad,
+    telefono, carrera, matricula, facultad, etiqueta,
   } = req.body;
 
   if (!email || !password || !full_name) {
@@ -80,8 +80,8 @@ router.post('/admin-create-user', authMiddleware, (req, res) => {
   const hashedPassword = bcrypt.hashSync(String(password), 10);
 
   db.prepare(`
-    INSERT INTO users (id, email, password, full_name, role, area_asignada, area_encargada, telefono, carrera, matricula)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, email, password, full_name, role, area_asignada, area_encargada, telefono, carrera, matricula, etiqueta)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     emailLimpio,
@@ -92,7 +92,8 @@ router.post('/admin-create-user', authMiddleware, (req, res) => {
     rolFinal === 'encargado' ? (area_encargada || '') : '',
     telefono || '',
     carrera || '',
-    matricula || ''
+    matricula || '',
+    etiqueta || ''
   );
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);

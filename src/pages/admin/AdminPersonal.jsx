@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/components/ui/use-toast";
 import { generarReportePersonalPdfMensual } from "@/lib/reportePersonal";
 import { useAuth } from "@/lib/AuthContext";
-import { AREAS, labelArea } from "@/lib/areas";
+import { AREAS, labelArea, ETIQUETAS_BODEGA, labelEtiqueta } from "@/lib/areas";
 import { esParticipante, TIPOS_PARTICIPANTE } from "@/lib/roles";
 import { calcularHoras, fechaHoy } from "@/lib/ucpUtils";
 
@@ -39,6 +39,7 @@ const NUEVO_VACIO = {
   password: "",
   role: "servicio_social",
   area: "",
+  etiqueta: "",
   matricula: "",
   telefono: "",
   facultad: "",
@@ -133,6 +134,8 @@ export default function AdminPersonal() {
         payload.area_asignada = nuevo.area;
         payload.tipo_participante = nuevo.role;
         payload.periodo_asignado = nuevo.periodo.trim();
+        // La etiqueta CU1/CU2 solo aplica cuando el área es Bodega
+        payload.etiqueta = nuevo.area === "Bodega" ? nuevo.etiqueta : "";
       }
 
       const creado = await base44.auth.adminCreateUser(payload);
@@ -164,13 +167,14 @@ export default function AdminPersonal() {
     try {
       const patch = { role: newRole };
       if (newRole !== "encargado") patch.area_encargada = "";
-      if (!esParticipante(newRole)) patch.area_asignada = "";
+      if (!esParticipante(newRole)) { patch.area_asignada = ""; patch.etiqueta = ""; }
       await base44.entities.User.update(userId, patch);
       setUsers((us) => us.map((u) => (u.id === userId ? {
         ...u,
         role: newRole,
         area_encargada: newRole === "encargado" ? u.area_encargada || "" : "",
         area_asignada: (esParticipante(newRole)) ? u.area_asignada || "" : "",
+        etiqueta: (esParticipante(newRole)) ? u.etiqueta || "" : "",
       } : u)));
       toast({ title: "Rol actualizado", description: ROLES.find((r) => r.value === newRole)?.label });
     } catch (e) {
@@ -196,11 +200,26 @@ export default function AdminPersonal() {
   const changeAreaAsignada = async (userId, area) => {
     setSavingId(userId);
     try {
-      await base44.entities.User.update(userId, { area_asignada: area });
-      setUsers((us) => us.map((u) => (u.id === userId ? { ...u, area_asignada: area } : u)));
+      // Si el área deja de ser Bodega, la etiqueta CU1/CU2 ya no aplica
+      const patch = area === "Bodega" ? { area_asignada: area } : { area_asignada: area, etiqueta: "" };
+      await base44.entities.User.update(userId, patch);
+      setUsers((us) => us.map((u) => (u.id === userId ? { ...u, ...patch } : u)));
       toast({ title: "Área designada", description: area ? labelArea(area) : "Sin área" });
     } catch (e) {
       toast({ title: "Error al asignar área", variant: "destructive" });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const changeEtiqueta = async (userId, etiqueta) => {
+    setSavingId(userId);
+    try {
+      await base44.entities.User.update(userId, { etiqueta });
+      setUsers((us) => us.map((u) => (u.id === userId ? { ...u, etiqueta } : u)));
+      toast({ title: "Etiqueta actualizada", description: etiqueta ? labelEtiqueta(etiqueta) : "Sin etiqueta" });
+    } catch (e) {
+      toast({ title: "Error al asignar etiqueta", variant: "destructive" });
     } finally {
       setSavingId(null);
     }
@@ -405,10 +424,20 @@ export default function AdminPersonal() {
                 {(nuevo.role === "encargado" || esParticipante(nuevo.role)) && (
                   <div className="space-y-1">
                     <Label className="text-xs">{nuevo.role === "encargado" ? "Área que encarga" : "Área asignada"}</Label>
-                    <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={nuevo.area} onChange={(e) => setCampo("area", e.target.value)}>
+                    <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={nuevo.area} onChange={(e) => setNuevo((n) => ({ ...n, area: e.target.value, etiqueta: e.target.value === "Bodega" ? n.etiqueta : "" }))}>
                       <option value="">Sin área</option>
                       {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
                     </select>
+                  </div>
+                )}
+                {esParticipante(nuevo.role) && nuevo.area === "Bodega" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Etiqueta de bodega</Label>
+                    <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={nuevo.etiqueta} onChange={(e) => setCampo("etiqueta", e.target.value)}>
+                      <option value="">Sin etiqueta</option>
+                      {ETIQUETAS_BODEGA.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <p className="text-[11px] text-muted-foreground">Indica en qué bodega física trabaja (CU1 o CU2).</p>
                   </div>
                 )}
                 <div className="space-y-1">
@@ -508,19 +537,25 @@ export default function AdminPersonal() {
                 {filtered.map((u) => (
                   <React.Fragment key={u.id}>
                     <tr className={`border-b border-border last:border-0 hover:bg-muted/40 ${u.archivado ? "opacity-50" : ""}`}>
-                      <td className="py-3 pr-4">
-                        <div className="flex items-center gap-3">
+                      <td className="py-2 sm:py-3 pr-2 sm:pr-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <button onClick={() => setDetalleUser(u)} title="Ver historial completo" className="p-1.5 rounded-lg hover:bg-muted text-primary shrink-0"><Eye className="h-4 w-4" /></button>
                           {u.foto_perfil ? (
-                            <img src={u.foto_perfil} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                            <img src={u.foto_perfil} alt="" className="h-8 w-8 sm:h-9 sm:w-9 rounded-full object-cover shrink-0" />
                           ) : (
-                            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary text-sm shrink-0">
+                            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary text-sm shrink-0">
                               {(u.nombre_completo || u.full_name || "?").charAt(0)}
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="font-medium truncate">{u.nombre_completo || u.full_name || "—"}</p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 truncate"><Mail className="h-3 w-3" /> {u.email || "—"}</p>
+                            <p className="font-medium truncate text-sm sm:text-base">{u.nombre_completo || u.full_name || "—"}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 truncate"><Mail className="h-3 w-3 shrink-0" /> {u.email || "—"}</p>
+                            {/* En móvil la columna Área se oculta: se muestra aquí resumida */}
+                            <p className="text-[11px] text-muted-foreground mt-0.5 sm:hidden truncate">
+                              {ROLES.find((r) => r.value === u.role)?.label || "Voluntario"}
+                              {(u.area_asignada || u.area_encargada) ? ` · ${labelArea(u.area_encargada || u.area_asignada || "")}` : ""}
+                              {u.etiqueta ? ` · ${u.etiqueta}` : ""}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -554,10 +589,15 @@ export default function AdminPersonal() {
                             </select>
                           </span>
                         ) : (esParticipante(u.role)) ? (
-                          <span className="inline-flex items-center gap-1 text-xs">
+                          <span className="inline-flex flex-wrap items-center gap-1 text-xs">
                             <span className={`px-2 py-1 rounded-full font-medium ${u.area_asignada ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                               {labelArea(u.area_asignada || "") || "Sin área"}
                             </span>
+                            {u.area_asignada === "Bodega" && u.etiqueta && (
+                              <span className="px-2 py-1 rounded-full font-medium bg-amber-100 text-amber-700" title="Bodega física asignada">
+                                {u.etiqueta}
+                              </span>
+                            )}
                             <select
                               value={u.area_asignada || ""}
                               disabled={savingId === u.id}
@@ -568,6 +608,18 @@ export default function AdminPersonal() {
                               <option value="">Sin área</option>
                               {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
                             </select>
+                            {u.area_asignada === "Bodega" && (
+                              <select
+                                value={u.etiqueta || ""}
+                                disabled={savingId === u.id}
+                                onChange={(e) => changeEtiqueta(u.id, e.target.value)}
+                                className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50 cursor-pointer"
+                                title="Etiqueta de bodega (CU1/CU2)"
+                              >
+                                <option value="">Sin etiqueta</option>
+                                {ETIQUETAS_BODEGA.map((t) => <option key={t.value} value={t.value} className="bg-card text-foreground">{t.label}</option>)}
+                              </select>
+                            )}
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>

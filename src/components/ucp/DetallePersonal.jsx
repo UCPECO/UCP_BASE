@@ -14,7 +14,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasPorValidar, sumarHorasBonos } from "@/lib/ucpUtils";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
-import { AREAS, labelArea } from "@/lib/areas";
+import { AREAS, labelArea, labelEtiqueta } from "@/lib/areas";
 import { esParticipante } from "@/lib/roles";
 
 const ROL_LABEL = {
@@ -342,6 +342,9 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
                       label={datos?.role === "encargado" ? "Área que encarga" : "Área asignada"}
                       value={labelArea(datos?.role === "encargado" ? datos?.area_encargada : datos?.area_asignada)}
                     />
+                    {datos?.area_asignada === "Bodega" && (
+                      <Dato label="Etiqueta de bodega" value={labelEtiqueta(datos?.etiqueta) || "Sin etiqueta"} />
+                    )}
                     <Dato label="Estado" value={datos?.archivado ? "Baja (archivado)" : "Activo"} />
                     {!!datos?.archivado && (
                       <>
