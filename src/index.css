@@ -2,47 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 @layer base {
+  /* ===== Tema por defecto: AURORA OSCURA =====
+     Negro puro con acentos neón: morado #884ef4 y cyan #80f6ff */
   :root {
-    --background: 150 30% 98%;
-    --foreground: 165 35% 12%;
+    --background: 0 0% 3%;
+    --foreground: 0 0% 97%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 97%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 97%;
+    --primary: 261 88% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 92%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 184 100% 75%;
+    --accent-foreground: 261 60% 12%;
+    --destructive: 0 80% 58%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 16%;
+    --input: 0 0% 20%;
+    --ring: 184 100% 75%;
+    --chart-1: 184 100% 65%;
+    --chart-2: 261 88% 68%;
+    --chart-3: 100 70% 55%;
+    --chart-4: 320 80% 62%;
+    --chart-5: 0 80% 62%;
+    --radius: 1rem;
+    --font-heading: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    /* La barra lateral/topbar se mantiene oscura en ambos modos (marca aurora) */
+    --sidebar-background: 260 15% 7%;
+    --sidebar-foreground: 0 0% 80%;
+    --sidebar-primary: 184 100% 75%;
+    --sidebar-primary-foreground: 261 60% 10%;
+    --sidebar-accent: 260 14% 13%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 260 10% 15%;
+    --sidebar-ring: 184 100% 75%;
+  }
+
+  /* ===== MODO CLARO =====
+     Se activa con la clase .light en <html> (toggle del usuario) */
+  html.light {
+    --background: 250 25% 97%;
+    --foreground: 250 25% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 165 35% 12%;
+    --card-foreground: 250 25% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 165 35% 12%;
-    --primary: 168 58% 24%;
-    --primary-foreground: 150 40% 97%;
-    --secondary: 150 25% 94%;
-    --secondary-foreground: 168 50% 20%;
-    --muted: 150 20% 95%;
-    --muted-foreground: 168 15% 42%;
-    --accent: 35 85% 55%;
-    --accent-foreground: 30 60% 15%;
+    --popover-foreground: 250 25% 10%;
+    --primary: 261 80% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 255 20% 93%;
+    --secondary-foreground: 255 25% 20%;
+    --muted: 255 18% 94%;
+    --muted-foreground: 255 10% 42%;
+    --accent: 190 90% 33%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 150 18% 88%;
-    --input: 150 18% 88%;
-    --ring: 168 58% 24%;
-    --chart-1: 168 58% 34%;
-    --chart-2: 35 85% 55%;
-    --chart-3: 200 70% 50%;
-    --chart-4: 280 60% 55%;
-    --chart-5: 340 70% 55%;
-    --radius: 0.75rem;
-    --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-    --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Fraunces', ui-serif, Georgia, serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --sidebar-background: 168 58% 18%;
-    --sidebar-foreground: 150 30% 90%;
-    --sidebar-primary: 150 40% 95%;
-    --sidebar-primary-foreground: 168 58% 18%;
-    --sidebar-accent: 168 48% 26%;
-    --sidebar-accent-foreground: 150 40% 95%;
-    --sidebar-border: 168 40% 28%;
-    --sidebar-ring: 35 85% 55%;
+    --border: 255 18% 87%;
+    --input: 255 18% 85%;
+    --ring: 261 80% 52%;
   }
 }
 
@@ -60,6 +87,25 @@
     /* Nada debe desbordar horizontalmente: si algo se sale, la página
        entera se veía miniatura en el teléfono */
     overflow-x: clip;
+  }
+  /* Resplandores aurora detrás del contenido (solo modo oscuro) */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(620px 420px at 12% -5%, hsl(261 88% 63% / 0.16), transparent 60%),
+      radial-gradient(520px 380px at 92% 8%, hsl(184 100% 75% / 0.09), transparent 60%),
+      radial-gradient(560px 520px at 50% 112%, hsl(230 60% 42% / 0.13), transparent 60%);
+  }
+  html.light body::before {
+    display: none;
+  }
+  /* Transición suave al cambiar de tema */
+  body, .bg-card, .bg-background, .bg-muted, .bg-secondary, .bg-popover {
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
   /* En pantallas chicas la fuente base crece ~6%: todo el sistema de
      espaciado y texto (rem) escala parejo y se lee sin hacer zoom */
@@ -80,4 +126,147 @@
   .font-display { font-family: var(--font-display); }
   .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  /* Texto con gradiente aurora (títulos destacados) */
+  .text-aurora {
+    background: linear-gradient(90deg, hsl(184 100% 75%), hsl(261 88% 68%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  html.light .text-aurora {
+    background: linear-gradient(90deg, hsl(190 90% 33%), hsl(261 80% 52%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Resplandor neón para el FAB de fichar y botones primarios destacados */
+  .glow-aurora {
+    box-shadow: 0 0 22px hsl(261 88% 63% / 0.45), 0 4px 14px rgb(0 0 0 / 0.35);
+  }
 }
+/* ============================================================
+   Compatibilidad MODO OSCURO para utilidades de tonos claros
+   (banners, badges y avisos bg-*-50/100 con texto *-700/800/900).
+   No aplica cuando <html> tiene la clase .light (modo claro).
+   ============================================================ */
+html:not(.light) .bg-emerald-50 { background-color: rgb(16 185 129 / 0.10); }
+html:not(.light) .bg-emerald-100 { background-color: rgb(16 185 129 / 0.17); }
+html:not(.light) .border-emerald-200 { border-color: rgb(16 185 129 / 0.30); }
+html:not(.light) .border-emerald-100 { border-color: rgb(16 185 129 / 0.22); }
+html:not(.light) .text-emerald-700 { color: #34d399; }
+html:not(.light) .text-emerald-800 { color: #6ee7b7; }
+html:not(.light) .text-emerald-900 { color: #a7f3d0; }
+html:not(.light) .bg-amber-50 { background-color: rgb(245 158 11 / 0.10); }
+html:not(.light) .bg-amber-100 { background-color: rgb(245 158 11 / 0.17); }
+html:not(.light) .border-amber-200 { border-color: rgb(245 158 11 / 0.30); }
+html:not(.light) .border-amber-100 { border-color: rgb(245 158 11 / 0.22); }
+html:not(.light) .text-amber-700 { color: #fbbf24; }
+html:not(.light) .text-amber-800 { color: #fcd34d; }
+html:not(.light) .text-amber-900 { color: #fde68a; }
+html:not(.light) .bg-red-50 { background-color: rgb(239 68 68 / 0.10); }
+html:not(.light) .bg-red-100 { background-color: rgb(239 68 68 / 0.17); }
+html:not(.light) .border-red-200 { border-color: rgb(239 68 68 / 0.30); }
+html:not(.light) .border-red-100 { border-color: rgb(239 68 68 / 0.22); }
+html:not(.light) .text-red-700 { color: #f87171; }
+html:not(.light) .text-red-800 { color: #fca5a5; }
+html:not(.light) .text-red-900 { color: #fecaca; }
+html:not(.light) .bg-rose-50 { background-color: rgb(244 63 94 / 0.10); }
+html:not(.light) .bg-rose-100 { background-color: rgb(244 63 94 / 0.17); }
+html:not(.light) .border-rose-200 { border-color: rgb(244 63 94 / 0.30); }
+html:not(.light) .border-rose-100 { border-color: rgb(244 63 94 / 0.22); }
+html:not(.light) .text-rose-700 { color: #fb7185; }
+html:not(.light) .text-rose-800 { color: #fda4af; }
+html:not(.light) .text-rose-900 { color: #fecdd3; }
+html:not(.light) .bg-blue-50 { background-color: rgb(59 130 246 / 0.10); }
+html:not(.light) .bg-blue-100 { background-color: rgb(59 130 246 / 0.17); }
+html:not(.light) .border-blue-200 { border-color: rgb(59 130 246 / 0.30); }
+html:not(.light) .border-blue-100 { border-color: rgb(59 130 246 / 0.22); }
+html:not(.light) .text-blue-700 { color: #60a5fa; }
+html:not(.light) .text-blue-800 { color: #93c5fd; }
+html:not(.light) .text-blue-900 { color: #bfdbfe; }
+html:not(.light) .bg-green-50 { background-color: rgb(34 197 94 / 0.10); }
+html:not(.light) .bg-green-100 { background-color: rgb(34 197 94 / 0.17); }
+html:not(.light) .border-green-200 { border-color: rgb(34 197 94 / 0.30); }
+html:not(.light) .border-green-100 { border-color: rgb(34 197 94 / 0.22); }
+html:not(.light) .text-green-700 { color: #4ade80; }
+html:not(.light) .text-green-800 { color: #86efac; }
+html:not(.light) .text-green-900 { color: #bbf7d0; }
+html:not(.light) .bg-yellow-50 { background-color: rgb(234 179 8 / 0.10); }
+html:not(.light) .bg-yellow-100 { background-color: rgb(234 179 8 / 0.17); }
+html:not(.light) .border-yellow-200 { border-color: rgb(234 179 8 / 0.30); }
+html:not(.light) .border-yellow-100 { border-color: rgb(234 179 8 / 0.22); }
+html:not(.light) .text-yellow-700 { color: #facc15; }
+html:not(.light) .text-yellow-800 { color: #fde047; }
+html:not(.light) .text-yellow-900 { color: #fef08a; }
+html:not(.light) .bg-orange-50 { background-color: rgb(249 115 22 / 0.10); }
+html:not(.light) .bg-orange-100 { background-color: rgb(249 115 22 / 0.17); }
+html:not(.light) .border-orange-200 { border-color: rgb(249 115 22 / 0.30); }
+html:not(.light) .border-orange-100 { border-color: rgb(249 115 22 / 0.22); }
+html:not(.light) .text-orange-700 { color: #fb923c; }
+html:not(.light) .text-orange-800 { color: #fdba74; }
+html:not(.light) .text-orange-900 { color: #fed7aa; }
+html:not(.light) .bg-purple-50 { background-color: rgb(168 85 247 / 0.10); }
+html:not(.light) .bg-purple-100 { background-color: rgb(168 85 247 / 0.17); }
+html:not(.light) .border-purple-200 { border-color: rgb(168 85 247 / 0.30); }
+html:not(.light) .border-purple-100 { border-color: rgb(168 85 247 / 0.22); }
+html:not(.light) .text-purple-700 { color: #c084fc; }
+html:not(.light) .text-purple-800 { color: #d8b4fe; }
+html:not(.light) .text-purple-900 { color: #e9d5ff; }
+html:not(.light) .bg-violet-50 { background-color: rgb(139 92 246 / 0.10); }
+html:not(.light) .bg-violet-100 { background-color: rgb(139 92 246 / 0.17); }
+html:not(.light) .border-violet-200 { border-color: rgb(139 92 246 / 0.30); }
+html:not(.light) .border-violet-100 { border-color: rgb(139 92 246 / 0.22); }
+html:not(.light) .text-violet-700 { color: #a78bfa; }
+html:not(.light) .text-violet-800 { color: #c4b5fd; }
+html:not(.light) .text-violet-900 { color: #ddd6fe; }
+html:not(.light) .bg-sky-50 { background-color: rgb(14 165 233 / 0.10); }
+html:not(.light) .bg-sky-100 { background-color: rgb(14 165 233 / 0.17); }
+html:not(.light) .border-sky-200 { border-color: rgb(14 165 233 / 0.30); }
+html:not(.light) .border-sky-100 { border-color: rgb(14 165 233 / 0.22); }
+html:not(.light) .text-sky-700 { color: #38bdf8; }
+html:not(.light) .text-sky-800 { color: #7dd3fc; }
+html:not(.light) .text-sky-900 { color: #bae6fd; }
+html:not(.light) .bg-teal-50 { background-color: rgb(20 184 166 / 0.10); }
+html:not(.light) .bg-teal-100 { background-color: rgb(20 184 166 / 0.17); }
+html:not(.light) .border-teal-200 { border-color: rgb(20 184 166 / 0.30); }
+html:not(.light) .border-teal-100 { border-color: rgb(20 184 166 / 0.22); }
+html:not(.light) .text-teal-700 { color: #2dd4bf; }
+html:not(.light) .text-teal-800 { color: #5eead4; }
+html:not(.light) .text-teal-900 { color: #99f6e4; }
+html:not(.light) .bg-cyan-50 { background-color: rgb(6 182 212 / 0.10); }
+html:not(.light) .bg-cyan-100 { background-color: rgb(6 182 212 / 0.17); }
+html:not(.light) .border-cyan-200 { border-color: rgb(6 182 212 / 0.30); }
+html:not(.light) .border-cyan-100 { border-color: rgb(6 182 212 / 0.22); }
+html:not(.light) .text-cyan-700 { color: #22d3ee; }
+html:not(.light) .text-cyan-800 { color: #67e8f9; }
+html:not(.light) .text-cyan-900 { color: #a5f3fc; }
+html:not(.light) .bg-indigo-50 { background-color: rgb(99 102 241 / 0.10); }
+html:not(.light) .bg-indigo-100 { background-color: rgb(99 102 241 / 0.17); }
+html:not(.light) .border-indigo-200 { border-color: rgb(99 102 241 / 0.30); }
+html:not(.light) .border-indigo-100 { border-color: rgb(99 102 241 / 0.22); }
+html:not(.light) .text-indigo-700 { color: #818cf8; }
+html:not(.light) .text-indigo-800 { color: #a5b4fc; }
+html:not(.light) .text-indigo-900 { color: #c7d2fe; }
+html:not(.light) .bg-pink-50 { background-color: rgb(236 72 153 / 0.10); }
+html:not(.light) .bg-pink-100 { background-color: rgb(236 72 153 / 0.17); }
+html:not(.light) .border-pink-200 { border-color: rgb(236 72 153 / 0.30); }
+html:not(.light) .border-pink-100 { border-color: rgb(236 72 153 / 0.22); }
+html:not(.light) .text-pink-700 { color: #f472b6; }
+html:not(.light) .text-pink-800 { color: #f9a8d4; }
+html:not(.light) .text-pink-900 { color: #fbcfe8; }
+html:not(.light) .bg-slate-50 { background-color: rgb(255 255 255 / 0.05); }
+html:not(.light) .bg-slate-100 { background-color: rgb(255 255 255 / 0.09); }
+html:not(.light) .border-slate-100 { border-color: rgb(148 163 184 / 0.18); }
+html:not(.light) .border-slate-200 { border-color: rgb(148 163 184 / 0.25); }
+html:not(.light) .text-slate-600 { color: #94a3b8; }
+html:not(.light) .text-slate-700 { color: #cbd5e1; }
+html:not(.light) .text-slate-800 { color: #e2e8f0; }
+html:not(.light) .text-slate-900 { color: #f1f5f9; }
+html:not(.light) .bg-gray-50 { background-color: rgb(255 255 255 / 0.05); }
+html:not(.light) .bg-gray-100 { background-color: rgb(255 255 255 / 0.09); }
+html:not(.light) .border-gray-100 { border-color: rgb(148 163 184 / 0.18); }
+html:not(.light) .border-gray-200 { border-color: rgb(148 163 184 / 0.25); }
+html:not(.light) .text-gray-600 { color: #94a3b8; }
+html:not(.light) .text-gray-700 { color: #cbd5e1; }
+html:not(.light) .text-gray-800 { color: #e2e8f0; }
+html:not(.light) .text-gray-900 { color: #f1f5f9; }

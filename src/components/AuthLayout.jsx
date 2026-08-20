@@ -10,10 +10,10 @@ export default function AuthLayout({ title, subtitle, footer, children }) {
             alt="Unidos Cuidando el Planeta"
             className="w-24 h-24 mx-auto mb-4 drop-shadow-sm"
           />
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-aurora">{title}</h1>
           {subtitle && <p className="text-muted-foreground mt-2">{subtitle}</p>}
         </div>
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-8 glow-aurora">
           {children}
         </div>
         {footer && (

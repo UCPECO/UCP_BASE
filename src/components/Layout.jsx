@@ -11,6 +11,7 @@ import { ROL_LABEL } from "@/lib/roles";
 import { esAreaBodega } from "@/lib/areas";
 import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
 import BotonInstalar from "@/components/ucp/BotonInstalar";
+import ThemeToggle from "@/components/ucp/ThemeToggle";
 
 const NAV = {
   admin: [
@@ -153,6 +154,7 @@ export default function Layout({ children }) {
             <img src="/branding/logo-mono.png" alt="UCP" className="h-6 w-6 object-contain" /> UCP
           </div>
           <div className="flex items-center">
+            <ThemeToggle />
             <CampanaNotificaciones usuarioId={usuarioId} />
             <button onClick={handleLogout} className="p-2 -mr-2" title="Cerrar sesión"><LogOut className="h-5 w-5" /></button>
           </div>
@@ -222,7 +224,7 @@ function BarraInferior({ items, esParticipante, tabsStaff, onMenu }) {
             <NavLink
               to="/fichar"
               className={({ isActive }) => cn(
-                "flex items-center justify-center h-14 w-14 -mt-5 rounded-full shadow-lg ring-4 ring-background transition-all active:scale-90",
+                "flex items-center justify-center h-14 w-14 -mt-5 rounded-full shadow-lg ring-4 ring-background transition-all active:scale-90 glow-aurora",
                 isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "bg-primary text-primary-foreground"
               )}
               title="Fichar con QR"
@@ -262,6 +264,7 @@ function SidebarContent({ items, name, role, onLogout, onClose, foto, usuarioId 
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <ThemeToggle />
           <CampanaNotificaciones usuarioId={usuarioId} alinear="izquierda" />
           {onClose && <button onClick={onClose} className="p-1 text-sidebar-foreground/70"><X className="h-5 w-5" /></button>}
         </div>

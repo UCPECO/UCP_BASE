@@ -64,16 +64,16 @@ export default function AlumnoDashboard() {
       <PaseListaAlumno />
 
       {/* CTA Fichar */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+      <div className="bg-gradient-to-br from-[#884ef4] to-[#3b488c] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden glow-aurora">
         <div className="absolute right-0 top-0 h-32 w-32 bg-white/10 rounded-full -mr-12 -mt-12" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <p className="text-emerald-100 text-sm font-medium">{registroAbierto ? "Tienes un registro abierto" : "Registra tu entrada"}</p>
+            <p className="text-white/70 text-sm font-medium">{registroAbierto ? "Tienes un registro abierto" : "Registra tu entrada"}</p>
             <h2 className="text-xl font-bold font-heading mt-1">{registroAbierto ? "No olvides marcar tu salida" : "Escanea el QR para fichar"}</h2>
-            <p className="text-emerald-100 text-sm mt-1">{registroAbierto ? `Entrada: ${registroAbierto.hora_entrada}` : "Registra tu asistencia con la cámara"}</p>
+            <p className="text-white/70 text-sm mt-1">{registroAbierto ? `Entrada: ${registroAbierto.hora_entrada}` : "Registra tu asistencia con la cámara"}</p>
           </div>
           <Link to="/fichar">
-            <Button className="bg-white text-emerald-700 hover:bg-emerald-50 font-semibold shadow-md">
+            <Button className="bg-white text-violet-700 hover:bg-violet-50 font-semibold shadow-md">
               <QrCode className="h-4 w-4 mr-2" /> Fichar ahora
             </Button>
           </Link>

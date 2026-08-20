@@ -5,7 +5,17 @@
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#1f6f5c" />
+    <meta name="theme-color" content="#050505" />
+    <script>
+      /* Aplica el tema guardado antes del primer render (evita parpadeo).
+         Por defecto el sitio es oscuro (Aurora); .light activa el modo claro. */
+      try {
+        if (localStorage.getItem("ucp-theme") === "light") {
+          document.documentElement.classList.add("light");
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#f4f5fa");
+        }
+      } catch (e) {}
+    </script>
     <meta name="description" content="Registro de horas de servicio social y voluntariado · Unidos Cuidando el Planeta" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -13,8 +23,8 @@
     <meta name="apple-mobile-web-app-title" content="UCP Horas" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>UCP Horas</title>
-    <script type="module" crossorigin src="/assets/index-DvpwR1ku.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BGD6bjdT.css">
+    <script type="module" crossorigin src="/assets/index-CJH2ykTz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-SZJxdOrX.css">
   </head>
   <body>
     <div id="root"></div>

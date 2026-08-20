@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 // de navegación, muy útil en móvil) con respuesta táctil.
 export default function KpiCard({ icon: Icon, label, value, hint, tone = "primary", to }) {
   const tones = {
-    primary: "from-emerald-500/10 to-teal-500/5 text-emerald-700",
+    primary: "from-violet-500/15 to-cyan-500/10 text-violet-700",
     accent: "from-amber-500/10 to-orange-500/5 text-amber-700",
-    blue: "from-blue-500/10 to-sky-500/5 text-blue-700",
-    rose: "from-rose-500/10 to-pink-500/5 text-rose-700",
+    blue: "from-cyan-500/10 to-sky-500/5 text-cyan-700",
+    rose: "from-pink-500/10 to-rose-500/5 text-pink-700",
     slate: "from-slate-500/10 to-slate-400/5 text-slate-700",
   };
   const contenido = (
