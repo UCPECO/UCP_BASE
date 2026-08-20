@@ -9,6 +9,7 @@ const ROLES = [
   { value: "encargado", label: "Encargado" },
   { value: "servicio_social", label: "Servicio Social" },
   { value: "voluntario", label: "Voluntario" },
+  { value: "practicas_profesionales", label: "Prácticas Profesionales" },
 ];
 
 export default function GestionRoles() {

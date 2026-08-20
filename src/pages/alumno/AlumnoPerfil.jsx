@@ -12,7 +12,7 @@ import { generarReportePdfMensual } from "@/lib/generarReporte";
 import HistorialFichajes from "@/components/ucp/HistorialFichajes";
 import { comprimirImagen } from "@/lib/imagen";
 
-const TIPOS = ["servicio_social", "voluntario", "residente", "practicante"];
+const TIPOS = ["servicio_social", "voluntario", "practicas_profesionales", "residente", "practicante"];
 
 export default function AlumnoPerfil() {
   const { user } = useAuth();

@@ -81,7 +81,7 @@ export function horasValidadasDe(usuarioId) {
 export function verificarConstanciaAutomatica(usuarioId) {
   try {
     const u = db.prepare('SELECT * FROM users WHERE id = ?').get(usuarioId);
-    if (!u || (u.role !== 'servicio_social' && u.role !== 'voluntario')) return;
+    if (!u || !['servicio_social', 'voluntario', 'practicas_profesionales'].includes(u.role)) return;
 
     // Meta: la de la actividad de su asignación activa, o 480 h por defecto
     const asig = db.prepare(`SELECT * FROM asignaciones WHERE usuario = ? AND estado = 'activo' ORDER BY created_date DESC LIMIT 1`).get(usuarioId);

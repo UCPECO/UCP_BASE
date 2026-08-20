@@ -1,19 +1,24 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { CATEGORIAS_ELECTRONICOS, MATERIALES_PESO } from "@/lib/catalogoElectronicos";
+import { useCategoriasCustom, fusionarCascada, fusionarPeso } from "@/lib/categoriasDinamicas";
 
 // Selector en cascada de dos grupos:
 //  - procesado (kg): lista de materiales por peso (materialesPeso)
 //  - articulo (u): Categoría → Subcategoría → Material (del catálogo categorias)
 // Cada nivel permite "Otro (escribir)" para capturar materiales que no están
 // en el catálogo — el texto libre se guarda tal cual en el registro.
+// Además se fusionan las categorías personalizadas creadas por el admin.
 // `value` es la línea actual; `onChange(patch)` fusiona el patch en la línea.
-export default function SelectorElectronico({ value, onChange, categorias = CATEGORIAS_ELECTRONICOS, materialesPeso = MATERIALES_PESO }) {
+export default function SelectorElectronico({ value, onChange, categorias, materialesPeso }) {
+  const custom = useCategoriasCustom();
+  const categoriasFinal = fusionarCascada(categorias || CATEGORIAS_ELECTRONICOS, custom);
+  const pesoFinal = fusionarPeso(materialesPeso || MATERIALES_PESO, custom);
   const tipo = value.tipo_registro || "articulo";
   const categoria = value.categoria || "";
   const subcategoria = value.subcategoria || "";
   const material = value.material || "";
-  const catObj = categorias.find((c) => c.value === categoria);
+  const catObj = categoriasFinal.find((c) => c.value === categoria);
   const subObj = catObj?.subcategorias.find((s) => s.value === subcategoria);
   const medida = tipo === "procesado" ? "kg" : "unidades";
 
@@ -43,7 +48,7 @@ export default function SelectorElectronico({ value, onChange, categorias = CATE
       {tipo === "procesado" ? (
         <select className={`${sel} flex-1 min-w-[150px]`} value={categoria} onChange={(e) => onChange({ categoria: e.target.value })}>
           <option value="">Material…</option>
-          {materialesPeso.map((m) => (
+          {pesoFinal.map((m) => (
             <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
@@ -65,7 +70,7 @@ export default function SelectorElectronico({ value, onChange, categorias = CATE
             }}
           >
             <option value="">Categoría…</option>
-            {categorias.map((c) => (
+            {categoriasFinal.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
             <option value="__otra__">✏️ Otra (escribir)…</option>

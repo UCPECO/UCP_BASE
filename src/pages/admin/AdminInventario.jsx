@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, Settings, Cpu, Warehouse, Leaf } from "lucide-react";
+import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, Settings, Cpu, Warehouse, Leaf, Tags, Trash2 } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import KpiCard from "@/components/ucp/KpiCard";
@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { CATEGORIAS_FLAT_BODEGA, CAT_LABEL_BODEGA, MEDIDA_LABEL } from "@/lib/catalogoBodega";
+import { esAreaBodega } from "@/lib/areas";
+import { useCategoriasCustom, fusionarFlat, invalidarCategoriasCustom, obtenerCategoriasCustom } from "@/lib/categoriasDinamicas";
 import { registrarBitacora } from "@/lib/bitacora";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -24,6 +26,7 @@ const TABS = [
   { id: "bodega", label: "Entradas de bodega", icon: Warehouse },
   { id: "electronicos", label: "Electrónicos reciclados", icon: Cpu },
   { id: "huella", label: "Huella de carbono", icon: Leaf },
+  { id: "categorias", label: "Categorías", icon: Tags, soloAdmin: true },
 ];
 
 export default function AdminInventario() {
@@ -45,6 +48,48 @@ export default function AdminInventario() {
   const [guardando, setGuardando] = useState(false);
 
   const esAdmin = perfil?.role === "admin";
+  // Personal de bodega (Bodega/CU1/CU2): solo entradas; salidas y ventas son del admin
+  const esEncargadoBodega = perfil?.role === "encargado" && esAreaBodega(perfil?.area_encargada);
+
+  // Categorías = catálogo base + personalizadas creadas por el admin
+  const [customCats, setCustomCats] = useState([]);
+  const cargarCats = async () => {
+    invalidarCategoriasCustom();
+    setCustomCats(await obtenerCategoriasCustom());
+  };
+  useEffect(() => { obtenerCategoriasCustom().then(setCatsCustom); }, []);
+  const catsFlat = fusionarFlat(CATEGORIAS_FLAT_BODEGA, customCats);
+  const labelDe = (cat) => catsFlat.find((c) => c.value === cat)?.label || CAT_LABEL_BODEGA[cat] || cat;
+  const medidaDeCat = (cat) => catsFlat.find((c) => c.value === cat)?.medida || "unidades";
+
+  // Nueva categoría personalizada (tab Categorías, solo admin)
+  const [nuevaCat, setNuevaCat] = useState({ nombre: "", medida: "unidades" });
+  const [guardandoCat, setGuardandoCat] = useState(false);
+  const crearCategoria = async () => {
+    const nombre = nuevaCat.nombre.trim();
+    if (!nombre) return;
+    if (catsFlat.some((c) => c.value.toLowerCase() === nombre.toLowerCase())) {
+      toast({ title: "Esa categoría ya existe", variant: "destructive" });
+      return;
+    }
+    setGuardandoCat(true);
+    try {
+      await base44.entities.Categorias_Material.create({ nombre, medida: nuevaCat.medida, activa: true, creado_por: perfil.id });
+      await registrarBitacora("Crear categoría de material", "Inventario", `${nombre} (${nuevaCat.medida})`);
+      toast({ title: "Categoría creada", description: `${nombre} · ya aparece en los formularios de entrada` });
+      setNuevaCat({ nombre: "", medida: "unidades" });
+      cargarCats();
+    } catch (e) { toast({ title: "Error al crear", description: e.message, variant: "destructive" }); }
+    finally { setGuardandoCat(false); }
+  };
+  const desactivarCategoria = async (c) => {
+    if (!confirm(`¿Quitar la categoría "${c.nombre}" de los formularios? Los registros que ya la usan no se borran.`)) return;
+    try {
+      await base44.entities.Categorias_Material.update(c.id, { activa: 0 });
+      toast({ title: "Categoría desactivada", description: c.nombre });
+      cargarCats();
+    } catch (e) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
 
   useEffect(() => {
     base44.auth.me().then(setPerfil).catch(() => {});
@@ -102,7 +147,7 @@ export default function AdminInventario() {
     }
     setGuardando(true);
     try {
-      const cat = CATEGORIAS_FLAT_BODEGA.find((c) => c.value === formSalida.categoria);
+      const cat = catsFlat.find((c) => c.value === formSalida.categoria);
       await base44.entities.Salidas_Materiales.create({
         categoria: formSalida.categoria,
         medida: cat?.medida || "unidades",
@@ -134,7 +179,7 @@ export default function AdminInventario() {
       if (existente) {
         await base44.entities.Stock_Minimo.update(existente.id, { cantidad_minima: Number(formMin.cantidad_minima) || 0 });
       } else {
-        const cat = CATEGORIAS_FLAT_BODEGA.find((c) => c.value === formMin.categoria);
+        const cat = catsFlat.find((c) => c.value === formMin.categoria);
         await base44.entities.Stock_Minimo.create({
           categoria: formMin.categoria,
           medida: cat?.medida || "unidades",
@@ -165,7 +210,7 @@ export default function AdminInventario() {
 
       {/* Tabs internos */}
       <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {TABS.map((t) => (
+        {TABS.filter((t) => !t.soloAdmin || esAdmin).map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -181,8 +226,15 @@ export default function AdminInventario() {
       {tab === "stock" && (
         <div className="space-y-6">
           <div className="flex gap-2 justify-end flex-wrap">
-            <Button variant="outline" onClick={() => setDialogMin(true)}><Settings className="h-4 w-4 mr-2" /> Stock mínimo</Button>
-            <Button onClick={() => setDialogSalida(true)} className="bg-primary text-primary-foreground"><ArrowDownRight className="h-4 w-4 mr-2" /> Registrar salida</Button>
+            {esAdmin && (
+              <Button variant="outline" onClick={() => setDialogMin(true)}><Settings className="h-4 w-4 mr-2" /> Stock mínimo</Button>
+            )}
+            {!esEncargadoBodega && (
+              <Button onClick={() => setDialogSalida(true)} className="bg-primary text-primary-foreground"><ArrowDownRight className="h-4 w-4 mr-2" /> Registrar salida</Button>
+            )}
+            {esEncargadoBodega && (
+              <p className="text-xs text-muted-foreground self-center">Tu área registra solo entradas de material. Las salidas las hace el administrador.</p>
+            )}
           </div>
 
           {alertas.length > 0 && (
@@ -269,6 +321,51 @@ export default function AdminInventario() {
       {tab === "electronicos" && <AdminElectronicos embedded />}
       {tab === "huella" && <AdminHuellaCarbono />}
 
+      {tab === "categorias" && esAdmin && (
+        <div className="space-y-6">
+          <SectionCard title="Nueva categoría personalizada" subtitle="Aparece en los formularios de entradas, stock, ventas y huella de carbono" icon={Tags}>
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+              <div className="flex-1 space-y-1.5">
+                <Label>Nombre de la categoría *</Label>
+                <Input value={nuevaCat.nombre} onChange={(e) => setNuevaCat({ ...nuevaCat, nombre: e.target.value })} placeholder="Ej. Ropa y textiles" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Se mide en</Label>
+                <select className="h-9 w-full sm:w-40 rounded-md border border-input bg-background px-3 text-sm" value={nuevaCat.medida} onChange={(e) => setNuevaCat({ ...nuevaCat, medida: e.target.value })}>
+                  <option value="unidades">Unidades</option>
+                  <option value="kg">Kilogramos</option>
+                </select>
+              </div>
+              <Button onClick={crearCategoria} disabled={guardandoCat || !nuevaCat.nombre.trim()}>
+                {guardandoCat ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />} Crear categoría
+              </Button>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Categorías activas" subtitle={`${catsFlat.length} en total · las base no se pueden quitar`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {catsFlat.map((c) => {
+                const esCustom = customCats.some((x) => x.nombre === c.value);
+                const customObj = customCats.find((x) => x.nombre === c.value);
+                return (
+                  <div key={c.value} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-border bg-secondary/40">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{c.label}</p>
+                      <p className="text-xs text-muted-foreground">{MEDIDA_LABEL[c.medida] || c.medida} · {esCustom ? "personalizada" : "catálogo base"}</p>
+                    </div>
+                    {esCustom && (
+                      <button onClick={() => desactivarCategoria(customObj)} className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 rounded-lg shrink-0" title="Quitar de los formularios">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
       {/* Dialog salida */}
       <Dialog open={dialogSalida} onOpenChange={setDialogSalida}>
         <DialogContent>
@@ -278,7 +375,7 @@ export default function AdminInventario() {
               <Label>Categoría/Material</Label>
               <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={formSalida.categoria} onChange={(e) => setFormSalida({ ...formSalida, categoria: e.target.value })}>
                 <option value="">Selecciona...</option>
-                {CATEGORIAS_FLAT_BODEGA.map((c) => <option key={c.value} value={c.value}>{c.label} ({MEDIDA_LABEL[c.medida]})</option>)}
+                {catsFlat.map((c) => <option key={c.value} value={c.value}>{c.label} ({MEDIDA_LABEL[c.medida]})</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -317,7 +414,7 @@ export default function AdminInventario() {
                 <Label>Categoría</Label>
                 <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={formMin.categoria} onChange={(e) => setFormMin({ ...formMin, categoria: e.target.value })}>
                   <option value="">Selecciona...</option>
-                  {CATEGORIAS_FLAT_BODEGA.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  {catsFlat.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">

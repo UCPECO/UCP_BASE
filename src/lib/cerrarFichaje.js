@@ -5,7 +5,7 @@
 import { base44 } from "@/api/base44Client";
 
 const HORA_LIMITE_MIN = 17 * 60 + 15; // 17:15
-const ROLES_PARTICIPANTE = ["voluntario", "servicio_social"];
+const ROLES_PARTICIPANTE = ["voluntario", "servicio_social", "practicas_profesionales"];
 
 function aMinutos(hhmm) {
   const [h, m] = String(hhmm).split(":").map(Number);

@@ -4,6 +4,7 @@ import { Filter } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { calcularDisponibilidad, DIAS_SEMANA, nombreUsuario } from "@/lib/ucpUtils";
+import { esParticipante } from "@/lib/roles";
 
 export default function FiltrosAlumnosAdmin() {
   const [users, setUsers] = useState([]);
@@ -21,7 +22,7 @@ export default function FiltrosAlumnosAdmin() {
           base44.entities.User.list("full_name", 500),
           base44.entities.Horarios_Clase.list("dia_semana", 500),
         ]);
-        setUsers(us.filter(u => u.role === "servicio_social" || u.role === "voluntario"));
+        setUsers(us.filter(u => esParticipante(u.role)));
         setHorarios(hs);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }

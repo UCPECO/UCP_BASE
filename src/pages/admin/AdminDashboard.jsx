@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatearFecha } from "@/lib/ucpUtils";
 import GestionRoles from "@/components/ucp/GestionRoles";
 import FiltrosAlumnosAdmin from "@/components/ucp/FiltrosAlumnosAdmin";
+import { esParticipante } from "@/lib/roles";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({});
@@ -28,7 +29,7 @@ export default function AdminDashboard() {
           base44.entities.Incidencias.list("-created_date", 500),
           base44.entities.Horarios_Clase.list("dia_semana", 500),
         ]);
-        const alumnos = users.filter(u => u.role === "servicio_social" || u.role === "voluntario");
+        const alumnos = users.filter(u => esParticipante(u.role));
         const activos = alumnos.filter(u => u.activo !== false && !u.archivado);
         const hoy = new Date().toISOString().split("T")[0];
         const userIdsConHorario = new Set(horarios.map(h => h.usuario));

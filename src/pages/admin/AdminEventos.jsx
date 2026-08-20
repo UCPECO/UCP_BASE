@@ -13,7 +13,7 @@ import { formatearFecha } from "@/lib/ucpUtils";
 
 const TIPOS = ["capacitacion", "junta", "actividad_especial", "dia_festivo", "taller", "visita", "otro"];
 const COLORES = ["azul", "verde", "rojo", "amarillo", "morado", "naranja"];
-const VISIBLE = ["todos", "servicio_social", "voluntarios", "encargados", "admin"];
+const VISIBLE = ["todos", "servicio_social", "voluntarios", "practicas_profesionales", "encargados", "admin"];
 const COLOR_DOT = { azul: "bg-blue-500", verde: "bg-emerald-500", rojo: "bg-rose-500", amarillo: "bg-amber-500", morado: "bg-purple-500", naranja: "bg-orange-500" };
 
 export default function AdminEventos() {

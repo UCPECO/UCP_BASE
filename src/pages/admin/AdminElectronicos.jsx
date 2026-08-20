@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha } from "@/lib/ucpUtils";
 import { generarReporteBodega } from "@/lib/reporteBodega";
 import GraficosBodega from "@/components/ucp/GraficosBodega";
+import { esParticipante } from "@/lib/roles";
 import {
   CATEGORIAS_ELECTRONICOS,
   MATERIALES_PESO,
@@ -78,7 +79,7 @@ export default function AdminElectronicos({ embedded = false }) {
           const res = await base44.functions.invoke("ObtenerPersonalArea", {});
           users = res.data?.users || [];
         }
-        setEstudiantes(users.filter((u) => !u.archivado && (u.role === "servicio_social" || u.role === "voluntario")));
+        setEstudiantes(users.filter((u) => !u.archivado && (esParticipante(u.role))));
       } catch (e) {
         console.error(e);
       }

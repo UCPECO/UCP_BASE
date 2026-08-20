@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasPorValidar, sumarHorasBonos } from "@/lib/ucpUtils";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
 import { AREAS, labelArea } from "@/lib/areas";
+import { esParticipante } from "@/lib/roles";
 
 const ROL_LABEL = {
   admin: "Administrador",
@@ -397,7 +398,7 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
                           {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
                         </select>
                       </div>
-                    ) : (datos?.role === "servicio_social" || datos?.role === "voluntario") && (
+                    ) : (esParticipante(datos?.role)) && (
                       <div className="space-y-1">
                         <Label className="text-xs">Área asignada</Label>
                         <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.area_asignada} onChange={(e) => setForm((f) => ({ ...f, area_asignada: e.target.value }))}>

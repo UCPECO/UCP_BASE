@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 const ROLES = [
   { value: "servicio_social", label: "Servicio Social" },
   { value: "voluntario", label: "Voluntario" },
+  { value: "practicas_profesionales", label: "Prácticas Profesionales" },
   { value: "encargado", label: "Encargado" },
 ];
 
@@ -17,6 +18,7 @@ const ROLE_STYLE = {
   encargado: "bg-amber-100 text-amber-700",
   servicio_social: "bg-emerald-100 text-emerald-700",
   voluntario: "bg-sky-100 text-sky-700",
+  practicas_profesionales: "bg-violet-100 text-violet-700",
 };
 
 export default function EncargadoPersonal() {

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha } from "@/lib/ucpUtils";
+import { esParticipante } from "@/lib/roles";
 
 const TIPOS = ["falta", "retardo", "incumplimiento", "accidente", "queja", "solicitud", "otro"];
 const PRIORIDADES = ["baja", "media", "alta", "urgente"];
@@ -40,7 +41,7 @@ export default function EncargadoIncidencias() {
 
   useEffect(() => { load(); }, []);
 
-  const participantes = users.filter((u) => u.role === "servicio_social" || u.role === "voluntario");
+  const participantes = users.filter((u) => esParticipante(u.role));
   const nombreDe = (id) => {
     const u = users.find((x) => x.id === id);
     return u?.nombre_completo || u?.full_name || "—";

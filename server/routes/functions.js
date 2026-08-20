@@ -62,7 +62,7 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
       return res.json({ tipo: 'presente', registro: abierto, ya_abierto: true });
     }
 
-    const ROLES_PARTICIPANTE = ['voluntario', 'servicio_social'];
+    const ROLES_PARTICIPANTE = ['voluntario', 'servicio_social', 'practicas_profesionales'];
     const esParticipante = ROLES_PARTICIPANTE.includes(user.role);
 
     // La validación de horario laboral aplica a los participantes (quienes fichan)
@@ -188,7 +188,7 @@ router.post('/RegistrarSalidaFichaje', authMiddleware, (req, res) => {
 
     // Verificar límite de 17:15 para participantes
     let incidencia = null;
-    const ROLES_PARTICIPANTE = ['voluntario', 'servicio_social'];
+    const ROLES_PARTICIPANTE = ['voluntario', 'servicio_social', 'practicas_profesionales'];
     const esParticipante = ROLES_PARTICIPANTE.includes(user.role);
     const minSalida = aMinutos(horaSalida);
     const HORA_LIMITE_MIN = 17 * 60 + 15;

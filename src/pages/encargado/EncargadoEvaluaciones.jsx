@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { registrarBitacora } from "@/lib/bitacora";
+import { esParticipante } from "@/lib/roles";
 
 const DIMENSIONES = [
   { key: "puntualidad", label: "Puntualidad" },
@@ -33,7 +34,7 @@ export default function EncargadoEvaluaciones() {
       setPerfil(p);
       try {
         const res = await base44.functions.invoke("ObtenerPersonalArea", {});
-        setUsuarios((res.data?.users || []).filter((u) => u.role === "servicio_social" || u.role === "voluntario"));
+        setUsuarios((res.data?.users || []).filter((u) => esParticipante(u.role)));
         const evals = await base44.entities.Evaluaciones_Alumno.list("-created_date", 200);
         setEvaluaciones(evals);
       } catch (e) {

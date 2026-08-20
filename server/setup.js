@@ -563,6 +563,19 @@ db.exec(`
   );
 `);
 
+// Categorías de materiales personalizadas (creadas por el admin; se fusionan
+// con el catálogo base en los selectores de inventario)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS categorias_material (
+    id TEXT PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    medida TEXT DEFAULT 'unidades',
+    activa INTEGER DEFAULT 1,
+    creado_por TEXT,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {

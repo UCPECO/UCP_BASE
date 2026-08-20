@@ -7,6 +7,7 @@ import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import DisponibilidadSemanal from "@/components/ucp/DisponibilidadSemanal";
 import { calcularDisponibilidad } from "@/lib/ucpUtils";
+import { esParticipante } from "@/lib/roles";
 
 export default function Disponibilidad() {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ export default function Disponibilidad() {
   useEffect(() => {
     if (!isAdmin) return;
     base44.entities.User.list("full_name", 500)
-      .then(us => setAllAlumnos(us.filter(u => u.role === "servicio_social" || u.role === "voluntario")))
+      .then(us => setAllAlumnos(us.filter(u => esParticipante(u.role))))
       .catch(() => {});
   }, [isAdmin]);
 

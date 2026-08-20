@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
-import { CATEGORIAS_FLAT_BODEGA, CAT_LABEL_BODEGA, CAT_MEDIDA_BODEGA, MEDIDA_LABEL } from "@/lib/catalogoBodega";
+import { CATEGORIAS_FLAT_BODEGA, CAT_LABEL_BODEGA, MEDIDA_LABEL } from "@/lib/catalogoBodega";
+import { useCategoriasCustom, fusionarFlat } from "@/lib/categoriasDinamicas";
 import { registrarBitacora } from "@/lib/bitacora";
 
 const fmtDinero = (n) => `$${(Math.round((Number(n) || 0) * 100) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
@@ -40,6 +41,10 @@ export default function AdminVentas() {
   const [form, setForm] = useState(nuevaVenta());
   const [busqueda, setBusqueda] = useState("");
   const [mesFiltro, setMesFiltro] = useState("");
+  const customCats = useCategoriasCustom();
+  // Catálogo base + categorías personalizadas creadas por el admin
+  const catsFlat = useMemo(() => fusionarFlat(CATEGORIAS_FLAT_BODEGA, customCats), [customCats]);
+  const labelDe = (val) => catsFlat.find((c) => c.value === val)?.label || CAT_LABEL_BODEGA[val] || val;
 
   const cargar = async () => {
     setLoading(true);
@@ -73,7 +78,7 @@ export default function AdminVentas() {
     return mapa;
   }, [materiales, electronicos, salidas]);
 
-  const medidaForm = CAT_MEDIDA_BODEGA[form.categoria] || "unidades";
+  const medidaForm = catsFlat.find((c) => c.value === form.categoria)?.medida || "unidades";
   const stockSel = form.categoria ? (stockPorCat[form.categoria] || 0) : null;
   const totalForm = Math.round((Number(form.cantidad) || 0) * (Number(form.precio_unitario) || 0) * 100) / 100;
 
@@ -83,7 +88,7 @@ export default function AdminVentas() {
   const ingresosTotales = ventas.reduce((a, v) => a + (v.total || 0), 0);
 
   const filtradas = ventas.filter((v) => {
-    const txt = `${v.comprador || ""} ${v.material || ""} ${CAT_LABEL_BODEGA[v.categoria] || v.categoria || ""} ${v.notas || ""}`.toLowerCase();
+    const txt = `${v.comprador || ""} ${v.material || ""} ${labelDe(v.categoria) || ""} ${v.notas || ""}`.toLowerCase();
     return txt.includes(busqueda.toLowerCase()) && (!mesFiltro || (v.fecha || "").startsWith(mesFiltro));
   });
 
@@ -120,7 +125,7 @@ export default function AdminVentas() {
         registrado_por: user.id,
         registrado_por_nombre: nombreUsuario(user),
       });
-      await registrarBitacora("Registrar venta", "Ventas", `${CAT_LABEL_BODEGA[form.categoria] || form.categoria} · ${form.cantidad} ${MEDIDA_LABEL[medidaForm]} · ${fmtDinero(totalForm)}`);
+      await registrarBitacora("Registrar venta", "Ventas", `${labelDe(form.categoria)} · ${form.cantidad} ${MEDIDA_LABEL[medidaForm]} · ${fmtDinero(totalForm)}`);
       toast({ title: "Venta registrada", description: `Total: ${fmtDinero(totalForm)} · stock actualizado` });
       setDialog(false);
       setForm(nuevaVenta());
@@ -133,7 +138,7 @@ export default function AdminVentas() {
   };
 
   const eliminar = async (v) => {
-    if (!confirm(`¿Eliminar la venta de ${CAT_LABEL_BODEGA[v.categoria] || v.categoria} (${fmtDinero(v.total)})? El stock regresará al inventario.`)) return;
+    if (!confirm(`¿Eliminar la venta de ${labelDe(v.categoria)} (${fmtDinero(v.total)})? El stock regresará al inventario.`)) return;
     try {
       await base44.entities.Ventas.delete(v.id);
       toast({ title: "Venta eliminada", description: "El stock fue devuelto al inventario." });
@@ -146,7 +151,7 @@ export default function AdminVentas() {
   const exportarCSV = () => {
     const rows = [["Fecha", "Categoría", "Material", "Cantidad", "Medida", "Precio unitario", "Total", "Comprador", "Registrado por", "Notas"]];
     filtradas.forEach((v) => rows.push([
-      v.fecha, CAT_LABEL_BODEGA[v.categoria] || v.categoria, v.material || "", v.cantidad, v.medida,
+      v.fecha, labelDe(v.categoria), v.material || "", v.cantidad, v.medida,
       v.precio_unitario, v.total, v.comprador || "", v.registrado_por_nombre || "", (v.notas || "").replace(/[\n,]/g, " "),
     ]));
     const csv = rows.map((r) => r.join(",")).join("\n");
@@ -196,7 +201,7 @@ export default function AdminVentas() {
                 <div className="h-9 w-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><BadgeDollarSign className="h-4 w-4" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">
-                    {CAT_LABEL_BODEGA[v.categoria] || v.categoria}{v.material ? ` · ${v.material}` : ""} · {v.cantidad} {MEDIDA_LABEL[v.medida] || "u"}
+                    {labelDe(v.categoria)}{v.material ? ` · ${v.material}` : ""} · {v.cantidad} {MEDIDA_LABEL[v.medida] || "u"}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatearFecha(v.fecha)}{v.comprador ? ` · ${v.comprador}` : ""} · {v.registrado_por_nombre || "—"}
@@ -223,7 +228,7 @@ export default function AdminVentas() {
               <Label>Categoría *</Label>
               <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
                 <option value="">Selecciona…</option>
-                {CATEGORIAS_FLAT_BODEGA.map((c) => (
+                {catsFlat.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label} ({MEDIDA_LABEL[c.medida]}){stockPorCat[c.value] != null ? ` — stock: ${stockPorCat[c.value]}` : ""}
                   </option>

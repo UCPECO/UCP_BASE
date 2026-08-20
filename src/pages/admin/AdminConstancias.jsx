@@ -12,6 +12,7 @@ import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { generarConstanciaPDF } from "@/lib/generarConstancia";
 import { registrarBitacora } from "@/lib/bitacora";
 import { labelArea } from "@/lib/areas";
+import { esParticipante } from "@/lib/roles";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -54,10 +55,10 @@ export default function AdminConstancias() {
 
       if (esAdmin) {
         const users = await base44.entities.User.list("full_name", 500);
-        setUsuarios(users.filter((u) => !u.archivado && (u.role === "servicio_social" || u.role === "voluntario")));
+        setUsuarios(users.filter((u) => !u.archivado && (esParticipante(u.role))));
       } else {
         const res = await base44.functions.invoke("ObtenerPersonalArea", {});
-        setUsuarios((res.data?.users || []).filter((u) => u.role === "servicio_social" || u.role === "voluntario"));
+        setUsuarios((res.data?.users || []).filter((u) => esParticipante(u.role)));
       }
     } catch (e) {
       toast({ title: "Error al cargar", variant: "destructive" });

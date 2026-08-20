@@ -7,6 +7,8 @@ import {
   Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, BadgeDollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ROL_LABEL } from "@/lib/roles";
+import { esAreaBodega } from "@/lib/areas";
 import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
 import BotonInstalar from "@/components/ucp/BotonInstalar";
 
@@ -75,12 +77,7 @@ const NAV = {
   ],
 };
 
-const ROLE_LABEL = {
-  admin: "Administrador",
-  encargado: "Encargado",
-  servicio_social: "Servicio Social",
-  voluntario: "Voluntario",
-};
+const ROLE_LABEL = ROL_LABEL;
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -91,10 +88,16 @@ export default function Layout({ children }) {
 
   const role = user?.role || profile?.role || "voluntario";
   // El checklist de bodega solo aparece al personal de esa área (y al admin)
-  const esDeBodega = role === "admin" || profile?.area_asignada === "Bodega" || profile?.area_encargada === "Bodega";
-  const items = esDeBodega
+  const esDeBodega = role === "admin" || profile?.area_asignada === "Bodega" || profile?.area_encargada === "Bodega"
+    || profile?.area_asignada === "CU1" || profile?.area_encargada === "CU1"
+    || profile?.area_asignada === "CU2" || profile?.area_encargada === "CU2";
+  let items = esDeBodega
     ? [...(NAV[role] || NAV.voluntario), { to: "/checklist-bodega", label: "Checklist bodega", icon: ClipboardCheck }]
     : (NAV[role] || NAV.voluntario);
+  // El encargado de bodega no ve Ventas (solo registra entradas)
+  if (role === "encargado" && esAreaBodega(profile?.area_encargada)) {
+    items = items.filter((i) => !i.to.endsWith("/ventas"));
+  }
 
   useEffect(() => {
     base44.auth.me().then(setProfile).catch(() => {});
@@ -141,7 +144,7 @@ export default function Layout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in">
           <Outlet />
         </main>
       </div>

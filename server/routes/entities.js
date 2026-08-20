@@ -37,12 +37,13 @@ const entityMap = {
   'Checklist_Bodega': 'checklist_bodega',
   'Reportes_Huella': 'reportes_huella',
   'Ajustes_Horas': 'ajustes_horas',
-  'Ventas': 'ventas'
+  'Ventas': 'ventas',
+  'Categorias_Material': 'categorias_material'
 };
 
 // ===== Permisos por rol (según DOCUMENTO_ROLES) =====
 // 'admin' todo; 'encargado' gestión de su área; participantes (servicio_social/voluntario) solo lo suyo
-const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo', 'Ajustes_Horas']);
+const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo', 'Ajustes_Horas', 'Categorias_Material']);
 const WRITE_ADMIN_ENCARGADO = new Set(['Actividades', 'Eventos', 'Constancias', 'Encuestas', 'Evaluaciones_Alumno', 'Pases_Lista', 'Reportes_Huella']);
 const BODEGA_CREATE = new Set(['Materiales_Recibidos', 'Electronicos_Reciclados', 'Salidas_Materiales']); // crear: admin/encargado; editar/borrar: solo admin
 const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Comentarios_Evidencia', 'Notificaciones', 'Checklist_Bodega']); // el participante solo toca lo propio
@@ -100,6 +101,15 @@ function checkWrite(req, res, entity, existingRow) {
     return false;
   }
   if (esAdmin(me)) return true;
+
+  // Personal de bodega (Bodega/CU1/CU2) solo registra ENTRADAS:
+  // las salidas y las ventas las hace el administrador.
+  const AREAS_BODEGA = ['Bodega', 'CU1', 'CU2'];
+  if ((entity === 'Salidas_Materiales' || entity === 'Ventas') && existingRow === undefined
+      && me.role === 'encargado' && AREAS_BODEGA.includes(me.area_encargada)) {
+    res.status(403).json({ error: 'El personal de bodega solo puede registrar entradas de material. Las salidas y ventas las registra el administrador.' });
+    return false;
+  }
 
   if (WRITE_ADMIN_ONLY.has(entity)) {
     res.status(403).json({ error: 'Solo el administrador puede modificar esto' });

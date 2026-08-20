@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
+import { esParticipante } from "@/lib/roles";
 
 const MOTIVOS = [
   "Participación destacada",
@@ -40,7 +41,7 @@ export default function AdminBonos() {
         base44.entities.Actividades.list("nombre", 100),
         base44.entities.Bonos.list("-fecha", 200),
       ]);
-      setAlumnos(us.filter(u => u.role === "servicio_social" || u.role === "voluntario"));
+      setAlumnos(us.filter(u => esParticipante(u.role)));
       setAsignaciones(asigs);
       setActividades(acts);
       setBonos(bons);

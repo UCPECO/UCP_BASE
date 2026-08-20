@@ -5,6 +5,7 @@ import { X, UserPlus, Check } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { esParticipante } from "@/lib/roles";
 
 export default function AsignarAlumnosActividad({ actividad, onClose }) {
   const { toast } = useToast();
@@ -20,10 +21,10 @@ export default function AsignarAlumnosActividad({ actividad, onClose }) {
       let us;
       if (isAdmin) {
         const resp = await base44.entities.User.list("full_name", 500);
-        us = resp.filter((u) => !u.archivado && (u.role === "servicio_social" || u.role === "voluntario"));
+        us = resp.filter((u) => !u.archivado && (esParticipante(u.role)));
       } else {
         const resp = await base44.functions.invoke("ObtenerPersonalArea", {});
-        us = (resp.data?.users || []).filter((u) => u.role === "servicio_social" || u.role === "voluntario");
+        us = (resp.data?.users || []).filter((u) => esParticipante(u.role));
       }
       setAlumnos(us);
       const asigs = await base44.entities.Asignaciones.list("-created_date", 500);

@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { generarReportePersonalPdfMensual } from "@/lib/reportePersonal";
 import { useAuth } from "@/lib/AuthContext";
 import { AREAS, labelArea } from "@/lib/areas";
+import { esParticipante, TIPOS_PARTICIPANTE } from "@/lib/roles";
 import { calcularHoras, fechaHoy } from "@/lib/ucpUtils";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -21,6 +22,7 @@ const ROLES = [
   { value: "encargado", label: "Encargado" },
   { value: "servicio_social", label: "Servicio Social" },
   { value: "voluntario", label: "Voluntario" },
+  { value: "practicas_profesionales", label: "Prácticas Profesionales" },
 ];
 
 const ROLE_STYLE = {
@@ -28,6 +30,7 @@ const ROLE_STYLE = {
   encargado: "bg-amber-100 text-amber-700",
   servicio_social: "bg-emerald-100 text-emerald-700",
   voluntario: "bg-sky-100 text-sky-700",
+  practicas_profesionales: "bg-violet-100 text-violet-700",
 };
 
 const NUEVO_VACIO = {
@@ -126,7 +129,7 @@ export default function AdminPersonal() {
         carrera: nuevo.carrera.trim(),
       };
       if (nuevo.role === "encargado") payload.area_encargada = nuevo.area;
-      if (nuevo.role === "servicio_social" || nuevo.role === "voluntario") {
+      if (esParticipante(nuevo.role)) {
         payload.area_asignada = nuevo.area;
         payload.tipo_participante = nuevo.role;
         payload.periodo_asignado = nuevo.periodo.trim();
@@ -161,13 +164,13 @@ export default function AdminPersonal() {
     try {
       const patch = { role: newRole };
       if (newRole !== "encargado") patch.area_encargada = "";
-      if (newRole !== "servicio_social" && newRole !== "voluntario") patch.area_asignada = "";
+      if (!esParticipante(newRole)) patch.area_asignada = "";
       await base44.entities.User.update(userId, patch);
       setUsers((us) => us.map((u) => (u.id === userId ? {
         ...u,
         role: newRole,
         area_encargada: newRole === "encargado" ? u.area_encargada || "" : "",
-        area_asignada: (newRole === "servicio_social" || newRole === "voluntario") ? u.area_asignada || "" : "",
+        area_asignada: (esParticipante(newRole)) ? u.area_asignada || "" : "",
       } : u)));
       toast({ title: "Rol actualizado", description: ROLES.find((r) => r.value === newRole)?.label });
     } catch (e) {
@@ -248,7 +251,7 @@ export default function AdminPersonal() {
   const archivarPeriodo = async () => {
     const periodo = periodoCierre.trim();
     if (!periodo) { toast({ title: "Escribe el periodo a cerrar", variant: "destructive" }); return; }
-    const afectados = users.filter((u) => !u.archivado && u.periodo_asignado === periodo && (u.role === "servicio_social" || u.role === "voluntario"));
+    const afectados = users.filter((u) => !u.archivado && u.periodo_asignado === periodo && (esParticipante(u.role)));
     if (afectados.length === 0) { toast({ title: "Sin coincidencias", description: `Nadie activo tiene el periodo "${periodo}"`, variant: "destructive" }); return; }
     setCerrandoPeriodo(true);
     try {
@@ -399,7 +402,7 @@ export default function AdminPersonal() {
                     {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
-                {(nuevo.role === "encargado" || nuevo.role === "servicio_social" || nuevo.role === "voluntario") && (
+                {(nuevo.role === "encargado" || esParticipante(nuevo.role)) && (
                   <div className="space-y-1">
                     <Label className="text-xs">{nuevo.role === "encargado" ? "Área que encarga" : "Área asignada"}</Label>
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={nuevo.area} onChange={(e) => setCampo("area", e.target.value)}>
@@ -416,7 +419,7 @@ export default function AdminPersonal() {
                   <Label className="text-xs">Teléfono</Label>
                   <Input value={nuevo.telefono} onChange={(e) => setCampo("telefono", e.target.value)} placeholder="Opcional" />
                 </div>
-                {(nuevo.role === "servicio_social" || nuevo.role === "voluntario") && (
+                {(esParticipante(nuevo.role)) && (
                   <>
                     <div className="space-y-1">
                       <Label className="text-xs">Facultad</Label>
@@ -550,7 +553,7 @@ export default function AdminPersonal() {
                               {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
                             </select>
                           </span>
-                        ) : (u.role === "servicio_social" || u.role === "voluntario") ? (
+                        ) : (esParticipante(u.role)) ? (
                           <span className="inline-flex items-center gap-1 text-xs">
                             <span className={`px-2 py-1 rounded-full font-medium ${u.area_asignada ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                               {labelArea(u.area_asignada || "") || "Sin área"}
@@ -689,7 +692,7 @@ export default function AdminPersonal() {
             </div>
             {periodoCierre.trim() && (
               <p className="text-xs text-muted-foreground">
-                Coinciden: <strong>{users.filter((u) => !u.archivado && u.periodo_asignado === periodoCierre.trim() && (u.role === "servicio_social" || u.role === "voluntario")).length}</strong> persona(s) activas.
+                Coinciden: <strong>{users.filter((u) => !u.archivado && u.periodo_asignado === periodoCierre.trim() && (esParticipante(u.role))).length}</strong> persona(s) activas.
               </p>
             )}
             <div className="flex justify-end gap-2">

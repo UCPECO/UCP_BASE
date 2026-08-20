@@ -6,6 +6,7 @@ import SectionCard from "@/components/ucp/SectionCard";
 import KpiCard from "@/components/ucp/KpiCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { calcularHoras, aMinutos, nombreUsuario } from "@/lib/ucpUtils";
+import { esParticipante } from "@/lib/roles";
 
 const COLOR_PRIMARY = "#1f6f5c";
 const COLOR_ACCENT = "#e08a3e";
@@ -29,7 +30,7 @@ export default function AdminEstadisticas() {
         const config = configs?.[0] || {};
         const limitePuntual = aMinutos(config.hora_apertura || "08:00") + (config.tolerancia_minutos ?? 15);
 
-        const alumnos = users.filter(u => u.role === "servicio_social" || u.role === "voluntario");
+        const alumnos = users.filter(u => esParticipante(u.role));
 
         // Horas validadas por usuario (solo fichajes validados + bonos)
         const horasPorUsuario = {};

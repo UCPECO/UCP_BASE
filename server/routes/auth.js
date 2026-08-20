@@ -67,7 +67,7 @@ router.post('/admin-create-user', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
   }
 
-  const ROLES_VALIDOS = ['admin', 'encargado', 'servicio_social', 'voluntario'];
+  const ROLES_VALIDOS = ['admin', 'encargado', 'servicio_social', 'voluntario', 'practicas_profesionales'];
   const rolFinal = ROLES_VALIDOS.includes(role) ? role : 'voluntario';
 
   const emailLimpio = String(email).toLowerCase().trim();
