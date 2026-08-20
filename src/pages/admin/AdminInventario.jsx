@@ -15,7 +15,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { CATEGORIAS_FLAT_BODEGA, CAT_LABEL_BODEGA, MEDIDA_LABEL } from "@/lib/catalogoBodega";
 import { esAreaBodega } from "@/lib/areas";
-import { useCategoriasCustom, fusionarFlat, invalidarCategoriasCustom, obtenerCategoriasCustom } from "@/lib/categoriasDinamicas";
+import { fusionarFlat, invalidarCategoriasCustom, obtenerCategoriasCustom } from "@/lib/categoriasDinamicas";
 import { registrarBitacora } from "@/lib/bitacora";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -57,7 +57,7 @@ export default function AdminInventario() {
     invalidarCategoriasCustom();
     setCustomCats(await obtenerCategoriasCustom());
   };
-  useEffect(() => { obtenerCategoriasCustom().then(setCatsCustom); }, []);
+  useEffect(() => { obtenerCategoriasCustom().then(setCustomCats); }, []);
   const catsFlat = fusionarFlat(CATEGORIAS_FLAT_BODEGA, customCats);
   const labelDe = (cat) => catsFlat.find((c) => c.value === cat)?.label || CAT_LABEL_BODEGA[cat] || cat;
   const medidaDeCat = (cat) => catsFlat.find((c) => c.value === cat)?.medida || "unidades";
