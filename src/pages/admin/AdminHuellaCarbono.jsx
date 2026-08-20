@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { Leaf, FileDown, Trash2, Loader2, FileBadge, Calculator } from "lucide-react";
+import { Leaf, FileDown, Trash2, Loader2, FileBadge, Calculator, Building2, RotateCcw } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import KpiCard from "@/components/ucp/KpiCard";
@@ -34,6 +34,8 @@ export default function AdminHuellaCarbono() {
   const [generando, setGenerando] = useState(false);
   const [descargandoId, setDescargandoId] = useState(null);
   const [errorReportes, setErrorReportes] = useState(false);
+  // Pesos por unidad ajustados a mano: { [llave del grupo]: kg }
+  const [pesosManual, setPesosManual] = useState({});
 
   const esAdmin = perfil?.role === "admin";
 
@@ -69,8 +71,8 @@ export default function AdminHuellaCarbono() {
   const calculo = useMemo(() => {
     const mat = materiales.filter((m) => enRango((m.fecha_recepcion || "").slice(0, 10)));
     const elec = electronicos.filter((m) => enRango((m.fecha_recepcion || "").slice(0, 10)));
-    return calcularHuella(mat, elec, customCats);
-  }, [materiales, electronicos, customCats, desde, hasta]);
+    return calcularHuella(mat, elec, customCats, pesosManual);
+  }, [materiales, electronicos, customCats, desde, hasta, pesosManual]);
 
   const recepciones = useMemo(() =>
     materiales.filter((m) => enRango((m.fecha_recepcion || "").slice(0, 10))).length +
@@ -88,6 +90,7 @@ export default function AdminHuellaCarbono() {
         periodo_inicio: desde,
         periodo_fin: hasta,
         desglose: JSON.stringify(calculo.desglose),
+        por_empresa: JSON.stringify(calculo.empresas),
         total_kg: calculo.total_kg,
         total_unidades: calculo.total_unidades,
         total_co2e: calculo.total_co2e,
@@ -124,6 +127,23 @@ export default function AdminHuellaCarbono() {
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 text-primary animate-spin" /></div>;
 
+  const hayManuales = Object.keys(pesosManual).length > 0;
+
+  // Peso por unidad editable: el admin puede corregir el estimado antes de
+  // generar el documento. Los ajustados a mano se marcan en ámbar con ✎.
+  const InputPeso = ({ d }) => (
+    <span className="inline-flex items-center gap-1">
+      u ×
+      <input
+        type="number" min="0" step="0.05"
+        className={`w-16 h-6 px-1 rounded border text-xs text-center ${d.peso_manual ? "border-amber-400 bg-amber-50 text-amber-800 font-semibold" : "border-input bg-background"}`}
+        value={pesosManual[d.llave] ?? d.peso_u ?? 1}
+        onChange={(e) => setPesosManual((p) => ({ ...p, [d.llave]: e.target.value }))}
+      />
+      kg{d.peso_manual ? " ✎" : ""}
+    </span>
+  );
+
   return (
     <div className="space-y-6">
       {/* Calculadora por periodo */}
@@ -157,13 +177,13 @@ export default function AdminHuellaCarbono() {
             {/* Móvil: tarjetas apiladas */}
             <div className="space-y-2 sm:hidden">
               {calculo.desglose.map((d) => (
-                <div key={d.categoria} className="p-3 rounded-lg border border-border">
+                <div key={d.llave} className="p-3 rounded-lg border border-border">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium text-sm">{d.label}</p>
                     <p className="font-semibold text-primary text-sm whitespace-nowrap">{d.co2e.toLocaleString("es-MX")} kg</p>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {d.cantidad} {d.medida === "kg" ? "kg" : `u × ${d.peso_u ?? 1} kg`} · peso est. {d.kg_estimados.toLocaleString("es-MX")} kg · factor {d.factor}
+                    {d.cantidad} {d.medida === "kg" ? "kg" : <InputPeso d={d} />} · peso est. {d.kg_estimados.toLocaleString("es-MX")} kg · factor {d.factor}
                   </p>
                 </div>
               ))}
@@ -182,12 +202,75 @@ export default function AdminHuellaCarbono() {
                 </thead>
                 <tbody>
                   {calculo.desglose.map((d) => (
-                    <tr key={d.categoria} className="border-b border-border/50 last:border-0">
-                      <td className="py-2.5 pr-4 font-medium">{d.label} <span className="text-xs text-muted-foreground">({d.medida === "kg" ? "kg" : `unidades × ${d.peso_u ?? 1} kg`})</span></td>
+                    <tr key={d.llave} className="border-b border-border/50 last:border-0">
+                      <td className="py-2.5 pr-4 font-medium">{d.label} <span className="text-xs text-muted-foreground">({d.medida === "kg" ? "kg" : <InputPeso d={d} />})</span></td>
                       <td className="py-2.5 px-3 text-right">{d.cantidad}</td>
                       <td className="py-2.5 px-3 text-right">{d.kg_estimados.toLocaleString("es-MX")} kg</td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">{d.factor}</td>
                       <td className="py-2.5 pl-3 text-right font-semibold text-primary">{d.co2e.toLocaleString("es-MX")} kg</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {hayManuales && (
+              <div className="mt-3 flex items-center justify-between gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 text-xs">
+                <span>✎ Hay pesos ajustados manualmente. Se usarán en el documento PDF.</span>
+                <button onClick={() => setPesosManual({})} className="flex items-center gap-1 font-semibold hover:underline shrink-0">
+                  <RotateCcw className="h-3 w-3" /> Restablecer
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </SectionCard>
+
+      {/* Catálogo por empresa / donante */}
+      <SectionCard title="Catálogo por empresa / donante" subtitle="De dónde vino el material recibido en el periodo" icon={Building2}>
+        {calculo.empresas.length === 0 ? (
+          <EmptyState title="Sin donantes" message="No hay recepciones en este periodo." icon={Building2} />
+        ) : (
+          <>
+            {/* Móvil: tarjetas */}
+            <div className="space-y-2 sm:hidden">
+              {calculo.empresas.map((e) => (
+                <div key={e.empresa} className="p-3 rounded-lg border border-border">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm truncate">{e.empresa}</p>
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded-full shrink-0 ${e.tipo === "empresa" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                      {e.tipo === "empresa" ? "Empresa" : "Persona"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {e.recepciones} recepcion(es) · {e.kg.toLocaleString("es-MX")} kg · <span className="font-semibold text-primary">{e.co2e.toLocaleString("es-MX")} kg CO₂e</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+            {/* Escritorio: tabla */}
+            <div className="overflow-x-auto scrollbar-thin hidden sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground uppercase border-b border-border">
+                    <th className="py-2 pr-4 font-medium">Empresa / donante</th>
+                    <th className="py-2 px-3 font-medium">Tipo</th>
+                    <th className="py-2 px-3 font-medium text-right">Recepciones</th>
+                    <th className="py-2 px-3 font-medium text-right">Peso est.</th>
+                    <th className="py-2 pl-3 font-medium text-right">CO₂e evitado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calculo.empresas.map((e) => (
+                    <tr key={e.empresa} className="border-b border-border/50 last:border-0">
+                      <td className="py-2.5 pr-4 font-medium">{e.empresa}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${e.tipo === "empresa" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                          {e.tipo === "empresa" ? "Empresa" : "Persona"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">{e.recepciones}</td>
+                      <td className="py-2.5 px-3 text-right">{e.kg.toLocaleString("es-MX")} kg</td>
+                      <td className="py-2.5 pl-3 text-right font-semibold text-primary">{e.co2e.toLocaleString("es-MX")} kg</td>
                     </tr>
                   ))}
                 </tbody>

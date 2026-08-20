@@ -22,11 +22,11 @@ import {
 } from "@/components/ui/dialog";
 
 const TABS = [
-  { id: "stock", label: "Stock y salidas", icon: Package },
-  { id: "bodega", label: "Entradas de bodega", icon: Warehouse },
-  { id: "electronicos", label: "Electrónicos reciclados", icon: Cpu },
-  { id: "huella", label: "Huella de carbono", icon: Leaf },
-  { id: "categorias", label: "Categorías", icon: Tags, soloAdmin: true },
+  { id: "stock", label: "Stock y salidas", corto: "Stock", icon: Package },
+  { id: "bodega", label: "Entradas de bodega", corto: "Bodega", icon: Warehouse },
+  { id: "electronicos", label: "Electrónicos reciclados", corto: "Electrón.", icon: Cpu },
+  { id: "huella", label: "Huella de carbono", corto: "Huella", icon: Leaf },
+  { id: "categorias", label: "Categorías", corto: "Categs.", icon: Tags, soloAdmin: true },
 ];
 
 export default function AdminInventario() {
@@ -214,29 +214,31 @@ export default function AdminInventario() {
         <p className="text-sm text-muted-foreground mt-1">Todo el inventario en un solo lugar: stock, entradas de materiales y electrónicos.</p>
       </div>
 
-      {/* Tabs internos */}
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
+      {/* Tabs internos: en móvil sangran a todo el ancho y usan etiqueta corta */}
+      <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-thin -mx-3 px-3 sm:mx-0 sm:px-0">
         {TABS.filter((t) => !t.soloAdmin || esAdmin).map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-[13px] sm:text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
               tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            <t.icon className="h-4 w-4" /> {t.label}
+            <t.icon className="h-4 w-4" />
+            <span className="sm:hidden">{t.corto}</span>
+            <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>
 
       {tab === "stock" && (
         <div className="space-y-6">
-          <div className="flex gap-2 justify-end flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
             {esAdmin && (
-              <Button variant="outline" onClick={() => setDialogMin(true)}><Settings className="h-4 w-4 mr-2" /> Stock mínimo</Button>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDialogMin(true)}><Settings className="h-4 w-4 mr-2" /> Stock mínimo</Button>
             )}
             {!esEncargadoBodega && (
-              <Button onClick={() => setDialogSalida(true)} className="bg-primary text-primary-foreground"><ArrowDownRight className="h-4 w-4 mr-2" /> Registrar salida</Button>
+              <Button onClick={() => setDialogSalida(true)} className="bg-primary text-primary-foreground w-full sm:w-auto"><ArrowDownRight className="h-4 w-4 mr-2" /> Registrar salida</Button>
             )}
             {esEncargadoBodega && (
               <p className="text-xs text-muted-foreground self-center">Tu área registra solo entradas de material. Las salidas las hace el administrador.</p>
@@ -278,13 +280,34 @@ export default function AdminInventario() {
                   const min = minDe(cat);
                   const bajo = min > 0 && actual < min;
                   return (
-                    <div key={cat} className="flex items-center gap-3 py-3">
+                    <div key={cat} className="flex items-center gap-2 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{CAT_LABEL_BODEGA[cat] || cat}</p>
+                        <p className="font-medium text-sm truncate">{labelDe(cat)}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Entradas {v.entradas} · Salidas <span className="text-rose-600">{v.salidas}</span>
                           {min > 0 && <> · Mín. {min}</>} {MEDIDA_LABEL[v.medida] || "u"}
                         </p>
+                      </div>
+                      {/* Acciones rápidas: ajustar sin abrir menús (clave en móvil) */}
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {esAdmin && (
+                          <button
+                            title="Configurar stock mínimo de esta categoría"
+                            onClick={() => { setFormMin({ categoria: cat, cantidad_minima: min }); setDialogMin(true); }}
+                            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                          >
+                            <Settings className="h-4 w-4" />
+                          </button>
+                        )}
+                        {!esEncargadoBodega && (
+                          <button
+                            title="Registrar salida de esta categoría"
+                            onClick={() => { setFormSalida({ categoria: cat, cantidad: 1, area: "", motivo: "", retirado_por: "" }); setDialogSalida(true); }}
+                            className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                          >
+                            <ArrowDownRight className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                       <div className="text-right shrink-0">
                         <p className={"text-lg font-bold font-heading " + (bajo ? "text-rose-600" : "text-primary")}>{actual}</p>
@@ -306,7 +329,7 @@ export default function AdminInventario() {
                   <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/40">
                     <div className="h-8 w-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0"><ArrowDownRight className="h-4 w-4" /></div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{CAT_LABEL_BODEGA[s.categoria] || s.categoria} · {s.cantidad} {MEDIDA_LABEL[s.medida] || "u"}</p>
+                      <p className="font-medium text-sm">{labelDe(s.categoria)} · {s.cantidad} {MEDIDA_LABEL[s.medida] || "u"}</p>
                       <p className="text-xs text-muted-foreground">{formatearFecha(s.fecha)} · {s.registrado_por_nombre || "—"} {s.area ? "· " + s.area : ""} {s.motivo ? "· " + s.motivo : ""}</p>
                     </div>
                   </div>

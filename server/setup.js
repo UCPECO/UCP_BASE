@@ -528,6 +528,9 @@ db.exec(`
   );
 `);
 
+// Desglose por empresa/donante dentro del reporte (JSON)
+addColumnIfMissing('reportes_huella', 'por_empresa', 'por_empresa TEXT');
+
 // Ajustes de horas del admin: residuos mensuales acreditados o ajustes manuales (+/-)
 db.exec(`
   CREATE TABLE IF NOT EXISTS ajustes_horas (

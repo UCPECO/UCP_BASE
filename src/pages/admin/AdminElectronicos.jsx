@@ -5,7 +5,6 @@ import { Cpu, Plus, Trash2, Search, FileText } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import KpiCard from "@/components/ucp/KpiCard";
 import EmptyState from "@/components/ucp/EmptyState";
-import StatusBadge from "@/components/ucp/StatusBadge";
 import SelectorElectronico from "@/components/ucp/SelectorElectronico";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -394,7 +393,7 @@ export default function AdminElectronicos({ embedded = false }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm text-foreground truncate">{m.proveedor}</p>
-                      <StatusBadge status={m.tipo_proveedor === "empresa" ? "aprobada" : "pendiente"} />
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${m.tipo_proveedor === "empresa" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{m.tipo_proveedor === "empresa" ? "Empresa" : "Persona"}</span>
                       <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${esProc ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}`}>{esProc ? "Procesado" : "Artículo"}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">

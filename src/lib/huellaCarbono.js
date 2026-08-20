@@ -114,8 +114,13 @@ export const FACTOR_EWASTE = 1.4;
 // electrónicos) ya filtrados por periodo. Los artículos por unidad se
 // agrupan por TIPO (material/subcategoría) porque no pesa lo mismo una
 // laptop que un monitor: cada grupo usa su propio peso estimado.
-export function calcularHuella(materiales, electronicos, customCats = []) {
+// `pesosManual`: { [llave]: kg } — peso por unidad ajustado a mano por el
+// admin en la pantalla de huella (pisa al estimado automático).
+// También devuelve `empresas`: el mismo cálculo catalogado por empresa/
+// persona donante, para reportes por procedencia.
+export function calcularHuella(materiales, electronicos, customCats = [], pesosManual = {}) {
   const mapa = {};
+  const mapaEmp = {};
   const add = (reg) => {
     if (!reg.categoria) return;
     const medida = reg.tipo_registro === "procesado" ? "kg" : (reg.medida || "unidades");
@@ -126,21 +131,41 @@ export function calcularHuella(materiales, electronicos, customCats = []) {
       const etiqueta = medida === "kg"
         ? (CAT_LABEL_BODEGA[reg.categoria] || reg.categoria)
         : (reg.material || reg.subcategoria || CAT_LABEL_BODEGA[reg.categoria] || reg.categoria);
-      mapa[llave] = { categoria: reg.categoria, subcategoria: reg.subcategoria, material: reg.material, label: etiqueta, cantidad: 0, medida };
+      mapa[llave] = { llave, categoria: reg.categoria, subcategoria: reg.subcategoria, material: reg.material, label: etiqueta, cantidad: 0, medida };
     }
     mapa[llave].cantidad += Number(reg.cantidad) || 0;
+
+    // Catálogo por empresa/persona donante
+    const emp = (reg.proveedor || "").trim() || "Sin nombre";
+    if (!mapaEmp[emp]) {
+      mapaEmp[emp] = { empresa: emp, tipo: reg.tipo_proveedor === "empresa" ? "empresa" : "persona", recepciones: 0, kg: 0, co2e: 0 };
+    }
+    const cant = Number(reg.cantidad) || 0;
+    mapaEmp[emp].recepciones += 1;
+    if (medida === "kg") {
+      const f = FACTORES_KG[reg.categoria] ?? 1.0;
+      mapaEmp[emp].kg += cant;
+      mapaEmp[emp].co2e += cant * f;
+    } else {
+      const manual = Number(pesosManual[llave]);
+      const pU = manual > 0 ? manual : pesoEstimadoUnidad(reg, customCats);
+      mapaEmp[emp].kg += cant * pU;
+      mapaEmp[emp].co2e += cant * pU * FACTOR_EWASTE;
+    }
   };
   (materiales || []).forEach(add);
   (electronicos || []).forEach(add);
 
   const desglose = Object.values(mapa).map((d) => {
-    let kg = 0, co2e = 0, factor = 0, pesoU = null;
+    let kg = 0, co2e = 0, factor = 0, pesoU = null, pesoManual = false;
     if (d.medida === "kg") {
       kg = d.cantidad;
       factor = FACTORES_KG[d.categoria] ?? 1.0;
       co2e = kg * factor;
     } else {
-      pesoU = pesoEstimadoUnidad(d, customCats);
+      const manual = Number(pesosManual[d.llave]);
+      if (manual > 0) { pesoU = manual; pesoManual = true; }
+      else { pesoU = pesoEstimadoUnidad(d, customCats); }
       kg = d.cantidad * pesoU;
       factor = FACTOR_EWASTE;
       co2e = kg * factor;
@@ -148,6 +173,7 @@ export function calcularHuella(materiales, electronicos, customCats = []) {
     return {
       ...d,
       peso_u: pesoU,
+      peso_manual: pesoManual,
       kg_estimados: Math.round(kg * 100) / 100,
       factor,
       co2e: Math.round(co2e * 100) / 100,
@@ -160,8 +186,13 @@ export function calcularHuella(materiales, electronicos, customCats = []) {
     co2e: t.co2e + d.co2e,
   }), { kg: 0, unidades: 0, co2e: 0 });
 
+  const empresas = Object.values(mapaEmp)
+    .map((e) => ({ ...e, kg: Math.round(e.kg * 100) / 100, co2e: Math.round(e.co2e * 100) / 100 }))
+    .sort((a, b) => b.co2e - a.co2e);
+
   return {
     desglose,
+    empresas,
     total_kg: Math.round(totales.kg * 100) / 100,
     total_unidades: totales.unidades,
     total_co2e: Math.round(totales.co2e * 100) / 100,
@@ -301,6 +332,49 @@ export async function generarPdfHuella(reporte) {
   doc.text(`${(reporte.total_co2e || 0).toLocaleString("es-MX")} kg`, cols[5] - 2, y + 2, { align: "right" });
   y += 12;
 
+  // Desglose por empresa / donante
+  const porEmpresa = typeof reporte.por_empresa === "string" ? JSON.parse(reporte.por_empresa || "[]") : (reporte.por_empresa || []);
+  if (porEmpresa.length > 0) {
+    if (y > H - 80) { doc.addPage(); y = 28; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20, 90, 75);
+    doc.text("DESGLOSE POR EMPRESA / DONANTE", M, y);
+    y += 3;
+    const ex = { emp: M + 2, tipo: M + 96, rec: M + 116, kg: M + 146, co2: W - M - 2 };
+    const cabEmp = (yy) => {
+      doc.setFillColor(20, 120, 100);
+      doc.rect(M, yy - 5, W - 2 * M, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text("Empresa / donante", ex.emp, yy);
+      doc.text("Tipo", ex.tipo, yy);
+      doc.text("Recep.", ex.rec, yy, { align: "right" });
+      doc.text("Peso (kg)", ex.kg, yy, { align: "right" });
+      doc.text("CO2e (kg)", ex.co2, yy, { align: "right" });
+    };
+    cabEmp(y + 4);
+    y += 8;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    porEmpresa.forEach((e, i) => {
+      if (y > H - 55) { doc.addPage(); y = 24; cabEmp(y); y += 4; doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); }
+      if (i % 2 === 0) { doc.setFillColor(240, 248, 245); doc.rect(M, y - 4.5, W - 2 * M, 6.5, "F"); }
+      doc.setTextColor(40, 40, 40);
+      const nombre = doc.splitTextToSize(e.empresa, 88);
+      doc.text(nombre[0], ex.emp, y);
+      doc.text(e.tipo === "empresa" ? "Empresa" : "Persona", ex.tipo, y);
+      doc.text(String(e.recepciones), ex.rec, y, { align: "right" });
+      doc.text(e.kg.toLocaleString("es-MX"), ex.kg, y, { align: "right" });
+      doc.setFont("helvetica", "bold");
+      doc.text(e.co2e.toLocaleString("es-MX"), ex.co2, y, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      y += 6.5;
+    });
+    y += 8;
+  }
+
   // Resumen destacado
   const toneladas = Math.round(((reporte.total_co2e || 0) / 1000) * 1000) / 1000;
   const arboles = Math.round((reporte.total_co2e || 0) / 21);
@@ -320,7 +394,9 @@ export async function generarPdfHuella(reporte) {
   // Nota metodológica
   doc.setFontSize(7.5);
   doc.setTextColor(120, 120, 120);
-  const nota = "Metodología: las emisiones evitadas se estiman multiplicando el peso del material recibido por un factor de emisión evitada al reciclar en lugar de producir material virgen. Para artículos por unidad se usa el peso típico del tipo de artículo (laptop, monitor, celular, etc.) y, si no se reconoce, el promedio de su categoría. Factores de referencia: plásticos 1.5, metales 2.5, cartón 0.9, vidrio 0.3, cobre 4.0, aluminio 9.0, hierro 1.5, PCB 5.0 kg CO2e/kg; residuo electrónico 1.4 kg CO2e/kg. Valores aproximados con fines de reporte interno.";
+  const ajusteManual = desglose.some((d) => d.peso_manual);
+  const nota = "Metodología: las emisiones evitadas se estiman multiplicando el peso del material recibido por un factor de emisión evitada al reciclar en lugar de producir material virgen. Para artículos por unidad se usa el peso típico del tipo de artículo (laptop, monitor, celular, etc.) y, si no se reconoce, el promedio de su categoría. Factores de referencia: plásticos 1.5, metales 2.5, cartón 0.9, vidrio 0.3, cobre 4.0, aluminio 9.0, hierro 1.5, PCB 5.0 kg CO2e/kg; residuo electrónico 1.4 kg CO2e/kg. Valores aproximados con fines de reporte interno."
+    + (ajusteManual ? " Nota: uno o más pesos por unidad fueron ajustados manualmente por el responsable al momento de generar este documento." : "");
   doc.text(doc.splitTextToSize(nota, W - 2 * M - 4), M + 2, y);
   y += 24;
 
