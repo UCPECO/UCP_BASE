@@ -13,6 +13,25 @@ export const CATEGORIAS_ELECTRONICOS = [
     ],
   },
   {
+    value: "Celulares",
+    label: "Celulares",
+    subcategorias: [
+      { value: "Smartphones", label: "Smartphones", materiales: ["Smartphone Android", "iPhone", "Smartphone Básico", "Smartphone Gama Alta"] },
+      { value: "Celulares Básicos", label: "Celulares Básicos", materiales: ["Celular de Teclas", "Celular Plegable", "Celular para Adulto Mayor"] },
+      { value: "Partes de Celular", label: "Partes de Celular", materiales: ["Pantalla de Celular", "Batería de Celular", "Carcasa de Celular", "Tarjeta Lógica de Celular"] },
+      { value: "Accesorios de Celular", label: "Accesorios de Celular", materiales: ["Cargador de Celular", "Cable de Carga", "Audífonos", "Funda", "Power Bank"] },
+    ],
+  },
+  {
+    value: "Tablets",
+    label: "Tablets",
+    subcategorias: [
+      { value: "Tablets", label: "Tablets", materiales: ["Tablet Android", "iPad", "Tablet Windows", "Tablet Infantil"] },
+      { value: "Tablets Especializadas", label: "Tablets Especializadas", materiales: ["Tablet Gráfica", "E-reader", "Tablet Industrial"] },
+      { value: "Partes y Accesorios de Tablet", label: "Partes y Accesorios de Tablet", materiales: ["Pantalla de Tablet", "Batería de Tablet", "Teclado de Tablet", "Stylus", "Cargador de Tablet"] },
+    ],
+  },
+  {
     value: "Telecomunicaciones",
     label: "Telecomunicaciones",
     subcategorias: [

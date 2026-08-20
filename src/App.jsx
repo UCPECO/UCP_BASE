@@ -44,6 +44,8 @@ import AdminEncuestas from '@/pages/admin/AdminEncuestas';
 import AdminEvaluaciones from '@/pages/admin/AdminEvaluaciones';
 import AdminInventario from '@/pages/admin/AdminInventario';
 import AdminBitacora from '@/pages/admin/AdminBitacora';
+import AdminValidacion from '@/pages/admin/AdminValidacion';
+import AdminVentas from '@/pages/admin/AdminVentas';
 import AlumnoConstancias from '@/pages/alumno/AlumnoConstancias';
 import AlumnoEncuestas from '@/pages/alumno/AlumnoEncuestas';
 import EncargadoEvaluaciones from '@/pages/encargado/EncargadoEvaluaciones';
@@ -106,11 +108,14 @@ const AuthenticatedApp = () => {
           <Route path="/encargado/constancias" element={<AdminConstancias />} />
           <Route path="/encargado/evaluaciones" element={<EncargadoEvaluaciones />} />
           <Route path="/encargado/inventario" element={<AdminInventario />} />
+          <Route path="/encargado/ventas" element={<AdminVentas />} />
           {/* Admin */}
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/personal" element={<AdminPersonal />} />
           <Route path="/admin/actividades" element={<AdminActividades />} />
           <Route path="/admin/registros" element={<AdminRegistros />} />
+          <Route path="/admin/validacion" element={<AdminValidacion />} />
+          <Route path="/admin/ventas" element={<AdminVentas />} />
           <Route path="/admin/evidencias" element={<AdminEvidencias />} />
           <Route path="/admin/incidencias" element={<AdminIncidencias />} />
           <Route path="/admin/eventos" element={<AdminEventos />} />

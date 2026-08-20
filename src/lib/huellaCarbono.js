@@ -21,6 +21,8 @@ export const FACTORES_KG = {
 // Categorías por unidad: peso promedio estimado por unidad (kg)
 export const PESO_PROMEDIO_UNIDAD = {
   "Computadoras y Periféricos": 8,
+  "Celulares": 0.2,
+  "Tablets": 0.5,
   "Telecomunicaciones": 0.5,
   "Audio Video y Entretenimiento": 12,
   "Equipos de Oficina": 15,

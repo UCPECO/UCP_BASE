@@ -1,4 +1,5 @@
 // Utilidades compartidas para cálculo de horas y progreso UCP
+import { minutosOficiales } from "@/lib/redondeo";
 
 export const META_HORAS_DEFAULT = 480;
 
@@ -12,26 +13,29 @@ export function calcularHoras(entrada, salida) {
   return Math.round((mins / 60) * 100) / 100;
 }
 
-// Suma horas de registros cerrados Y validados (las horas que cuentan para la meta)
+// Suma horas de registros cerrados Y validados (las horas que cuentan para la meta).
+// Regla oficial: cada fichaje se redondea al múltiplo de 10 min más cercano.
 export function sumarHorasRegistros(registros) {
   if (!registros) return 0;
-  return registros.reduce((acc, r) => {
+  const mins = registros.reduce((acc, r) => {
     if ((r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && r.validado) {
-      return acc + (calcularHoras(r.hora_entrada, r.hora_salida) || 0);
+      return acc + minutosOficiales(r);
     }
     return acc;
   }, 0);
+  return Math.round((mins / 60) * 100) / 100;
 }
 
-// Suma horas cerradas que aún no valida el encargado/admin
+// Suma horas cerradas que aún no valida el encargado/admin (también redondeadas)
 export function sumarHorasPorValidar(registros) {
   if (!registros) return 0;
-  return registros.reduce((acc, r) => {
+  const mins = registros.reduce((acc, r) => {
     if ((r.estado_registro === "cerrado" || r.estado_registro === "incompleto") && !r.validado) {
-      return acc + (calcularHoras(r.hora_entrada, r.hora_salida) || 0);
+      return acc + minutosOficiales(r);
     }
     return acc;
   }, 0);
+  return Math.round((mins / 60) * 100) / 100;
 }
 
 // Suma horas de bonos

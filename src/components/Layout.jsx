@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, UserCircle, Calendar, QrCode, ClipboardCheck, Image,
-  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText
+  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, BadgeDollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
@@ -17,6 +17,7 @@ const NAV = {
     { to: "/admin/personal", label: "Personal", icon: UserCog },
     { to: "/admin/actividades", label: "Actividades", icon: FolderKanban },
     { to: "/admin/registros", label: "Registros abiertos", icon: ClipboardCheck },
+    { to: "/admin/validacion", label: "Validación y ajustes", icon: CheckCheck },
     { to: "/admin/evidencias", label: "Evidencias", icon: Image },
     { to: "/admin/incidencias", label: "Incidencias", icon: AlertTriangle },
     { to: "/admin/pases-lista", label: "Pase de lista", icon: UserCheck },
@@ -24,6 +25,7 @@ const NAV = {
     { to: "/admin/encuestas", label: "Encuestas", icon: ClipboardList },
     { to: "/admin/evaluaciones", label: "Evaluaciones", icon: GraduationCap },
     { to: "/admin/inventario", label: "Inventario", icon: Boxes },
+    { to: "/admin/ventas", label: "Ventas", icon: BadgeDollarSign },
     { to: "/admin/bitacora", label: "Bitácora", icon: ScrollText },
     { to: "/admin/eventos", label: "Eventos", icon: CalendarDays },
     { to: "/admin/bonos", label: "Horas de premio", icon: Award },
@@ -43,6 +45,7 @@ const NAV = {
     { to: "/encargado/constancias", label: "Constancias", icon: FileBadge },
     { to: "/encargado/evaluaciones", label: "Evaluaciones", icon: GraduationCap },
     { to: "/encargado/inventario", label: "Inventario", icon: Boxes },
+    { to: "/encargado/ventas", label: "Ventas", icon: BadgeDollarSign },
     { to: "/encargado/actividades", label: "Mi área", icon: FolderKanban },
     { to: "/encargado/eventos", label: "Eventos UCP", icon: CalendarDays },
     { to: "/encargado/calendario", label: "Calendario", icon: CalendarDays },

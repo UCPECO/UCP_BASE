@@ -12,6 +12,7 @@ export function useAlumnoData() {
   const [actividad, setActividad] = useState(null);
   const [registros, setRegistros] = useState([]);
   const [bonos, setBonos] = useState([]);
+  const [ajustes, setAjustes] = useState([]);
   const [horario, setHorario] = useState([]);
   const [eventos, setEventos] = useState([]);
 
@@ -33,6 +34,8 @@ export function useAlumnoData() {
       setRegistros(regs);
       const bons = await base44.entities.Bonos.filter({ usuario: user.id }, "-fecha", 50);
       setBonos(bons);
+      const ajs = await base44.entities.Ajustes_Horas.filter({ usuario: user.id }, "-created_date", 100).catch(() => []);
+      setAjustes(ajs || []);
       const hor = await base44.entities.Horarios_Clase.filter({ usuario: user.id }, "dia_semana", 50);
       setHorario(hor);
       const evs = await base44.entities.Eventos.list("fecha", 50);
@@ -50,13 +53,15 @@ export function useAlumnoData() {
   const horasAcumuladas = sumarHorasRegistros(registros);
   const horasPorValidar = sumarHorasPorValidar(registros);
   const horasBono = sumarHorasBonos(bonos);
-  const totalHoras = Math.round((horasAcumuladas + horasBono) * 100) / 100;
+  // Ajustes del admin (residuos mensuales acreditados y ajustes manuales, en minutos)
+  const horasAjustes = Math.round((ajustes.reduce((a, x) => a + (x.minutos || 0), 0) / 60) * 100) / 100;
+  const totalHoras = Math.round((horasAcumuladas + horasBono + horasAjustes) * 100) / 100;
   const meta = actividad?.meta_horas || META_HORAS_DEFAULT;
   const porcentaje = calcularPorcentaje(totalHoras, meta);
   const restantes = horasRestantes(totalHoras, meta);
 
   return {
-    loading, perfil, asignacion, actividad, registros, bonos, horario, eventos,
-    horasAcumuladas, horasPorValidar, horasBono, totalHoras, meta, porcentaje, restantes, reload: load
+    loading, perfil, asignacion, actividad, registros, bonos, ajustes, horario, eventos,
+    horasAcumuladas, horasPorValidar, horasBono, horasAjustes, totalHoras, meta, porcentaje, restantes, reload: load
   };
 }

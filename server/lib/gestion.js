@@ -51,7 +51,9 @@ export function notificarEncargadosDeArea(area, titulo, mensaje, enlace = '/enca
   }
 }
 
-// ===== Horas validadas de un usuario (fichajes validados + bonos) =====
+// ===== Horas validadas de un usuario (fichajes validados + bonos + ajustes) =====
+// Regla oficial: cada fichaje se redondea al múltiplo de 10 min más cercano;
+// los ajustes de horas del admin (residuos acreditados / ajustes manuales) suman.
 export function horasValidadasDe(usuarioId) {
   const regs = db.prepare(`
     SELECT hora_entrada, hora_salida FROM registros_qr
@@ -64,10 +66,14 @@ export function horasValidadasDe(usuarioId) {
     const [h2, m2] = r.hora_salida.split(':').map(Number);
     let d = (h2 * 60 + m2) - (h1 * 60 + m1);
     if (d < 0) d += 24 * 60;
-    mins += d;
+    mins += Math.round(d / 10) * 10; // redondeo a 10 min más cercano
   }
   const bonos = db.prepare('SELECT COALESCE(SUM(horas), 0) AS t FROM bonos WHERE usuario = ?').get(usuarioId);
-  return Math.round(((mins / 60) + (bonos?.t || 0)) * 100) / 100;
+  let ajustesMin = 0;
+  try {
+    ajustesMin = db.prepare('SELECT COALESCE(SUM(minutos), 0) AS t FROM ajustes_horas WHERE usuario = ?').get(usuarioId)?.t || 0;
+  } catch { /* tabla aún no existe en instalaciones viejas */ }
+  return Math.round(((mins / 60) + (bonos?.t || 0) + (ajustesMin / 60)) * 100) / 100;
 }
 
 // ===== Constancia automática al llegar a la meta =====

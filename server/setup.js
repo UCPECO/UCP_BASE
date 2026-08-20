@@ -526,6 +526,43 @@ db.exec(`
   );
 `);
 
+// Ajustes de horas del admin: residuos mensuales acreditados o ajustes manuales (+/-)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ajustes_horas (
+    id TEXT PRIMARY KEY,
+    usuario TEXT NOT NULL,
+    minutos REAL DEFAULT 0,
+    tipo TEXT DEFAULT 'manual',
+    periodo TEXT,
+    motivo TEXT,
+    creado_por TEXT,
+    creado_por_nombre TEXT,
+    created_date TEXT DEFAULT (datetime('now')),
+    updated_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// Ventas de materiales/electrónicos (cada venta descuenta stock vía salidas_materiales)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ventas (
+    id TEXT PRIMARY KEY,
+    fecha TEXT,
+    categoria TEXT,
+    material TEXT,
+    cantidad REAL DEFAULT 1,
+    medida TEXT DEFAULT 'unidades',
+    precio_unitario REAL DEFAULT 0,
+    total REAL DEFAULT 0,
+    comprador TEXT,
+    notas TEXT,
+    salida TEXT,
+    registrado_por TEXT,
+    registrado_por_nombre TEXT,
+    created_date TEXT DEFAULT (datetime('now')),
+    updated_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {

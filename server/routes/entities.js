@@ -35,17 +35,19 @@ const entityMap = {
   'Notificaciones': 'notificaciones',
   'Historial_Areas': 'historial_areas',
   'Checklist_Bodega': 'checklist_bodega',
-  'Reportes_Huella': 'reportes_huella'
+  'Reportes_Huella': 'reportes_huella',
+  'Ajustes_Horas': 'ajustes_horas',
+  'Ventas': 'ventas'
 };
 
 // ===== Permisos por rol (según DOCUMENTO_ROLES) =====
 // 'admin' todo; 'encargado' gestión de su área; participantes (servicio_social/voluntario) solo lo suyo
-const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo']);
+const WRITE_ADMIN_ONLY = new Set(['User', 'Bonos', 'Configuracion_Sistema', 'Invitaciones', 'Codigos_QR', 'Stock_Minimo', 'Ajustes_Horas']);
 const WRITE_ADMIN_ENCARGADO = new Set(['Actividades', 'Eventos', 'Constancias', 'Encuestas', 'Evaluaciones_Alumno', 'Pases_Lista', 'Reportes_Huella']);
 const BODEGA_CREATE = new Set(['Materiales_Recibidos', 'Electronicos_Reciclados', 'Salidas_Materiales']); // crear: admin/encargado; editar/borrar: solo admin
 const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Comentarios_Evidencia', 'Notificaciones', 'Checklist_Bodega']); // el participante solo toca lo propio
 const READ_ADMIN_ONLY = new Set(['Invitaciones', 'Bitacora_Auditoria', 'Codigos_QR']);
-const READ_STAFF_ONLY = new Set(['Historial_Areas']); // solo admin/encargado pueden leerlo
+const READ_STAFF_ONLY = new Set(['Historial_Areas', 'Ventas']); // solo admin/encargado pueden leerlo
 const NO_CLIENT_WRITE = new Set(['Historial_Areas']); // solo el servidor escribe (hooks internos)
 
 // Cache de columnas reales por tabla (evita SQL injection en identificadores
@@ -131,6 +133,18 @@ function checkWrite(req, res, entity, existingRow) {
     // Cualquiera autenticado puede crear entradas de bitácora; solo admin borra/edita
     if (existingRow !== undefined) {
       res.status(403).json({ error: 'La bitácora es inmutable' });
+      return false;
+    }
+    return true;
+  }
+  if (entity === 'Ventas') {
+    // Crear: admin/encargado; editar o borrar (revierte stock): solo admin
+    if (existingRow !== undefined && !esAdmin(me)) {
+      res.status(403).json({ error: 'Solo el administrador puede editar o eliminar ventas' });
+      return false;
+    }
+    if (!esAdminOEncargado(me)) {
+      res.status(403).json({ error: 'Solo admin o encargado pueden registrar ventas' });
       return false;
     }
     return true;
@@ -294,6 +308,12 @@ router.post('/:entity', authMiddleware, (req, res) => {
       notificar(row.usuario, `+${row.horas || 0} h de premio`, row.motivo || 'Se te asignaron horas de premio.', '/alumno');
       verificarConstanciaAutomatica(row.usuario);
     }
+    if (req.params.entity === 'Ajustes_Horas' && row?.usuario) {
+      const mins = Math.round(row.minutos || 0);
+      const signo = mins >= 0 ? '+' : '-';
+      notificar(row.usuario, `Ajuste de horas (${signo}${Math.abs(mins)} min)`, row.motivo || 'El administrador ajustó tus horas.', '/alumno');
+      verificarConstanciaAutomatica(row.usuario);
+    }
     if (req.params.entity === 'Comentarios_Evidencia' && row?.evidencia) {
       const ev = db.prepare('SELECT usuario, aprobado_por, descripcion FROM evidencias WHERE id = ?').get(row.evidencia);
       if (ev) {
@@ -419,6 +439,10 @@ router.delete('/:entity/:id', authMiddleware, (req, res) => {
   }
 
   try {
+    // Al eliminar una venta se revierte el stock: se borra la salida ligada
+    if (req.params.entity === 'Ventas' && existing.salida) {
+      try { db.prepare('DELETE FROM salidas_materiales WHERE id = ?').run(existing.salida); } catch {}
+    }
     db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(req.params.id);
     res.json({ ok: true });
   } catch (error) {
