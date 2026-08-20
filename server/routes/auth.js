@@ -4,8 +4,20 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../database.js';
 import { generateToken, authMiddleware, JWT_SECRET } from '../middleware/auth.js';
+import {
+  rateLimit, generarCaptcha, verificarCaptcha,
+  loginBloqueado, registrarFalloLogin, limpiarFallosLogin, registrarEnBitacora,
+} from '../middleware/security.js';
 
 const router = Router();
+
+// Límite estricto para endpoints de autenticación (frena fuerza bruta y bots)
+const authLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 30, mensaje: 'Demasiados intentos. Espera unos minutos.' });
+
+// Captcha anti-bots: el login exige resolver una operación matemática simple
+router.get('/captcha', authLimiter, (req, res) => {
+  res.json(generarCaptcha());
+});
 
 // Obtener usuario actual
 router.get('/me', authMiddleware, (req, res) => {
@@ -16,23 +28,39 @@ router.get('/me', authMiddleware, (req, res) => {
   res.json(user);
 });
 
-// Login con email y password
-router.post('/login', (req, res) => {
-  const { email, password } = req.body;
+// Login con email y password (exige captcha y se bloquea tras 5 fallos)
+router.post('/login', authLimiter, (req, res) => {
+  const { email, password, captchaId, captchaRespuesta } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email y password requeridos' });
   }
-  
+
+  const ip = req.ip || req.socket?.remoteAddress || '';
+
+  // 1) Captcha primero: frena bots antes de tocar la base de datos
+  if (!verificarCaptcha(captchaId, captchaRespuesta)) {
+    return res.status(400).json({ error: 'Captcha incorrecto o expirado. Resuelve la nueva operación.', captcha: true });
+  }
+
+  // 2) Bloqueo temporal tras varios fallos
+  const espera = loginBloqueado(email, ip);
+  if (espera > 0) {
+    return res.status(429).json({ error: `Cuenta bloqueada temporalmente por intentos fallidos. Intenta en ${Math.ceil(espera / 60)} min.` });
+  }
+
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
   if (!user || !user.password) {
+    registrarFalloLogin(email, ip);
     return res.status(401).json({ error: 'Credenciales invalidas' });
   }
-  
+
   const valid = bcrypt.compareSync(password, user.password);
   if (!valid) {
+    registrarFalloLogin(email, ip);
     return res.status(401).json({ error: 'Credenciales invalidas' });
   }
-  
+
+  limpiarFallosLogin(email, ip);
   const token = generateToken(user);
   delete user.password;
   res.json({ user, token });
@@ -102,30 +130,22 @@ router.post('/admin-create-user', authMiddleware, (req, res) => {
   res.status(201).json({ user });
 });
 
-// Verificar OTP (simulado - en self-host no hay email real)
-router.post('/verify-otp', (req, res) => {
-  const { email, otpCode } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
-  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-  
-  const token = generateToken(user);
-  delete user.password;
-  res.json({ user, token });
+// Verificar OTP: DESHABILITADO por seguridad. Antes entregaba una sesión
+// completa con solo conocer el email, sin validar ningún código.
+router.post('/verify-otp', authLimiter, (req, res) => {
+  return res.status(403).json({ error: 'Verificación por OTP deshabilitada. Pide al administrador que restablezca tu acceso.' });
 });
 
-// Reenviar OTP (simulado)
-router.post('/resend-otp', (req, res) => {
-  res.json({ ok: true, message: 'OTP reenviado (simulado)' });
+// Reenviar OTP (deshabilitado junto con verify-otp)
+router.post('/resend-otp', authLimiter, (req, res) => {
+  res.status(403).json({ error: 'Verificación por OTP deshabilitada.' });
 });
 
-// Solicitar reset de password
-router.post('/reset-password-request', (req, res) => {
-  const { email } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email?.toLowerCase()?.trim());
-  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-  
-  const resetToken = generateToken({ id: user.id, email: user.email, role: user.role });
-  res.json({ ok: true, resetToken });
+// Solicitar reset de password. El token NUNCA se devuelve en la respuesta:
+// en self-host no hay correo, así que el restablecimiento lo hace el admin
+// desde Personal. Responder igual exista o no el correo evita enumerar usuarios.
+router.post('/reset-password-request', authLimiter, (req, res) => {
+  res.json({ ok: true, message: 'Si el correo existe, el administrador podrá restablecer tu contraseña desde el panel de Personal.' });
 });
 
 // Resetear password

@@ -67,13 +67,18 @@ const auth = {
     return apiFetch('/auth/me');
   },
   
-  loginViaEmailPassword: async (email, password) => {
+  loginViaEmailPassword: async (email, password, captcha) => {
     const data = await apiFetch('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, captchaId: captcha?.id, captchaRespuesta: captcha?.respuesta }),
     });
     if (data.token) setToken(data.token);
     return data.user;
+  },
+
+  // Captcha anti-bots para el login: { id, pregunta }
+  getCaptcha: async () => {
+    return apiFetch('/auth/captcha');
   },
   
   register: async ({ email, password, full_name }) => {

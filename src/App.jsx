@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import RutaRol from '@/components/RutaRol';
 import Layout from '@/components/Layout';
 // Add page imports here
 import Home from '@/pages/Home';
@@ -82,60 +83,66 @@ const AuthenticatedApp = () => {
 
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<Layout />}>
-          {/* Alumno */}
-          <Route path="/alumno" element={<AlumnoDashboard />} />
-          <Route path="/alumno/perfil" element={<AlumnoPerfil />} />
-          <Route path="/alumno/horario" element={<AlumnoHorario />} />
-          <Route path="/alumno/evidencias" element={<AlumnoEvidencias />} />
-          <Route path="/alumno/eventos" element={<AlumnoEventos />} />
-          <Route path="/alumno/actividades" element={<AlumnoActividades />} />
-          <Route path="/alumno/constancias" element={<AlumnoConstancias />} />
-          <Route path="/alumno/encuestas" element={<AlumnoEncuestas />} />
+          {/* Alumno (participantes; el admin también puede consultar) */}
+          <Route element={<RutaRol roles={["admin", "servicio_social", "voluntario", "practicas_profesionales"]} />}>
+            <Route path="/alumno" element={<AlumnoDashboard />} />
+            <Route path="/alumno/perfil" element={<AlumnoPerfil />} />
+            <Route path="/alumno/horario" element={<AlumnoHorario />} />
+            <Route path="/alumno/evidencias" element={<AlumnoEvidencias />} />
+            <Route path="/alumno/eventos" element={<AlumnoEventos />} />
+            <Route path="/alumno/actividades" element={<AlumnoActividades />} />
+            <Route path="/alumno/constancias" element={<AlumnoConstancias />} />
+            <Route path="/alumno/encuestas" element={<AlumnoEncuestas />} />
+          </Route>
+          {/* Compartidas por todos los roles autenticados */}
           <Route path="/fichar" element={<Fichar />} />
           <Route path="/checklist-bodega" element={<ChecklistBodega />} />
-          {/* Encargado */}
-          <Route path="/encargado" element={<EncargadoDashboard />} />
-          <Route path="/encargado/personal" element={<EncargadoPersonal />} />
-          <Route path="/encargado/alumnos" element={<EncargadoAlumnos />} />
-          <Route path="/encargado/registros" element={<EncargadoRegistros />} />
-          <Route path="/encargado/evidencias" element={<EncargadoEvidencias />} />
-          <Route path="/encargado/incidencias" element={<EncargadoIncidencias />} />
-          <Route path="/encargado/actividades" element={<AdminActividades />} />
-          <Route path="/encargado/materiales" element={<Navigate to="/encargado/inventario?tab=bodega" replace />} />
-          <Route path="/encargado/electronicos" element={<Navigate to="/encargado/inventario?tab=electronicos" replace />} />
-          <Route path="/encargado/eventos" element={<EncargadoEventos />} />
-          <Route path="/encargado/pases-lista" element={<AdminPasesLista />} />
-          <Route path="/encargado/constancias" element={<AdminConstancias />} />
-          <Route path="/encargado/evaluaciones" element={<EncargadoEvaluaciones />} />
-          <Route path="/encargado/inventario" element={<AdminInventario />} />
-          <Route path="/encargado/ventas" element={<AdminVentas />} />
-          {/* Admin */}
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/personal" element={<AdminPersonal />} />
-          <Route path="/admin/actividades" element={<AdminActividades />} />
-          <Route path="/admin/registros" element={<AdminRegistros />} />
-          <Route path="/admin/validacion" element={<AdminValidacion />} />
-          <Route path="/admin/ventas" element={<AdminVentas />} />
-          <Route path="/admin/evidencias" element={<AdminEvidencias />} />
-          <Route path="/admin/incidencias" element={<AdminIncidencias />} />
-          <Route path="/admin/eventos" element={<AdminEventos />} />
-          <Route path="/admin/bonos" element={<AdminBonos />} />
-          <Route path="/admin/estadisticas" element={<AdminEstadisticas />} />
-          <Route path="/admin/materiales" element={<Navigate to="/admin/inventario?tab=bodega" replace />} />
-          <Route path="/admin/electronicos" element={<Navigate to="/admin/inventario?tab=electronicos" replace />} />
-          <Route path="/admin/qr" element={<AdminQr />} />
-          <Route path="/admin/pases-lista" element={<AdminPasesLista />} />
-          <Route path="/admin/constancias" element={<AdminConstancias />} />
-          <Route path="/admin/encuestas" element={<AdminEncuestas />} />
-          <Route path="/admin/evaluaciones" element={<AdminEvaluaciones />} />
-          <Route path="/admin/inventario" element={<AdminInventario />} />
-          <Route path="/admin/bitacora" element={<AdminBitacora />} />
-          <Route path="/admin/config" element={<AdminConfig />} />
-          {/* Compartidos */}
-          <Route path="/admin/calendario" element={<Calendario />} />
-          <Route path="/admin/disponibilidad" element={<Disponibilidad />} />
-          <Route path="/encargado/calendario" element={<Calendario />} />
-          <Route path="/encargado/disponibilidad" element={<Disponibilidad />} />
+          {/* Encargado (el admin también puede entrar) */}
+          <Route element={<RutaRol roles={["admin", "encargado"]} />}>
+            <Route path="/encargado" element={<EncargadoDashboard />} />
+            <Route path="/encargado/personal" element={<EncargadoPersonal />} />
+            <Route path="/encargado/alumnos" element={<EncargadoAlumnos />} />
+            <Route path="/encargado/registros" element={<EncargadoRegistros />} />
+            <Route path="/encargado/evidencias" element={<EncargadoEvidencias />} />
+            <Route path="/encargado/incidencias" element={<EncargadoIncidencias />} />
+            <Route path="/encargado/actividades" element={<AdminActividades />} />
+            <Route path="/encargado/materiales" element={<Navigate to="/encargado/inventario?tab=bodega" replace />} />
+            <Route path="/encargado/electronicos" element={<Navigate to="/encargado/inventario?tab=electronicos" replace />} />
+            <Route path="/encargado/eventos" element={<EncargadoEventos />} />
+            <Route path="/encargado/pases-lista" element={<AdminPasesLista />} />
+            <Route path="/encargado/constancias" element={<AdminConstancias />} />
+            <Route path="/encargado/evaluaciones" element={<EncargadoEvaluaciones />} />
+            <Route path="/encargado/inventario" element={<AdminInventario />} />
+            <Route path="/encargado/ventas" element={<AdminVentas />} />
+            <Route path="/encargado/calendario" element={<Calendario />} />
+            <Route path="/encargado/disponibilidad" element={<Disponibilidad />} />
+          </Route>
+          {/* Admin: solo administradores */}
+          <Route element={<RutaRol roles={["admin"]} />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/personal" element={<AdminPersonal />} />
+            <Route path="/admin/actividades" element={<AdminActividades />} />
+            <Route path="/admin/registros" element={<AdminRegistros />} />
+            <Route path="/admin/validacion" element={<AdminValidacion />} />
+            <Route path="/admin/ventas" element={<AdminVentas />} />
+            <Route path="/admin/evidencias" element={<AdminEvidencias />} />
+            <Route path="/admin/incidencias" element={<AdminIncidencias />} />
+            <Route path="/admin/eventos" element={<AdminEventos />} />
+            <Route path="/admin/bonos" element={<AdminBonos />} />
+            <Route path="/admin/estadisticas" element={<AdminEstadisticas />} />
+            <Route path="/admin/materiales" element={<Navigate to="/admin/inventario?tab=bodega" replace />} />
+            <Route path="/admin/electronicos" element={<Navigate to="/admin/inventario?tab=electronicos" replace />} />
+            <Route path="/admin/qr" element={<AdminQr />} />
+            <Route path="/admin/pases-lista" element={<AdminPasesLista />} />
+            <Route path="/admin/constancias" element={<AdminConstancias />} />
+            <Route path="/admin/encuestas" element={<AdminEncuestas />} />
+            <Route path="/admin/evaluaciones" element={<AdminEvaluaciones />} />
+            <Route path="/admin/inventario" element={<AdminInventario />} />
+            <Route path="/admin/bitacora" element={<AdminBitacora />} />
+            <Route path="/admin/config" element={<AdminConfig />} />
+            <Route path="/admin/calendario" element={<Calendario />} />
+            <Route path="/admin/disponibilidad" element={<Disponibilidad />} />
+          </Route>
         </Route>
       </Route>
 

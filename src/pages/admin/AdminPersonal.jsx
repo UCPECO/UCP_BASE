@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { UserCog, Search, Mail, X, UserPlus, Eye, FileDown, Trash2, Archive, ArchiveRestore, Key, RefreshCw, Copy, Check, Download, CalendarX2 } from "lucide-react";
+import { UserCog, Search, Mail, X, UserPlus, Eye, EyeOff, Eye as EyeIcon, FileDown, Trash2, Archive, ArchiveRestore, Key, RefreshCw, Copy, Check, Download, CalendarX2 } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import DetallePersonal from "@/components/ucp/DetallePersonal";
@@ -80,6 +80,7 @@ export default function AdminPersonal() {
   const [mostrarArchivados, setMostrarArchivados] = useState(false);
   const [cambiandoPwdUser, setCambiandoPwdUser] = useState(null);
   const [nuevaPwd, setNuevaPwd] = useState("");
+  const [verPwd, setVerPwd] = useState(false);
   const [guardandoPwd, setGuardandoPwd] = useState(false);
   const [bajaUser, setBajaUser] = useState(null);
   const [motivoBaja, setMotivoBaja] = useState("");
@@ -670,16 +671,27 @@ export default function AdminPersonal() {
                         <td colSpan={7} className="py-3 px-4">
                           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                             <span className="text-sm font-medium text-blue-700 whitespace-nowrap">Nueva contraseña para {u.nombre_completo || u.full_name || u.email}:</span>
-                            <Input
-                              type="password"
-                              placeholder="Escribe la nueva contraseña..."
-                              value={nuevaPwd}
-                              onChange={(e) => setNuevaPwd(e.target.value)}
-                              className="h-9 flex-1 max-w-xs"
-                              autoComplete="new-password"
-                              name="nueva-contrasena-personal"
-                              autoFocus
-                            />
+                            <div className="relative flex-1 max-w-xs w-full">
+                              <Input
+                                type={verPwd ? "text" : "password"}
+                                placeholder="Escribe la nueva contraseña..."
+                                value={nuevaPwd}
+                                onChange={(e) => setNuevaPwd(e.target.value)}
+                                className="h-9 pr-9 w-full"
+                                autoComplete="new-password"
+                                name="nueva-contrasena-personal"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setVerPwd((v) => !v)}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                title={verPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                tabIndex={-1}
+                              >
+                                {verPwd ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                              </button>
+                            </div>
                             <div className="flex gap-2">
                               <Button size="sm" disabled={guardandoPwd} onClick={() => changePassword(u.id)} className="h-9">
                                 {guardandoPwd ? "Guardando..." : "Guardar"}

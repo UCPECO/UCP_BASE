@@ -9,14 +9,22 @@ import entityRoutes from './routes/entities.js';
 import functionRoutes from './routes/functions.js';
 import { cerrarFichajesOlvidados } from './lib/gestion.js';
 import { respaldarBD, db } from './database.js';
+import { securityHeaders, rateLimit } from './middleware/security.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.disable('x-powered-by'); // no anunciar la tecnología del servidor
+app.use(securityHeaders);
+// El frontend se sirve desde el mismo dominio: no se necesita CORS
+// para orígenes externos; esto bloquea llamadas a la API desde otros sitios.
+app.use(cors({ origin: false }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Límite general de la API por IP (generoso: la app hace polling y cargas en paralelo)
+app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 400, mensaje: 'Demasiadas solicitudes. Espera un momento.' }));
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -39,7 +47,7 @@ app.get('/api/health', (req, res) => {
       reportes_huella: nombres.includes('reportes_huella'),
     };
   } catch (e) { /* diagnóstico no debe romper el health check */ }
-  res.json({ status: 'ok', mode: 'self-hosted', version: '2026-08-20-etiquetas-cu', tablas });
+  res.json({ status: 'ok', mode: 'self-hosted', version: '2026-08-20-seguridad', tablas });
 });
 
 // Static files (uploads)
