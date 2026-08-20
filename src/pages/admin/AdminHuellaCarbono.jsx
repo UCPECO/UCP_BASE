@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { calcularHuella, generarPdfHuella } from "@/lib/huellaCarbono";
 import { obtenerCategoriasCustom } from "@/lib/categoriasDinamicas";
@@ -117,7 +118,7 @@ export default function AdminHuellaCarbono() {
   };
 
   const eliminar = async (r) => {
-    if (!confirm(`¿Eliminar el documento ${r.folio}? El cálculo se puede volver a generar, pero el folio se pierde.`)) return;
+    if (!(await confirmarGlobal({ titulo: `¿Eliminar el documento ${r.folio}?`, descripcion: "El cálculo se puede volver a generar, pero el folio se pierde.", destructivo: true }))) return;
     try {
       await base44.entities.Reportes_Huella.delete(r.id);
       toast({ title: "Documento eliminado", description: r.folio });

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { AREAS, labelArea } from "@/lib/areas";
 
 // Token aleatorio criptográficamente seguro: identifica al QR ante el servidor.
@@ -103,7 +104,7 @@ export default function AdminQr() {
   };
 
   const eliminarQr = async (c) => {
-    if (!confirm(`¿Eliminar el QR de "${labelArea(c.ubicacion) || c.ubicacion}"? Si ya lo imprimiste, ese código dejará de funcionar para fichar.`)) return;
+    if (!(await confirmarGlobal({ titulo: `¿Eliminar el QR de "${labelArea(c.ubicacion) || c.ubicacion}"?`, descripcion: "Si ya lo imprimiste, ese código dejará de funcionar para fichar.", destructivo: true }))) return;
     try {
       await base44.entities.Codigos_QR.delete(c.id);
       toast({ title: "QR eliminado", description: labelArea(c.ubicacion) || c.ubicacion });

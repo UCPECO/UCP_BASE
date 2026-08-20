@@ -12,6 +12,7 @@ import {
   IdCard, Pencil, X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasPorValidar, sumarHorasBonos } from "@/lib/ucpUtils";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
 import { AREAS, labelArea, labelEtiqueta } from "@/lib/areas";
@@ -210,7 +211,7 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
   };
 
   const eliminarAsignacion = async (a) => {
-    if (!confirm("¿Eliminar esta asignación de actividad? Se quita del historial del usuario.")) return;
+    if (!(await confirmarGlobal({ titulo: "¿Eliminar esta asignación de actividad?", descripcion: "Se quita del historial del usuario.", destructivo: true }))) return;
     try {
       await base44.entities.Asignaciones.delete(a.id);
       toast({ title: "Actividad eliminada", description: actsById[a.actividad]?.nombre || "" });
@@ -238,7 +239,7 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
   };
 
   const eliminarRegistro = async (r) => {
-    if (!confirm("¿Eliminar este registro de asistencia?")) return;
+    if (!(await confirmarGlobal({ titulo: "¿Eliminar este registro de asistencia?", descripcion: "Las horas de ese fichaje dejarán de contar.", destructivo: true }))) return;
     try { await base44.entities.Registros_QR.delete(r.id); toast({ title: "Registro eliminado" }); load(); }
     catch (e) { toast({ title: "Error", variant: "destructive" }); }
   };
@@ -254,7 +255,7 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
   };
 
   const eliminarBono = async (b) => {
-    if (!confirm("¿Eliminar este bono?")) return;
+    if (!(await confirmarGlobal({ titulo: "¿Eliminar este bono?", descripcion: "Las horas de premio se descuentan del total del usuario.", destructivo: true }))) return;
     try { await base44.entities.Bonos.delete(b.id); toast({ title: "Bono eliminado" }); load(); }
     catch (e) { toast({ title: "Error", variant: "destructive" }); }
   };

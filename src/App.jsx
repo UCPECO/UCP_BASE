@@ -1,4 +1,6 @@
+import { Suspense, lazy } from "react"
 import { Toaster } from "@/components/ui/toaster"
+import { ConfirmadorGlobal } from "@/components/ucp/ConfirmDialog"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
@@ -9,60 +11,62 @@ import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RutaRol from '@/components/RutaRol';
 import Layout from '@/components/Layout';
-// Add page imports here
+// Rutas críticas (primera pantalla): se cargan de inmediato
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
-import ForgotPassword from '@/pages/ForgotPassword';
-import ResetPassword from '@/pages/ResetPassword';
 import AlumnoDashboard from '@/pages/alumno/AlumnoDashboard';
-import AlumnoPerfil from '@/pages/alumno/AlumnoPerfil';
-import AlumnoHorario from '@/pages/alumno/AlumnoHorario';
-import AlumnoEvidencias from '@/pages/alumno/AlumnoEvidencias';
-import AlumnoEventos from '@/pages/alumno/AlumnoEventos';
-import AlumnoActividades from '@/pages/alumno/AlumnoActividades';
 import Fichar from '@/pages/Fichar';
-import EncargadoDashboard from '@/pages/encargado/EncargadoDashboard';
-import EncargadoAlumnos from '@/pages/encargado/EncargadoAlumnos';
-import EncargadoPersonal from '@/pages/encargado/EncargadoPersonal';
-import EncargadoRegistros from '@/pages/encargado/EncargadoRegistros';
-import EncargadoEvidencias from '@/pages/encargado/EncargadoEvidencias';
-import EncargadoIncidencias from '@/pages/encargado/EncargadoIncidencias';
-import EncargadoEventos from '@/pages/encargado/EncargadoEventos';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import AdminPersonal from '@/pages/admin/AdminPersonal';
-import AdminActividades from '@/pages/admin/AdminActividades';
-import AdminRegistros from '@/pages/admin/AdminRegistros';
-import AdminEvidencias from '@/pages/admin/AdminEvidencias';
-import AdminIncidencias from '@/pages/admin/AdminIncidencias';
-import AdminEventos from '@/pages/admin/AdminEventos';
-import AdminBonos from '@/pages/admin/AdminBonos';
-import AdminEstadisticas from '@/pages/admin/AdminEstadisticas';
-import AdminQr from '@/pages/admin/AdminQr';
-import AdminConfig from '@/pages/admin/AdminConfig';
-import AdminPasesLista from '@/pages/admin/AdminPasesLista';
-import AdminConstancias from '@/pages/admin/AdminConstancias';
-import AdminEncuestas from '@/pages/admin/AdminEncuestas';
-import AdminEvaluaciones from '@/pages/admin/AdminEvaluaciones';
-import AdminInventario from '@/pages/admin/AdminInventario';
-import AdminBitacora from '@/pages/admin/AdminBitacora';
-import AdminValidacion from '@/pages/admin/AdminValidacion';
-import AdminVentas from '@/pages/admin/AdminVentas';
-import AlumnoConstancias from '@/pages/alumno/AlumnoConstancias';
-import AlumnoEncuestas from '@/pages/alumno/AlumnoEncuestas';
-import EncargadoEvaluaciones from '@/pages/encargado/EncargadoEvaluaciones';
-import Calendario from '@/pages/Calendario';
-import Disponibilidad from '@/pages/Disponibilidad';
-import ChecklistBodega from '@/pages/ChecklistBodega';
+// El resto se carga bajo demanda (lazy): el paquete inicial pesa mucho menos
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const AlumnoPerfil = lazy(() => import('@/pages/alumno/AlumnoPerfil'));
+const AlumnoHorario = lazy(() => import('@/pages/alumno/AlumnoHorario'));
+const AlumnoEvidencias = lazy(() => import('@/pages/alumno/AlumnoEvidencias'));
+const AlumnoEventos = lazy(() => import('@/pages/alumno/AlumnoEventos'));
+const AlumnoActividades = lazy(() => import('@/pages/alumno/AlumnoActividades'));
+const AlumnoConstancias = lazy(() => import('@/pages/alumno/AlumnoConstancias'));
+const AlumnoEncuestas = lazy(() => import('@/pages/alumno/AlumnoEncuestas'));
+const EncargadoDashboard = lazy(() => import('@/pages/encargado/EncargadoDashboard'));
+const EncargadoAlumnos = lazy(() => import('@/pages/encargado/EncargadoAlumnos'));
+const EncargadoPersonal = lazy(() => import('@/pages/encargado/EncargadoPersonal'));
+const EncargadoRegistros = lazy(() => import('@/pages/encargado/EncargadoRegistros'));
+const EncargadoEvidencias = lazy(() => import('@/pages/encargado/EncargadoEvidencias'));
+const EncargadoIncidencias = lazy(() => import('@/pages/encargado/EncargadoIncidencias'));
+const EncargadoEventos = lazy(() => import('@/pages/encargado/EncargadoEventos'));
+const EncargadoEvaluaciones = lazy(() => import('@/pages/encargado/EncargadoEvaluaciones'));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const AdminPersonal = lazy(() => import('@/pages/admin/AdminPersonal'));
+const AdminActividades = lazy(() => import('@/pages/admin/AdminActividades'));
+const AdminRegistros = lazy(() => import('@/pages/admin/AdminRegistros'));
+const AdminEvidencias = lazy(() => import('@/pages/admin/AdminEvidencias'));
+const AdminIncidencias = lazy(() => import('@/pages/admin/AdminIncidencias'));
+const AdminEventos = lazy(() => import('@/pages/admin/AdminEventos'));
+const AdminBonos = lazy(() => import('@/pages/admin/AdminBonos'));
+const AdminEstadisticas = lazy(() => import('@/pages/admin/AdminEstadisticas'));
+const AdminQr = lazy(() => import('@/pages/admin/AdminQr'));
+const AdminConfig = lazy(() => import('@/pages/admin/AdminConfig'));
+const AdminPasesLista = lazy(() => import('@/pages/admin/AdminPasesLista'));
+const AdminConstancias = lazy(() => import('@/pages/admin/AdminConstancias'));
+const AdminEncuestas = lazy(() => import('@/pages/admin/AdminEncuestas'));
+const AdminEvaluaciones = lazy(() => import('@/pages/admin/AdminEvaluaciones'));
+const AdminInventario = lazy(() => import('@/pages/admin/AdminInventario'));
+const AdminBitacora = lazy(() => import('@/pages/admin/AdminBitacora'));
+const AdminValidacion = lazy(() => import('@/pages/admin/AdminValidacion'));
+const Calendario = lazy(() => import('@/pages/Calendario'));
+const Disponibilidad = lazy(() => import('@/pages/Disponibilidad'));
+const ChecklistBodega = lazy(() => import('@/pages/ChecklistBodega'));
+
+const Cargando = () => (
+  <div className="fixed inset-0 flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin"></div>
+  </div>
+);
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <Cargando />;
   }
 
   if (authError) {
@@ -75,79 +79,81 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+    <Suspense fallback={<Cargando />}>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route element={<Layout />}>
-          {/* Alumno (participantes; el admin también puede consultar) */}
-          <Route element={<RutaRol roles={["admin", "servicio_social", "voluntario", "practicas_profesionales"]} />}>
-            <Route path="/alumno" element={<AlumnoDashboard />} />
-            <Route path="/alumno/perfil" element={<AlumnoPerfil />} />
-            <Route path="/alumno/horario" element={<AlumnoHorario />} />
-            <Route path="/alumno/evidencias" element={<AlumnoEvidencias />} />
-            <Route path="/alumno/eventos" element={<AlumnoEventos />} />
-            <Route path="/alumno/actividades" element={<AlumnoActividades />} />
-            <Route path="/alumno/constancias" element={<AlumnoConstancias />} />
-            <Route path="/alumno/encuestas" element={<AlumnoEncuestas />} />
-          </Route>
-          {/* Compartidas por todos los roles autenticados */}
-          <Route path="/fichar" element={<Fichar />} />
-          <Route path="/checklist-bodega" element={<ChecklistBodega />} />
-          {/* Encargado (el admin también puede entrar) */}
-          <Route element={<RutaRol roles={["admin", "encargado"]} />}>
-            <Route path="/encargado" element={<EncargadoDashboard />} />
-            <Route path="/encargado/personal" element={<EncargadoPersonal />} />
-            <Route path="/encargado/alumnos" element={<EncargadoAlumnos />} />
-            <Route path="/encargado/registros" element={<EncargadoRegistros />} />
-            <Route path="/encargado/evidencias" element={<EncargadoEvidencias />} />
-            <Route path="/encargado/incidencias" element={<EncargadoIncidencias />} />
-            <Route path="/encargado/actividades" element={<AdminActividades />} />
-            <Route path="/encargado/materiales" element={<Navigate to="/encargado/inventario?tab=bodega" replace />} />
-            <Route path="/encargado/electronicos" element={<Navigate to="/encargado/inventario?tab=electronicos" replace />} />
-            <Route path="/encargado/eventos" element={<EncargadoEventos />} />
-            <Route path="/encargado/pases-lista" element={<AdminPasesLista />} />
-            <Route path="/encargado/constancias" element={<AdminConstancias />} />
-            <Route path="/encargado/evaluaciones" element={<EncargadoEvaluaciones />} />
-            <Route path="/encargado/inventario" element={<AdminInventario />} />
-            <Route path="/encargado/ventas" element={<AdminVentas />} />
-            <Route path="/encargado/calendario" element={<Calendario />} />
-            <Route path="/encargado/disponibilidad" element={<Disponibilidad />} />
-          </Route>
-          {/* Admin: solo administradores */}
-          <Route element={<RutaRol roles={["admin"]} />}>
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/personal" element={<AdminPersonal />} />
-            <Route path="/admin/actividades" element={<AdminActividades />} />
-            <Route path="/admin/registros" element={<AdminRegistros />} />
-            <Route path="/admin/validacion" element={<AdminValidacion />} />
-            <Route path="/admin/ventas" element={<AdminVentas />} />
-            <Route path="/admin/evidencias" element={<AdminEvidencias />} />
-            <Route path="/admin/incidencias" element={<AdminIncidencias />} />
-            <Route path="/admin/eventos" element={<AdminEventos />} />
-            <Route path="/admin/bonos" element={<AdminBonos />} />
-            <Route path="/admin/estadisticas" element={<AdminEstadisticas />} />
-            <Route path="/admin/materiales" element={<Navigate to="/admin/inventario?tab=bodega" replace />} />
-            <Route path="/admin/electronicos" element={<Navigate to="/admin/inventario?tab=electronicos" replace />} />
-            <Route path="/admin/qr" element={<AdminQr />} />
-            <Route path="/admin/pases-lista" element={<AdminPasesLista />} />
-            <Route path="/admin/constancias" element={<AdminConstancias />} />
-            <Route path="/admin/encuestas" element={<AdminEncuestas />} />
-            <Route path="/admin/evaluaciones" element={<AdminEvaluaciones />} />
-            <Route path="/admin/inventario" element={<AdminInventario />} />
-            <Route path="/admin/bitacora" element={<AdminBitacora />} />
-            <Route path="/admin/config" element={<AdminConfig />} />
-            <Route path="/admin/calendario" element={<Calendario />} />
-            <Route path="/admin/disponibilidad" element={<Disponibilidad />} />
+        <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+          <Route element={<Layout />}>
+            {/* Alumno (participantes; el admin también puede consultar) */}
+            <Route element={<RutaRol roles={["admin", "servicio_social", "voluntario", "practicas_profesionales"]} />}>
+              <Route path="/alumno" element={<AlumnoDashboard />} />
+              <Route path="/alumno/perfil" element={<AlumnoPerfil />} />
+              <Route path="/alumno/horario" element={<AlumnoHorario />} />
+              <Route path="/alumno/evidencias" element={<AlumnoEvidencias />} />
+              <Route path="/alumno/eventos" element={<AlumnoEventos />} />
+              <Route path="/alumno/actividades" element={<AlumnoActividades />} />
+              <Route path="/alumno/constancias" element={<AlumnoConstancias />} />
+              <Route path="/alumno/encuestas" element={<AlumnoEncuestas />} />
+            </Route>
+            {/* Compartidas por todos los roles autenticados */}
+            <Route path="/fichar" element={<Fichar />} />
+            <Route path="/checklist-bodega" element={<ChecklistBodega />} />
+            {/* Encargado (el admin también puede entrar) */}
+            <Route element={<RutaRol roles={["admin", "encargado"]} />}>
+              <Route path="/encargado" element={<EncargadoDashboard />} />
+              <Route path="/encargado/personal" element={<EncargadoPersonal />} />
+              <Route path="/encargado/alumnos" element={<EncargadoAlumnos />} />
+              <Route path="/encargado/registros" element={<EncargadoRegistros />} />
+              <Route path="/encargado/evidencias" element={<EncargadoEvidencias />} />
+              <Route path="/encargado/incidencias" element={<EncargadoIncidencias />} />
+              <Route path="/encargado/actividades" element={<AdminActividades />} />
+              <Route path="/encargado/materiales" element={<Navigate to="/encargado/inventario?tab=bodega" replace />} />
+              <Route path="/encargado/electronicos" element={<Navigate to="/encargado/inventario?tab=electronicos" replace />} />
+              <Route path="/encargado/ventas" element={<Navigate to="/encargado/inventario?tab=ventas" replace />} />
+              <Route path="/encargado/eventos" element={<EncargadoEventos />} />
+              <Route path="/encargado/pases-lista" element={<AdminPasesLista />} />
+              <Route path="/encargado/constancias" element={<AdminConstancias />} />
+              <Route path="/encargado/evaluaciones" element={<EncargadoEvaluaciones />} />
+              <Route path="/encargado/inventario" element={<AdminInventario />} />
+              <Route path="/encargado/calendario" element={<Calendario />} />
+              <Route path="/encargado/disponibilidad" element={<Disponibilidad />} />
+            </Route>
+            {/* Admin: solo administradores */}
+            <Route element={<RutaRol roles={["admin"]} />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/personal" element={<AdminPersonal />} />
+              <Route path="/admin/actividades" element={<AdminActividades />} />
+              <Route path="/admin/registros" element={<AdminRegistros />} />
+              <Route path="/admin/validacion" element={<AdminValidacion />} />
+              <Route path="/admin/ventas" element={<Navigate to="/admin/inventario?tab=ventas" replace />} />
+              <Route path="/admin/evidencias" element={<AdminEvidencias />} />
+              <Route path="/admin/incidencias" element={<AdminIncidencias />} />
+              <Route path="/admin/eventos" element={<AdminEventos />} />
+              <Route path="/admin/bonos" element={<AdminBonos />} />
+              <Route path="/admin/estadisticas" element={<AdminEstadisticas />} />
+              <Route path="/admin/materiales" element={<Navigate to="/admin/inventario?tab=bodega" replace />} />
+              <Route path="/admin/electronicos" element={<Navigate to="/admin/inventario?tab=electronicos" replace />} />
+              <Route path="/admin/qr" element={<AdminQr />} />
+              <Route path="/admin/pases-lista" element={<AdminPasesLista />} />
+              <Route path="/admin/constancias" element={<AdminConstancias />} />
+              <Route path="/admin/encuestas" element={<AdminEncuestas />} />
+              <Route path="/admin/evaluaciones" element={<AdminEvaluaciones />} />
+              <Route path="/admin/inventario" element={<AdminInventario />} />
+              <Route path="/admin/bitacora" element={<AdminBitacora />} />
+              <Route path="/admin/config" element={<AdminConfig />} />
+              <Route path="/admin/calendario" element={<Calendario />} />
+              <Route path="/admin/disponibilidad" element={<Disponibilidad />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </Suspense>
   );
 };
 
@@ -160,6 +166,7 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <Toaster />
+        <ConfirmadorGlobal />
       </QueryClientProvider>
     </AuthProvider>
   )

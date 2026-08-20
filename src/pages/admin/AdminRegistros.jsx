@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
 import { useAuth } from "@/lib/AuthContext";
 import { ClipboardCheck, LogOut, Download, AlertTriangle } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
@@ -39,6 +40,7 @@ export default function AdminRegistros() {
   };
 
   useEffect(() => { load(); }, []);
+  useRecargarAlVolver(load);
 
   const marcarSalida = async (reg) => {
     const salida = horaActual();

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { AREAS, labelArea } from "@/lib/areas";
 
 const VACIO = { nombre: "", categoria: "", descripcion: "", activo: true };
@@ -114,7 +115,7 @@ export default function AdminActividades() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("¿Eliminar esta actividad?")) return;
+    if (!(await confirmarGlobal({ titulo: "¿Eliminar esta actividad?", descripcion: "Se quita del catálogo. Las asignaciones existentes no se borran.", destructivo: true }))) return;
     await base44.entities.Actividades.delete(id);
     toast({ title: "Actividad eliminada" });
     load();

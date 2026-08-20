@@ -70,8 +70,24 @@ function esAdmin(me) { return me?.role === 'admin'; }
 function esAdminOEncargado(me) { return me?.role === 'admin' || me?.role === 'encargado'; }
 
 // better-sqlite3 no acepta booleanos JS: convertir a 1/0
-function coerce(value) {
-  if (value === true) return 1;
+// Folio consecutivo por prefijo y año. ENT es una sola serie compartida
+// entre materiales de bodega y electrónicos (una "nota de recepción").
+function siguienteFolio(prefijo) {
+  const anio = new Date().getFullYear();
+  const patron = `${prefijo}-${anio}-%`;
+  let n = 0;
+  if (prefijo === 'ENT') {
+    n = db.prepare(`SELECT COUNT(*) AS n FROM materiales_recibidos WHERE folio LIKE ?`).get(patron).n
+      + db.prepare(`SELECT COUNT(*) AS n FROM electronicos_reciclados WHERE folio LIKE ?`).get(patron).n;
+  } else if (prefijo === 'SAL') {
+    n = db.prepare(`SELECT COUNT(*) AS n FROM salidas_materiales WHERE folio LIKE ?`).get(patron).n;
+  } else {
+    n = db.prepare(`SELECT COUNT(*) AS n FROM reportes_huella WHERE folio LIKE ?`).get(patron).n;
+  }
+  return `${prefijo}-${anio}-${String(n + 1).padStart(4, '0')}`;
+}
+
+function coerce(value) {  if (value === true) return 1;
   if (value === false) return 0;
   if (value === undefined) return null;
   return value;
@@ -292,9 +308,16 @@ router.post('/:entity', authMiddleware, (req, res) => {
 
     // Folio automático y consecutivo para reportes de huella de carbono: HC-<año>-####
     if (req.params.entity === 'Reportes_Huella' && !data.folio) {
-      const anio = new Date().getFullYear();
-      const { n } = db.prepare(`SELECT COUNT(*) AS n FROM reportes_huella WHERE folio LIKE ?`).get(`HC-${anio}-%`);
-      data.folio = `HC-${anio}-${String(n + 1).padStart(4, '0')}`;
+      data.folio = siguienteFolio('HC');
+    }
+    // Folio de nota de recepción para entradas de inventario: ENT-<año>-####
+    // (una sola serie compartida entre bodega y electrónicos)
+    if ((req.params.entity === 'Materiales_Recibidos' || req.params.entity === 'Electronicos_Reciclados') && !data.folio) {
+      data.folio = siguienteFolio('ENT');
+    }
+    // Folio de vale de salida: SAL-<año>-####
+    if (req.params.entity === 'Salidas_Materiales' && !data.folio) {
+      data.folio = siguienteFolio('SAL');
     }
 
     // Solo columnas que existen en la tabla
@@ -473,10 +496,17 @@ router.post('/:entity/bulk', authMiddleware, (req, res) => {
 
   const cols = validColumns(table);
 
+  // Recepciones por lote: TODAS las filas comparten un solo folio ENT,
+  // porque juntas forman una sola "nota de recepción"
+  const esRecepcion = req.params.entity === 'Materiales_Recibidos' || req.params.entity === 'Electronicos_Reciclados';
+  const folioLote = esRecepcion ? siguienteFolio('ENT') : null;
+
   try {
     const created = [];
     for (const raw of items) {
       const data = { ...raw };
+      if (folioLote && !data.folio) data.folio = folioLote;
+      if (req.params.entity === 'Salidas_Materiales' && !data.folio) data.folio = siguienteFolio('SAL');
       const id = data.id || uuidv4();
       const fields = Object.keys(data).filter(f => cols.has(f) && f !== 'id');
       const values = fields.map(f => coerce(data[f]));

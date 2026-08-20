@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { formatearFecha } from "@/lib/ucpUtils";
 
 const TIPOS = ["capacitacion", "junta", "actividad_especial", "dia_festivo", "taller", "visita", "otro"];
@@ -56,7 +57,7 @@ export default function AdminEventos() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("¿Eliminar evento?")) return;
+    if (!(await confirmarGlobal({ titulo: "¿Eliminar evento?", descripcion: "Se quitará del calendario de todos.", destructivo: true }))) return;
     await base44.entities.Eventos.delete(id);
     toast({ title: "Evento eliminado" });
     load();

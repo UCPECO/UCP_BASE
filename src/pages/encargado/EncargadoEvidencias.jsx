@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
 import { useAuth } from "@/lib/AuthContext";
 import { useEncargadoData } from "@/lib/useEncargadoData";
 import { Image, Check, X, File, Link as LinkIcon, RotateCcw, Gift } from "lucide-react";
@@ -38,6 +39,7 @@ export default function EncargadoEvidencias() {
   };
 
   useEffect(() => { load(); }, [misActividades]);
+  useRecargarAlVolver(load);
 
   const aprobar = async (ev) => {
     await base44.entities.Evidencias.update(ev.id, { estado_evidencia: "aprobada", aprobado_por: user.id });

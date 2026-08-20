@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
 import { useAuth } from "@/lib/AuthContext";
 import { CheckCheck, ChevronDown, ChevronRight, Pencil, Plus, Minus, Clock, Loader2, Check } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
@@ -53,6 +54,7 @@ export default function AdminValidacion() {
   };
 
   useEffect(() => { cargar(); }, []);
+  useRecargarAlVolver(cargar);
 
   const nombreDe = (id) => {
     const u = usuarios.find((x) => x.id === id);

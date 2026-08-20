@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
-import { BarChart3, PieChart as PieIcon, GraduationCap, Users, AlertTriangle, Trophy } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, LineChart, Line } from "recharts";
+import { BarChart3, PieChart as PieIcon, GraduationCap, Users, AlertTriangle, Trophy, Leaf, TrendingUp } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import KpiCard from "@/components/ucp/KpiCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { calcularHoras, aMinutos, nombreUsuario } from "@/lib/ucpUtils";
 import { esParticipante } from "@/lib/roles";
+import { calcularHuella } from "@/lib/huellaCarbono";
 
 const COLOR_PRIMARY = "#1f6f5c";
 const COLOR_ACCENT = "#e08a3e";
@@ -19,13 +20,17 @@ export default function AdminEstadisticas() {
   useEffect(() => {
     (async () => {
       try {
-        const [users, regs, bonos, incs, evs, configs] = await Promise.all([
+        const [users, regs, bonos, incs, evs, configs, asignaciones, acts, mats, elecs] = await Promise.all([
           base44.entities.User.list("full_name", 500),
           base44.entities.Registros_QR.list("-fecha", 500),
           base44.entities.Bonos.list("-created_date", 500),
           base44.entities.Incidencias.list("-created_date", 500),
           base44.entities.Evidencias.list("-created_date", 500),
           base44.entities.Configuracion_Sistema.list(null, 1).catch(() => []),
+          base44.entities.Asignaciones.list("-created_date", 500),
+          base44.entities.Actividades.list(null, 200),
+          base44.entities.Materiales_Recibidos.list("-fecha_recepcion", 500),
+          base44.entities.Electronicos_Reciclados.list("-fecha_recepcion", 500),
         ]);
         const config = configs?.[0] || {};
         const limitePuntual = aMinutos(config.hora_apertura || "08:00") + (config.tolerancia_minutos ?? 15);
@@ -116,6 +121,52 @@ export default function AdminEstadisticas() {
           .sort((a, b) => b.horasMes - a.horasMes)
           .slice(0, 5);
 
+        // Top donantes: kg y CO2e evitado por empresa/persona (huella de carbono)
+        const huella = calcularHuella(mats, elecs);
+        const topDonantes = huella.empresas
+          .filter(e => e.empresa !== "Sin nombre")
+          .slice(0, 8)
+          .map(e => ({ empresa: e.empresa.length > 22 ? e.empresa.slice(0, 21) + "…" : e.empresa, kg: e.kg, co2e: e.co2e }));
+
+        // Progreso de cohorte: participantes activos según % de su meta de horas
+        const metaPorUsuario = {};
+        asignaciones.forEach(a => {
+          if (!a.usuario) return;
+          const act = acts.find(x => x.id === a.actividad);
+          metaPorUsuario[a.usuario] = act?.meta_horas || 480;
+        });
+        const cohorteBuckets = [
+          { rango: "< 25%", min: 0, max: 25, alumnos: 0 },
+          { rango: "25–50%", min: 25, max: 50, alumnos: 0 },
+          { rango: "50–75%", min: 50, max: 75, alumnos: 0 },
+          { rango: "> 75%", min: 75, max: Infinity, alumnos: 0 },
+        ];
+        activos.forEach(u => {
+          const meta = metaPorUsuario[u.id] || 480;
+          const pct = ((horasPorUsuario[u.id] || 0) / meta) * 100;
+          const bucket = cohorteBuckets.find(b => pct >= b.min && pct < b.max) || cohorteBuckets[0];
+          bucket.alumnos += 1;
+        });
+
+        // Tendencia semanal: horas fichadas por semana (últimas 12)
+        const porSemana = {};
+        regs.forEach(r => {
+          if (!r.fecha || (r.estado_registro !== "cerrado" && r.estado_registro !== "incompleto")) return;
+          const d = new Date(r.fecha + "T00:00:00");
+          if (isNaN(d)) return;
+          const lunes = new Date(d);
+          lunes.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // lunes de esa semana
+          const clave = lunes.toISOString().slice(0, 10);
+          porSemana[clave] = (porSemana[clave] || 0) + (calcularHoras(r.hora_entrada, r.hora_salida) || 0);
+        });
+        const tendenciaSemanal = Object.entries(porSemana)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .slice(-12)
+          .map(([semana, horas]) => ({
+            semana: new Date(semana + "T00:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" }),
+            horas: Math.round(horas * 10) / 10,
+          }));
+
         setData({
           totalAlumnos: alumnos.length,
           activos: activos.length,
@@ -126,6 +177,10 @@ export default function AdminEstadisticas() {
           distribucion,
           kpisPersona,
           cuadroHonor,
+          topDonantes,
+          cohorte: cohorteBuckets,
+          tendenciaSemanal,
+          totalCo2e: huella.total_co2e,
         });
       } catch (e) {
         console.error(e);
@@ -181,6 +236,53 @@ export default function AdminEstadisticas() {
           </ResponsiveContainer>
         </SectionCard>
       </div>
+
+      {/* Gráficas operativas: donantes, cohorte y tendencia */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SectionCard title="Top donantes" subtitle={`Mayor CO2e evitado · total ${data.totalCo2e} kg`} icon={Leaf}>
+          {data.topDonantes.length === 0 ? (
+            <EmptyState title="Sin recepciones" message="Aún no hay materiales recibidos con empresa registrada." icon={Leaf} />
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.topDonantes} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.2} horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="empresa" width={130} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v, name) => name === "co2e" ? `${v} kg CO2e` : `${v} kg`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
+                <Bar dataKey="co2e" name="co2e" fill={COLOR_PRIMARY} radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Progreso de la cohorte" subtitle="Participantes activos según % de su meta de horas" icon={Users}>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={data.cohorte} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="rango" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip formatter={(v) => `${v} participantes`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
+              <Bar dataKey="alumnos" name="Participantes" fill={COLOR_ACCENT} radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Tendencia semanal de horas" subtitle="Horas fichadas por semana (últimas 12 semanas, desde el lunes)" icon={TrendingUp}>
+        {data.tendenciaSemanal.length === 0 ? (
+          <EmptyState title="Sin fichajes" message="Aún no hay registros cerrados para graficar." icon={TrendingUp} />
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={data.tendenciaSemanal} margin={{ top: 10, right: 15, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v) => `${v} h`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
+              <Line type="monotone" dataKey="horas" name="Horas" stroke={COLOR_PRIMARY} strokeWidth={2.5} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </SectionCard>
 
       {/* Cuadro de honor del mes */}
       <SectionCard title="Cuadro de honor" subtitle="Top 5 por horas validadas en el mes en curso" icon={Trophy}>

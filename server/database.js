@@ -37,11 +37,27 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 console.log(`📁 Base de datos: ${dbPath}`);
 
-// Respaldo simple: copia consistente junto a la BD (data-respaldo.sqlite)
+// Respaldo con rotación diaria: copia consistente junto a la BD
+// (data-respaldo.sqlite, siempre el más reciente) + carpeta respaldos/
+// con una copia por día; se conservan los últimos 7 días.
 export function respaldarBD() {
   try {
     db.pragma('wal_checkpoint(TRUNCATE)');
-    fs.copyFileSync(dbPath, join(dirname(dbPath), 'data-respaldo.sqlite'));
+    const dir = dirname(dbPath);
+    fs.copyFileSync(dbPath, join(dir, 'data-respaldo.sqlite'));
+
+    const dirRespaldos = join(dir, 'respaldos');
+    fs.mkdirSync(dirRespaldos, { recursive: true });
+    const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    fs.copyFileSync(dbPath, join(dirRespaldos, `data-${hoy}.sqlite`));
+
+    // Conservar solo los 7 respaldos diarios más recientes
+    const archivos = fs.readdirSync(dirRespaldos)
+      .filter((f) => /^data-\d{4}-\d{2}-\d{2}\.sqlite$/.test(f))
+      .sort();
+    archivos.slice(0, Math.max(0, archivos.length - 7))
+      .forEach((f) => { try { fs.unlinkSync(join(dirRespaldos, f)); } catch { /* ignorar */ } });
+
     console.log('💾 Respaldo de la base de datos actualizado');
   } catch (e) {
     console.error('Error al respaldar la BD:', e.message);

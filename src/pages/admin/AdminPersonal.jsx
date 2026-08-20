@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { generarReportePersonalPdfMensual } from "@/lib/reportePersonal";
 import { useAuth } from "@/lib/AuthContext";
 import { AREAS, labelArea, ETIQUETAS_BODEGA, labelEtiqueta } from "@/lib/areas";
@@ -228,7 +229,7 @@ export default function AdminPersonal() {
 
   const deleteUser = async (u) => {
     if (u.id === me?.id) { toast({ title: "No puedes eliminarte a ti mismo", variant: "destructive" }); return; }
-    if (!confirm(`¿Eliminar a ${u.nombre_completo || u.full_name || u.email}? Esta acción no se puede deshacer.`)) return;
+    if (!(await confirmarGlobal({ titulo: `¿Eliminar a ${u.nombre_completo || u.full_name || u.email}?`, descripcion: "Esta acción no se puede deshacer.", destructivo: true }))) return;
     try {
       await base44.entities.User.delete(u.id);
       toast({ title: "Usuario eliminado", description: u.email });

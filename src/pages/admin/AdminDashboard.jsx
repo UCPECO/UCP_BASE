@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
 import { Users, GraduationCap, Heart, CheckCircle2, Clock, Image, AlertTriangle, CalendarX, UserX } from "lucide-react";
 import KpiCard from "@/components/ucp/KpiCard";
 import SectionCard from "@/components/ucp/SectionCard";
@@ -18,46 +19,47 @@ export default function AdminDashboard() {
   const [recientes, setRecientes] = useState([]);
   const [inactivos, setInactivos] = useState([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [users, asigs, regs, evs, incs, horarios] = await Promise.all([
-          base44.entities.User.list("full_name", 500),
-          base44.entities.Asignaciones.list("-created_date", 500),
-          base44.entities.Registros_QR.list("-fecha", 500),
-          base44.entities.Evidencias.list("-created_date", 500),
-          base44.entities.Incidencias.list("-created_date", 500),
-          base44.entities.Horarios_Clase.list("dia_semana", 500),
-        ]);
-        const alumnos = users.filter(u => esParticipante(u.role));
-        const activos = alumnos.filter(u => u.activo !== false && !u.archivado);
-        const hoy = new Date().toISOString().split("T")[0];
-        const userIdsConHorario = new Set(horarios.map(h => h.usuario));
-        setStats({
-          total: activos.length,
-          servicio: activos.filter(u => u.tipo_participante === "servicio_social").length,
-          voluntarios: activos.filter(u => u.tipo_participante === "voluntario").length,
-          completados: asigs.filter(a => a.estado === "completado").length,
-          registrosHoy: regs.filter(r => r.estado_registro === "abierto" && r.fecha === hoy).length,
-          evidenciasPend: evs.filter(e => e.estado_evidencia === "pendiente").length,
-          incidenciasPend: incs.filter(i => ["reportada", "en_revision", "en_proceso"].includes(i.estado_incidencia)).length,
-          sinHorario: activos.filter(u => !userIdsConHorario.has(u.id)).length,
-        });
-        setRecientes(regs.slice(0, 5));
+  const cargar = async () => {
+    try {
+      const [users, asigs, regs, evs, incs, horarios] = await Promise.all([
+        base44.entities.User.list("full_name", 500),
+        base44.entities.Asignaciones.list("-created_date", 500),
+        base44.entities.Registros_QR.list("-fecha", 500),
+        base44.entities.Evidencias.list("-created_date", 500),
+        base44.entities.Incidencias.list("-created_date", 500),
+        base44.entities.Horarios_Clase.list("dia_semana", 500),
+      ]);
+      const alumnos = users.filter(u => esParticipante(u.role));
+      const activos = alumnos.filter(u => u.activo !== false && !u.archivado);
+      const hoy = new Date().toISOString().split("T")[0];
+      const userIdsConHorario = new Set(horarios.map(h => h.usuario));
+      setStats({
+        total: activos.length,
+        servicio: activos.filter(u => u.tipo_participante === "servicio_social").length,
+        voluntarios: activos.filter(u => u.tipo_participante === "voluntario").length,
+        completados: asigs.filter(a => a.estado === "completado").length,
+        registrosHoy: regs.filter(r => r.estado_registro === "abierto" && r.fecha === hoy).length,
+        evidenciasPend: evs.filter(e => e.estado_evidencia === "pendiente").length,
+        incidenciasPend: incs.filter(i => ["reportada", "en_revision", "en_proceso"].includes(i.estado_incidencia)).length,
+        sinHorario: activos.filter(u => !userIdsConHorario.has(u.id)).length,
+      });
+      setRecientes(regs.slice(0, 5));
 
-        // Alertas de inactividad: participantes activos sin fichar en más de 7 días (o nunca)
-        const ultimoFichaje = {};
-        regs.forEach(r => { if (!ultimoFichaje[r.usuario]) ultimoFichaje[r.usuario] = r.fecha; });
-        const hace7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-        setInactivos(activos
-          .map(u => ({ user: u, ultima: ultimoFichaje[u.id] || null }))
-          .filter(x => !x.ultima || x.ultima < hace7)
-          .sort((a, b) => (a.ultima || "0000") < (b.ultima || "0000") ? -1 : 1)
-          .slice(0, 10));
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+      // Alertas de inactividad: participantes activos sin fichar en más de 7 días (o nunca)
+      const ultimoFichaje = {};
+      regs.forEach(r => { if (!ultimoFichaje[r.usuario]) ultimoFichaje[r.usuario] = r.fecha; });
+      const hace7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      setInactivos(activos
+        .map(u => ({ user: u, ultima: ultimoFichaje[u.id] || null }))
+        .filter(x => !x.ultima || x.ultima < hace7)
+        .sort((a, b) => (a.ultima || "0000") < (b.ultima || "0000") ? -1 : 1)
+        .slice(0, 10));
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { cargar(); }, []);
+  useRecargarAlVolver(cargar);
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
 

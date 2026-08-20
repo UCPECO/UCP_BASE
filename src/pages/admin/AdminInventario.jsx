@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, Settings, Cpu, Warehouse, Leaf, Tags, Trash2 } from "lucide-react";
+import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
+import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Settings, Cpu, Warehouse, Leaf, Tags, Trash2, ChevronRight, History, BadgeDollarSign } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import KpiCard from "@/components/ucp/KpiCard";
 import AdminMateriales from "@/pages/admin/AdminMateriales";
 import AdminElectronicos from "@/pages/admin/AdminElectronicos";
 import AdminHuellaCarbono from "@/pages/admin/AdminHuellaCarbono";
+import AdminVentas from "@/pages/admin/AdminVentas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { CATEGORIAS_FLAT_BODEGA, CAT_LABEL_BODEGA, MEDIDA_LABEL } from "@/lib/catalogoBodega";
 import { esAreaBodega } from "@/lib/areas";
@@ -25,6 +28,7 @@ const TABS = [
   { id: "stock", label: "Stock y salidas", corto: "Stock", icon: Package },
   { id: "bodega", label: "Entradas de bodega", corto: "Bodega", icon: Warehouse },
   { id: "electronicos", label: "Electrónicos reciclados", corto: "Electrón.", icon: Cpu },
+  { id: "ventas", label: "Ventas", corto: "Ventas", icon: BadgeDollarSign, noEncargadoBodega: true },
   { id: "huella", label: "Huella de carbono", corto: "Huella", icon: Leaf },
   { id: "categorias", label: "Categorías", corto: "Categs.", icon: Tags, soloAdmin: true },
 ];
@@ -46,6 +50,8 @@ export default function AdminInventario() {
   const [formSalida, setFormSalida] = useState({ categoria: "", cantidad: 1, area: "", motivo: "", retirado_por: "" });
   const [formMin, setFormMin] = useState({ categoria: "", cantidad_minima: 0 });
   const [guardando, setGuardando] = useState(false);
+  // Kardex: historial de movimientos por categoría (tocando la fila de stock)
+  const [kardexCat, setKardexCat] = useState(null);
 
   const esAdmin = perfil?.role === "admin";
   // Personal de bodega (Bodega/CU1/CU2): solo entradas; salidas y ventas son del admin
@@ -89,7 +95,7 @@ export default function AdminInventario() {
     finally { setGuardandoCat(false); }
   };
   const desactivarCategoria = async (c) => {
-    if (!confirm(`¿Quitar la categoría "${c.nombre}" de los formularios? Los registros que ya la usan no se borran.`)) return;
+    if (!(await confirmarGlobal({ titulo: `¿Quitar la categoría "${c.nombre}"?`, descripcion: "Dejará de aparecer en los formularios. Los registros que ya la usan no se borran.", destructivo: true }))) return;
     try {
       await base44.entities.Categorias_Material.update(c.id, { activa: 0 });
       toast({ title: "Categoría desactivada", description: c.nombre });
@@ -122,6 +128,7 @@ export default function AdminInventario() {
   };
 
   useEffect(() => { cargar(); }, []);
+  useRecargarAlVolver(cargar);
 
   // Stock actual por categoría = entradas (bodega + electrónicos) - salidas
   const stockPorCat = useMemo(() => {
@@ -140,6 +147,35 @@ export default function AdminInventario() {
     });
     return mapa;
   }, [materiales, electronicos, salidas]);
+
+  // Kardex por categoría: entradas (bodega + electrónicos) y salidas ordenadas
+  // por fecha con saldo acumulado, mostradas de lo más reciente a lo más viejo.
+  const kardexMovs = useMemo(() => {
+    if (!kardexCat) return [];
+    const movs = [];
+    materiales.filter((m) => m.categoria === kardexCat).forEach((m) => movs.push({
+      id: "m" + m.id, tipo: "entrada", fecha: m.fecha_recepcion, folio: m.folio,
+      cantidad: Number(m.cantidad) || 0,
+      detalle: [m.proveedor, m.material || m.subcategoria].filter(Boolean).join(" · ") || "Entrada de bodega",
+      quien: m.registrado_por_nombre,
+    }));
+    electronicos.filter((m) => m.categoria === kardexCat).forEach((m) => movs.push({
+      id: "e" + m.id, tipo: "entrada", fecha: m.fecha_recepcion, folio: m.folio,
+      cantidad: Number(m.cantidad) || 0,
+      detalle: [m.proveedor, m.material || m.subcategoria].filter(Boolean).join(" · ") || "Electrónico reciclado",
+      quien: m.registrado_por_nombre,
+    }));
+    salidas.filter((s) => s.categoria === kardexCat).forEach((s) => movs.push({
+      id: "s" + s.id, tipo: "salida", fecha: s.fecha, folio: s.folio,
+      cantidad: Number(s.cantidad) || 0,
+      detalle: [s.area, s.motivo, s.retirado_por].filter(Boolean).join(" · ") || "Salida de material",
+      quien: s.registrado_por_nombre,
+    }));
+    movs.sort((a, b) => String(a.fecha || "").localeCompare(String(b.fecha || "")));
+    let saldo = 0;
+    movs.forEach((m) => { saldo += m.tipo === "entrada" ? m.cantidad : -m.cantidad; m.saldo = saldo; });
+    return movs.reverse();
+  }, [kardexCat, materiales, electronicos, salidas]);
 
   const minDe = (cat) => stocksMin.find((s) => s.categoria === cat)?.cantidad_minima || 0;
   const stockActual = (cat) => (stockPorCat[cat] ? stockPorCat[cat].entradas - stockPorCat[cat].salidas : 0);
@@ -216,7 +252,7 @@ export default function AdminInventario() {
 
       {/* Tabs internos: en móvil sangran a todo el ancho y usan etiqueta corta */}
       <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-thin -mx-3 px-3 sm:mx-0 sm:px-0">
-        {TABS.filter((t) => !t.soloAdmin || esAdmin).map((t) => (
+        {TABS.filter((t) => (!t.soloAdmin || esAdmin) && !(t.noEncargadoBodega && esEncargadoBodega)).map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -280,7 +316,7 @@ export default function AdminInventario() {
                   const min = minDe(cat);
                   const bajo = min > 0 && actual < min;
                   return (
-                    <div key={cat} className="flex items-center gap-2 py-3">
+                    <div key={cat} onClick={() => setKardexCat(cat)} className="flex items-center gap-2 py-3 cursor-pointer hover:bg-secondary/50 -mx-2 px-2 rounded-lg transition-colors" title="Ver kardex (historial de movimientos)">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{labelDe(cat)}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -293,7 +329,7 @@ export default function AdminInventario() {
                         {esAdmin && (
                           <button
                             title="Configurar stock mínimo de esta categoría"
-                            onClick={() => { setFormMin({ categoria: cat, cantidad_minima: min }); setDialogMin(true); }}
+                            onClick={(e) => { e.stopPropagation(); setFormMin({ categoria: cat, cantidad_minima: min }); setDialogMin(true); }}
                             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                           >
                             <Settings className="h-4 w-4" />
@@ -302,12 +338,13 @@ export default function AdminInventario() {
                         {!esEncargadoBodega && (
                           <button
                             title="Registrar salida de esta categoría"
-                            onClick={() => { setFormSalida({ categoria: cat, cantidad: 1, area: "", motivo: "", retirado_por: "" }); setDialogSalida(true); }}
+                            onClick={(e) => { e.stopPropagation(); setFormSalida({ categoria: cat, cantidad: 1, area: "", motivo: "", retirado_por: "" }); setDialogSalida(true); }}
                             className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
                           >
                             <ArrowDownRight className="h-4 w-4" />
                           </button>
                         )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="text-right shrink-0">
                         <p className={"text-lg font-bold font-heading " + (bajo ? "text-rose-600" : "text-primary")}>{actual}</p>
@@ -330,7 +367,7 @@ export default function AdminInventario() {
                     <div className="h-8 w-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0"><ArrowDownRight className="h-4 w-4" /></div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm">{labelDe(s.categoria)} · {s.cantidad} {MEDIDA_LABEL[s.medida] || "u"}</p>
-                      <p className="text-xs text-muted-foreground">{formatearFecha(s.fecha)} · {s.registrado_por_nombre || "—"} {s.area ? "· " + s.area : ""} {s.motivo ? "· " + s.motivo : ""}</p>
+                      <p className="text-xs text-muted-foreground">{s.folio && <span className="font-mono">{s.folio} · </span>}{formatearFecha(s.fecha)} · {s.registrado_por_nombre || "—"} {s.area ? "· " + s.area : ""} {s.motivo ? "· " + s.motivo : ""}</p>
                     </div>
                   </div>
                 ))}
@@ -342,6 +379,7 @@ export default function AdminInventario() {
 
       {tab === "bodega" && <AdminMateriales embedded />}
       {tab === "electronicos" && <AdminElectronicos embedded />}
+      {tab === "ventas" && !esEncargadoBodega && <AdminVentas embedded />}
       {tab === "huella" && <AdminHuellaCarbono />}
 
       {tab === "categorias" && esAdmin && (
@@ -462,6 +500,46 @@ export default function AdminInventario() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Dialog kardex: historial de movimientos de la categoría con saldo */}
+      <Dialog open={!!kardexCat} onOpenChange={(v) => !v && setKardexCat(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Kardex · {kardexCat ? labelDe(kardexCat) : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto scrollbar-thin -mx-1 px-1 py-2">
+            {kardexMovs.length === 0 ? (
+              <EmptyState title="Sin movimientos" message="Esta categoría aún no tiene entradas ni salidas." icon={History} />
+            ) : (
+              <div className="space-y-2">
+                {kardexMovs.map((m) => (
+                  <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/40">
+                    <div className={"h-8 w-8 rounded-lg flex items-center justify-center shrink-0 " + (m.tipo === "entrada" ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
+                      {m.tipo === "entrada" ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {m.tipo === "entrada" ? "+" : "−"}{m.cantidad} · {m.detalle}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {m.folio && <span className="font-mono">{m.folio} · </span>}
+                        {formatearFecha(m.fecha)}{m.quien ? " · " + m.quien : ""}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold">{m.saldo}</p>
+                      <p className="text-[10px] text-muted-foreground -mt-0.5">saldo</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setKardexCat(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

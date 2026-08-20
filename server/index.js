@@ -47,7 +47,7 @@ app.get('/api/health', (req, res) => {
       reportes_huella: nombres.includes('reportes_huella'),
     };
   } catch (e) { /* diagnóstico no debe romper el health check */ }
-  res.json({ status: 'ok', mode: 'self-hosted', version: '2026-08-20-huella-empresas', tablas });
+  res.json({ status: 'ok', mode: 'self-hosted', version: '2026-08-20-bodega-pro', tablas });
 });
 
 // Static files (uploads)

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { CATEGORIAS_FLAT_BODEGA, CAT_LABEL_BODEGA, MEDIDA_LABEL } from "@/lib/catalogoBodega";
@@ -28,7 +29,7 @@ const nuevaVenta = () => ({
   notas: "",
 });
 
-export default function AdminVentas() {
+export default function AdminVentas({ embedded = false }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [ventas, setVentas] = useState([]);
@@ -138,7 +139,7 @@ export default function AdminVentas() {
   };
 
   const eliminar = async (v) => {
-    if (!confirm(`¿Eliminar la venta de ${labelDe(v.categoria)} (${fmtDinero(v.total)})? El stock regresará al inventario.`)) return;
+    if (!(await confirmarGlobal({ titulo: `¿Eliminar la venta de ${labelDe(v.categoria)} (${fmtDinero(v.total)})?`, descripcion: "El stock regresará al inventario.", destructivo: true }))) return;
     try {
       await base44.entities.Ventas.delete(v.id);
       toast({ title: "Venta eliminada", description: "El stock fue devuelto al inventario." });
@@ -164,13 +165,15 @@ export default function AdminVentas() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-heading flex items-center gap-2">
-            <BadgeDollarSign className="h-7 w-7 text-primary" /> Ventas
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Venta de materiales y electrónicos reciclados. Cada venta descuenta el inventario automáticamente.</p>
-        </div>
-        <Button onClick={() => setDialog(true)}><Plus className="h-4 w-4 mr-2" /> Nueva venta</Button>
+        {!embedded && (
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold font-heading flex items-center gap-2">
+              <BadgeDollarSign className="h-7 w-7 text-primary" /> Ventas
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">Venta de materiales y electrónicos reciclados. Cada venta descuenta el inventario automáticamente.</p>
+          </div>
+        )}
+        <Button onClick={() => setDialog(true)} className={embedded ? "ml-auto" : ""}><Plus className="h-4 w-4 mr-2" /> Nueva venta</Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

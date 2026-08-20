@@ -406,6 +406,7 @@ addColumnIfMissing('materiales_recibidos', 'material', 'material TEXT');
 addColumnIfMissing('materiales_recibidos', 'medida', 'medida TEXT');
 addColumnIfMissing('materiales_recibidos', 'descripcion', 'descripcion TEXT');
 addColumnIfMissing('materiales_recibidos', 'creado_por', 'creado_por TEXT');
+addColumnIfMissing('materiales_recibidos', 'folio', 'folio TEXT');
 
 // Electrónicos reciclados
 addColumnIfMissing('electronicos_reciclados', 'proveedor', 'proveedor TEXT');
@@ -417,6 +418,7 @@ addColumnIfMissing('electronicos_reciclados', 'material', 'material TEXT');
 addColumnIfMissing('electronicos_reciclados', 'medida', 'medida TEXT');
 addColumnIfMissing('electronicos_reciclados', 'reparado_por', 'reparado_por TEXT');
 addColumnIfMissing('electronicos_reciclados', 'reparado_por_nombre', 'reparado_por_nombre TEXT');
+addColumnIfMissing('electronicos_reciclados', 'folio', 'folio TEXT');
 
 // Salidas de materiales
 addColumnIfMissing('salidas_materiales', 'categoria', 'categoria TEXT');
@@ -426,6 +428,7 @@ addColumnIfMissing('salidas_materiales', 'motivo', 'motivo TEXT');
 addColumnIfMissing('salidas_materiales', 'retirado_por', 'retirado_por TEXT');
 addColumnIfMissing('salidas_materiales', 'registrado_por', 'registrado_por TEXT');
 addColumnIfMissing('salidas_materiales', 'registrado_por_nombre', 'registrado_por_nombre TEXT');
+addColumnIfMissing('salidas_materiales', 'folio', 'folio TEXT');
 
 // Stock mínimo
 addColumnIfMissing('stock_minimo', 'categoria', 'categoria TEXT');

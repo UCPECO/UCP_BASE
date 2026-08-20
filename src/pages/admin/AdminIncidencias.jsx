@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { formatearFecha } from "@/lib/ucpUtils";
 
 const ACCIONES = ["amonestacion", "suspension", "baja", "capacitacion", "ninguna", "otro"];
@@ -62,7 +63,7 @@ export default function AdminIncidencias() {
   };
 
   const rechazar = async (inc) => {
-    if (!confirm("¿Rechazar esta incidencia?")) return;
+    if (!(await confirmarGlobal({ titulo: "¿Rechazar esta incidencia?", destructivo: true }))) return;
     await base44.entities.Incidencias.update(inc.id, { estado_incidencia: "rechazada", asignado_a: user.id });
     toast({ title: "Incidencia rechazada" });
     load();

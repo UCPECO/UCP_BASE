@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
 import { useAuth } from "@/lib/AuthContext";
-import { Cpu, Plus, Trash2, Search, FileText } from "lucide-react";
+import { Cpu, Plus, Trash2, Search, FileText, Receipt } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import KpiCard from "@/components/ucp/KpiCard";
 import EmptyState from "@/components/ucp/EmptyState";
@@ -10,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { formatearFecha } from "@/lib/ucpUtils";
 import { generarReporteBodega } from "@/lib/reporteBodega";
 import GraficosBodega from "@/components/ucp/GraficosBodega";
@@ -66,6 +71,7 @@ export default function AdminElectronicos({ embedded = false }) {
   };
 
   useEffect(() => { cargar(); }, []);
+  useRecargarAlVolver(cargar);
 
   useEffect(() => {
     const cargarEstudiantes = async () => {
@@ -123,6 +129,16 @@ export default function AdminElectronicos({ embedded = false }) {
     return true;
   };
 
+  // Empresas/personas ya registradas: autocompletado en el campo proveedor
+  const empresasConocidas = useMemo(() => {
+    const set = new Set();
+    registros.forEach((m) => { if (m.proveedor) set.add(m.proveedor); });
+    return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  }, [registros]);
+
+  // Ticket-resumen antes de guardar el lote
+  const [ticket, setTicket] = useState(null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validas = lineas.filter(filaValida);
@@ -130,6 +146,28 @@ export default function AdminElectronicos({ embedded = false }) {
       toast({ title: "Cada fila necesita proveedor, fecha y la categoría completa", variant: "destructive" });
       return;
     }
+    // Aviso de posibles duplicados: mismo proveedor + categoría + material + fecha
+    const dups = validas.filter((l) =>
+      registros.some((m) =>
+        (m.proveedor || "").trim().toLowerCase() === l.proveedor.trim().toLowerCase() &&
+        m.categoria === l.categoria &&
+        (m.material || "") === (l.material || "") &&
+        (m.fecha_recepcion || "") === l.fecha_recepcion
+      )
+    );
+    if (dups.length > 0) {
+      const seguir = await confirmarGlobal({
+        titulo: `Posible duplicado (${dups.length})`,
+        descripcion: `Ya existe un registro idéntico de:\n${dups.slice(0, 3).map((d) => `· ${d.proveedor} — ${labelCategoria(d.categoria)}${d.material ? " · " + d.material : ""}`).join("\n")}\n¿Registrar de todas formas?`,
+        textoConfirmar: "Registrar igual",
+      });
+      if (!seguir) return;
+    }
+    setTicket(validas);
+  };
+
+  const confirmarTicket = async () => {
+    const validas = ticket || [];
     setSaving(true);
     try {
       const payload = validas.map((l) => ({
@@ -148,7 +186,8 @@ export default function AdminElectronicos({ embedded = false }) {
         reparado_por_nombre: l.reparado_por_nombre || null,
       }));
       await base44.entities.Electronicos_Reciclados.bulkCreate(payload);
-      toast({ title: `${payload.length} registro(s) guardado(s)` });
+      toast({ title: `${payload.length} registro(s) guardado(s)`, description: "El folio ENT se asignó automáticamente" });
+      setTicket(null);
       setLineas([nuevaLinea()]);
       cargar();
     } catch {
@@ -260,7 +299,7 @@ export default function AdminElectronicos({ embedded = false }) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Empresa o persona</Label>
-                  <Input className="h-9" value={l.proveedor} onChange={(e) => actualizarLinea(idx, "proveedor", e.target.value)} placeholder="Nombre" />
+                  <Input className="h-9" list="empresas-donantes-elec" value={l.proveedor} onChange={(e) => actualizarLinea(idx, "proveedor", e.target.value)} placeholder="Nombre" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
@@ -315,7 +354,7 @@ export default function AdminElectronicos({ embedded = false }) {
                 {lineas.map((l, idx) => (
                   <tr key={idx} className="border-b border-border/60">
                     <td className="py-1.5 pr-2 align-top">
-                      <Input className="h-9" value={l.proveedor} onChange={(e) => actualizarLinea(idx, "proveedor", e.target.value)} placeholder="Nombre" />
+                      <Input className="h-9" list="empresas-donantes-elec" value={l.proveedor} onChange={(e) => actualizarLinea(idx, "proveedor", e.target.value)} placeholder="Nombre" />
                     </td>
                     <td className="py-1.5 px-2 align-top">
                       <select className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" value={l.tipo_proveedor} onChange={(e) => actualizarLinea(idx, "tipo_proveedor", e.target.value)}>
@@ -354,9 +393,43 @@ export default function AdminElectronicos({ embedded = false }) {
             </table>
           </div>
           <Button type="button" variant="outline" onClick={agregarLinea} className="w-full border-dashed"><Plus className="h-4 w-4 mr-2" /> Agregar otra fila (misma empresa/persona)</Button>
-          <Button type="submit" disabled={saving}><Plus className="h-4 w-4 mr-2" /> {saving ? "Guardando…" : `Registrar ${lineas.filter(filaValida).length} registro(s)`}</Button>
+          <datalist id="empresas-donantes-elec">
+            {empresasConocidas.map((p) => <option key={p} value={p} />)}
+          </datalist>
+          <Button type="submit" disabled={saving}><Receipt className="h-4 w-4 mr-2" /> {saving ? "Guardando…" : `Revisar y registrar ${lineas.filter(filaValida).length} registro(s)`}</Button>
         </form>
       </SectionCard>
+
+      {/* Ticket-resumen: revisar el lote completo antes de guardar */}
+      <Dialog open={!!ticket} onOpenChange={(v) => !v && setTicket(null)}>
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Receipt className="h-5 w-5 text-primary" /> Ticket de recepción</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto scrollbar-thin py-1">
+            <p className="text-xs text-muted-foreground mb-3">Revisa el lote. Al confirmar se asigna un solo folio ENT a todo el ticket.</p>
+            <div className="space-y-2">
+              {(ticket || []).map((l, i) => (
+                <div key={i} className="p-3 rounded-lg border border-border bg-secondary/40">
+                  <p className="font-medium text-sm">{labelCategoria(l.categoria)}{l.subcategoria ? ` · ${l.subcategoria}` : ""}{l.material ? ` · ${l.material}` : ""}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {l.proveedor} · {l.tipo_proveedor === "empresa" ? "Empresa" : "Persona"} · {formatearFecha(l.fecha_recepcion)} · <span className="font-semibold text-foreground">{l.cantidad} {l.tipo_registro === "procesado" ? "kg" : "u"}</span>
+                    {l.reparado_por_nombre ? ` · 🔧 ${l.reparado_por_nombre}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border flex justify-between text-sm">
+              <span className="text-muted-foreground">Total de registros</span>
+              <span className="font-bold">{(ticket || []).length}</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTicket(null)} disabled={saving}>Volver</Button>
+            <Button onClick={confirmarTicket} disabled={saving}>{saving ? "Guardando…" : "Confirmar registro"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Listado */}
       <SectionCard title="Registros" subtitle={`${filtrados.length} registros`}
@@ -397,7 +470,7 @@ export default function AdminElectronicos({ embedded = false }) {
                       <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${esProc ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}`}>{esProc ? "Procesado" : "Artículo"}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatearFecha(m.fecha_recepcion)} · {labelCategoria(m.categoria)}{m.subcategoria ? ` · ${m.subcategoria}` : ""}{m.material ? ` · ${m.material}` : ""} · {m.cantidad || 0} {MEDIDA_LABEL[med]}
+                      {m.folio && <span className="font-mono">{m.folio} · </span>}{formatearFecha(m.fecha_recepcion)} · {labelCategoria(m.categoria)}{m.subcategoria ? ` · ${m.subcategoria}` : ""}{m.material ? ` · ${m.material}` : ""} · {m.cantidad || 0} {MEDIDA_LABEL[med]}
                     </p>
                     {m.descripcion && <p className="text-xs text-muted-foreground italic mt-1">{m.descripcion}</p>}
                     {m.reparado_por_nombre && <p className="text-xs text-primary font-medium mt-1">🔧 Reparado por {m.reparado_por_nombre}</p>}
