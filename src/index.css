@@ -50,8 +50,28 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Evita que iOS/Android reescalado automático de texto rompa el layout */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground font-body antialiased;
+    /* Nada debe desbordar horizontalmente: si algo se sale, la página
+       entera se veía miniatura en el teléfono */
+    overflow-x: clip;
+  }
+  /* En pantallas chicas la fuente base crece ~6%: todo el sistema de
+     espaciado y texto (rem) escala parejo y se lee sin hacer zoom */
+  @media (max-width: 640px) {
+    html { font-size: 17px; }
+  }
+  /* Correos, URLs de evidencias y textos largos se cortan en vez de desbordar */
+  p, td, th, a, span, label, li, button, input, select {
+    overflow-wrap: break-word;
+  }
+  img, video, canvas {
+    max-width: 100%;
   }
   h1, h2, h3 { @apply font-heading; }
 }

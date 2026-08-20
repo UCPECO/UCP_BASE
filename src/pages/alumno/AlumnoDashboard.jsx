@@ -93,40 +93,32 @@ export default function AlumnoDashboard() {
         {registros.length === 0 ? (
           <EmptyState title="Sin fichajes aún" message="Escanea el QR de UCP para registrar tu primera entrada." icon={QrCode} />
         ) : (
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-muted-foreground uppercase tracking-wide border-b border-border">
-                  <th className="py-2 pr-4 font-medium">Fecha</th>
-                  <th className="py-2 pr-4 font-medium">Entrada</th>
-                  <th className="py-2 pr-4 font-medium">Salida</th>
-                  <th className="py-2 pr-4 font-medium">Horas</th>
-                  <th className="py-2 pr-4 font-medium">Estado</th>
-                  <th className="py-2 font-medium">Validación</th>
-                </tr>
-              </thead>
-              <tbody>
-                {registros.slice(0, 8).map((r) => {
-                  const hrs = r.hora_salida ? (calcularHorasLocal(r.hora_entrada, r.hora_salida)) : 0;
-                  return (
-                    <tr key={r.id} className="border-b border-border/50 last:border-0">
-                      <td className="py-3 pr-4">{formatearFecha(r.fecha)}</td>
-                      <td className="py-3 pr-4">{r.hora_entrada}</td>
-                      <td className="py-3 pr-4">{r.hora_salida || "—"}</td>
-                      <td className="py-3 pr-4 font-medium">{r.estado_registro === "cerrado" ? `${hrs}h` : "—"}</td>
-                      <td className="py-3 pr-4"><StatusBadge status={r.estado_registro} /></td>
-                      <td className="py-3">
-                        {r.estado_registro === "abierto" ? "—" : r.validado ? (
-                          <span className="text-xs font-medium text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">Validado</span>
-                        ) : (
-                          <span className="text-xs font-medium text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">Por validar</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          /* Lista de filas (no tabla): se adapta sola a cualquier pantalla */
+          <div className="divide-y divide-border/60">
+            {registros.slice(0, 8).map((r) => {
+              const hrs = r.hora_salida ? (calcularHorasLocal(r.hora_entrada, r.hora_salida)) : 0;
+              return (
+                <div key={r.id} className="flex items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm capitalize">{formatearFecha(r.fecha)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {r.hora_entrada} → {r.hora_salida || "—"}
+                      {r.estado_registro === "cerrado" && <span className="font-medium text-foreground"> · {hrs} h</span>}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <StatusBadge status={r.estado_registro} />
+                    {r.estado_registro !== "abierto" && (
+                      r.validado ? (
+                        <span className="text-[11px] font-medium text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">Validado</span>
+                      ) : (
+                        <span className="text-[11px] font-medium text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">Por validar</span>
+                      )
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </SectionCard>
