@@ -16,14 +16,7 @@ import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasPorValidar, sumarHorasBonos } from "@/lib/ucpUtils";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
 import { AREAS, labelArea, labelEtiqueta } from "@/lib/areas";
-import { esParticipante } from "@/lib/roles";
-
-const ROL_LABEL = {
-  admin: "Administrador",
-  encargado: "Encargado",
-  servicio_social: "Servicio Social",
-  voluntario: "Voluntario",
-};
+import { esParticipante, ROL_LABEL } from "@/lib/roles";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
