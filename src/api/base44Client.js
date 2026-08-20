@@ -227,7 +227,7 @@ function createEntityAPI(entityName) {
   };
 }
 
-const entities = {
+const entitiesEstaticas = {
   User: createEntityAPI('User'),
   Actividades: createEntityAPI('Actividades'),
   Asignaciones: createEntityAPI('Asignaciones'),
@@ -254,7 +254,24 @@ const entities = {
   Comentarios_Evidencia: createEntityAPI('Comentarios_Evidencia'),
   Notificaciones: createEntityAPI('Notificaciones'),
   Historial_Areas: createEntityAPI('Historial_Areas'),
+  Checklist_Bodega: createEntityAPI('Checklist_Bodega'),
+  Reportes_Huella: createEntityAPI('Reportes_Huella'),
+  Ajustes_Horas: createEntityAPI('Ajustes_Horas'),
+  Ventas: createEntityAPI('Ventas'),
 };
+
+// Proxy: cualquier entidad que el servidor conozca funciona sin tener que
+// registrarla aquí a mano (evita el error "Cannot read properties of
+// undefined (reading 'list')" cuando se agrega una entidad nueva).
+// Al acceder a una entidad desconocida se crea su API y queda en el objeto.
+const entities = new Proxy({ ...entitiesEstaticas }, {
+  get(target, prop) {
+    if (typeof prop === 'string' && !(prop in target)) {
+      target[prop] = createEntityAPI(prop);
+    }
+    return target[prop];
+  },
+});
 
 // ===== FUNCTIONS =====
 const functions = {
