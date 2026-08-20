@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
 import { calcularHuella, generarPdfHuella } from "@/lib/huellaCarbono";
+import { obtenerCategoriasCustom } from "@/lib/categoriasDinamicas";
 import { registrarBitacora } from "@/lib/bitacora";
 
 function inicioDeMes() {
@@ -27,6 +28,7 @@ export default function AdminHuellaCarbono() {
   const [electronicos, setElectronicos] = useState([]);
   const [reportes, setReportes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [customCats, setCustomCats] = useState([]);
   const [desde, setDesde] = useState(inicioDeMes());
   const [hasta, setHasta] = useState(hoyISO());
   const [generando, setGenerando] = useState(false);
@@ -60,14 +62,15 @@ export default function AdminHuellaCarbono() {
   };
 
   useEffect(() => { cargar(); }, []);
+  useEffect(() => { obtenerCategoriasCustom().then(setCustomCats); }, []);
 
   const enRango = (f) => f && f >= desde && f <= hasta;
 
   const calculo = useMemo(() => {
     const mat = materiales.filter((m) => enRango((m.fecha_recepcion || "").slice(0, 10)));
     const elec = electronicos.filter((m) => enRango((m.fecha_recepcion || "").slice(0, 10)));
-    return calcularHuella(mat, elec);
-  }, [materiales, electronicos, desde, hasta]);
+    return calcularHuella(mat, elec, customCats);
+  }, [materiales, electronicos, customCats, desde, hasta]);
 
   const recepciones = useMemo(() =>
     materiales.filter((m) => enRango((m.fecha_recepcion || "").slice(0, 10))).length +
@@ -160,7 +163,7 @@ export default function AdminHuellaCarbono() {
                     <p className="font-semibold text-primary text-sm whitespace-nowrap">{d.co2e.toLocaleString("es-MX")} kg</p>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {d.cantidad} {d.medida === "kg" ? "kg" : "u"} · peso est. {d.kg_estimados.toLocaleString("es-MX")} kg · factor {d.factor}
+                    {d.cantidad} {d.medida === "kg" ? "kg" : `u × ${d.peso_u ?? 1} kg`} · peso est. {d.kg_estimados.toLocaleString("es-MX")} kg · factor {d.factor}
                   </p>
                 </div>
               ))}
@@ -180,7 +183,7 @@ export default function AdminHuellaCarbono() {
                 <tbody>
                   {calculo.desglose.map((d) => (
                     <tr key={d.categoria} className="border-b border-border/50 last:border-0">
-                      <td className="py-2.5 pr-4 font-medium">{d.label} <span className="text-xs text-muted-foreground">({d.medida === "kg" ? "kg" : "unidades"})</span></td>
+                      <td className="py-2.5 pr-4 font-medium">{d.label} <span className="text-xs text-muted-foreground">({d.medida === "kg" ? "kg" : `unidades × ${d.peso_u ?? 1} kg`})</span></td>
                       <td className="py-2.5 px-3 text-right">{d.cantidad}</td>
                       <td className="py-2.5 px-3 text-right">{d.kg_estimados.toLocaleString("es-MX")} kg</td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">{d.factor}</td>

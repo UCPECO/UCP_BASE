@@ -63,7 +63,7 @@ export default function AdminInventario() {
   const medidaDeCat = (cat) => catsFlat.find((c) => c.value === cat)?.medida || "unidades";
 
   // Nueva categoría personalizada (tab Categorías, solo admin)
-  const [nuevaCat, setNuevaCat] = useState({ nombre: "", medida: "unidades" });
+  const [nuevaCat, setNuevaCat] = useState({ nombre: "", medida: "unidades", peso_estimado: "" });
   const [guardandoCat, setGuardandoCat] = useState(false);
   const crearCategoria = async () => {
     const nombre = nuevaCat.nombre.trim();
@@ -74,10 +74,16 @@ export default function AdminInventario() {
     }
     setGuardandoCat(true);
     try {
-      await base44.entities.Categorias_Material.create({ nombre, medida: nuevaCat.medida, activa: true, creado_por: perfil.id });
+      await base44.entities.Categorias_Material.create({
+        nombre,
+        medida: nuevaCat.medida,
+        peso_estimado: Number(nuevaCat.peso_estimado) || null,
+        activa: true,
+        creado_por: perfil.id,
+      });
       await registrarBitacora("Crear categoría de material", "Inventario", `${nombre} (${nuevaCat.medida})`);
       toast({ title: "Categoría creada", description: `${nombre} · ya aparece en los formularios de entrada` });
-      setNuevaCat({ nombre: "", medida: "unidades" });
+      setNuevaCat({ nombre: "", medida: "unidades", peso_estimado: "" });
       cargarCats();
     } catch (e) { toast({ title: "Error al crear", description: e.message, variant: "destructive" }); }
     finally { setGuardandoCat(false); }
@@ -318,8 +324,8 @@ export default function AdminInventario() {
       {tab === "categorias" && esAdmin && (
         <div className="space-y-6">
           <SectionCard title="Nueva categoría personalizada" subtitle="Aparece en los formularios de entradas, stock, ventas y huella de carbono" icon={Tags}>
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-              <div className="flex-1 space-y-1.5">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-end flex-wrap">
+              <div className="flex-1 space-y-1.5 min-w-[180px]">
                 <Label>Nombre de la categoría *</Label>
                 <Input value={nuevaCat.nombre} onChange={(e) => setNuevaCat({ ...nuevaCat, nombre: e.target.value })} placeholder="Ej. Ropa y textiles" />
               </div>
@@ -330,6 +336,13 @@ export default function AdminInventario() {
                   <option value="kg">Kilogramos</option>
                 </select>
               </div>
+              {nuevaCat.medida === "unidades" && (
+                <div className="space-y-1.5">
+                  <Label>Peso típico por unidad (kg)</Label>
+                  <Input type="number" min="0" step="0.1" className="w-full sm:w-40" value={nuevaCat.peso_estimado} onChange={(e) => setNuevaCat({ ...nuevaCat, peso_estimado: e.target.value })} placeholder="Ej. 2.5" />
+                  <p className="text-[11px] text-muted-foreground">Para la huella de carbono. Opcional.</p>
+                </div>
+              )}
               <Button onClick={crearCategoria} disabled={guardandoCat || !nuevaCat.nombre.trim()}>
                 {guardandoCat ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />} Crear categoría
               </Button>
@@ -345,7 +358,10 @@ export default function AdminInventario() {
                   <div key={c.value} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-border bg-secondary/40">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{c.label}</p>
-                      <p className="text-xs text-muted-foreground">{MEDIDA_LABEL[c.medida] || c.medida} · {esCustom ? "personalizada" : "catálogo base"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {MEDIDA_LABEL[c.medida] || c.medida} · {esCustom ? "personalizada" : "catálogo base"}
+                        {esCustom && Number(customObj?.peso_estimado) > 0 ? ` · ${customObj.peso_estimado} kg/u` : ""}
+                      </p>
                     </div>
                     {esCustom && (
                       <button onClick={() => desactivarCategoria(customObj)} className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 rounded-lg shrink-0" title="Quitar de los formularios">

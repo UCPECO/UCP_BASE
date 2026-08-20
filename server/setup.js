@@ -578,6 +578,10 @@ db.exec(`
   );
 `);
 
+// Categorías personalizadas por unidad: peso típico por unidad para la
+// huella de carbono (si no se define, se usa el promedio de la categoría)
+addColumnIfMissing('categorias_material', 'peso_estimado', 'peso_estimado REAL');
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {

@@ -18,9 +18,10 @@ export const FACTORES_KG = {
   placas_pcb: 5.0,
 };
 
-// Categorías por unidad: peso promedio estimado por unidad (kg)
+// Categorías por unidad: peso promedio estimado por unidad (kg).
+// Es el RESPALDO cuando no se reconoce el tipo de artículo.
 export const PESO_PROMEDIO_UNIDAD = {
-  "Computadoras y Periféricos": 8,
+  "Computadoras y Periféricos": 5,
   "Celulares": 0.2,
   "Tablets": 0.5,
   "Telecomunicaciones": 0.5,
@@ -34,35 +35,119 @@ export const PESO_PROMEDIO_UNIDAD = {
   "Residuos de Procesamiento": 1.5,
 };
 
+// Pesos típicos por TIPO de artículo (kg/unidad). Se buscan como palabras
+// clave dentro del material/subcategoría capturados al registrar la entrada.
+// Ordenados de lo más específico a lo más general.
+const PESOS_CLAVE = [
+  // Computación
+  [["laptop", "portatil", "portátil", "notebook"], 2.2],
+  [["monitor crt", "crt"], 13],
+  [["monitor", "pantalla led", "pantalla lcd"], 4],
+  [["todo en uno", "all in one"], 6],
+  [["gabinete", "cpu", "escritorio", "pc", "torre"], 9],
+  [["servidor", "server"], 15],
+  [["teclado"], 0.6],
+  [["mouse", "raton", "ratón"], 0.1],
+  [["impresora", "multifuncional"], 7],
+  [["escaner", "escáner"], 4],
+  [["fuente de poder"], 1],
+  [["disco duro", "ssd", "hdd"], 0.3],
+  [["tarjeta madre", "motherboard"], 0.8],
+  [["memoria ram", "ram"], 0.05],
+  [["ups", "no break", "nobreak"], 6],
+  // Móviles y telecom
+  [["celular", "smartphone", "telefono", "teléfono", "iphone"], 0.2],
+  [["tablet"], 0.5],
+  [["router", "modem", "módem"], 0.4],
+  [["switch", "access point", "antena"], 1],
+  // Audio/video
+  [["television", "televisión", "tv", "smart tv"], 10],
+  [["proyector"], 3],
+  [["bocina", "altavoz", "soundbar", "barra de sonido"], 1.5],
+  [["consola", "videojuego", "xbox", "playstation", "nintendo"], 1.2],
+  [["camara", "cámara"], 0.4],
+  [["estereo", "estéreo", "reproductor", "dvd", "blu-ray"], 2],
+  // Electrodomésticos
+  [["microondas"], 12],
+  [["licuadora"], 2.5],
+  [["cafetera"], 1.5],
+  [["ventilador"], 3],
+  [["plancha"], 1.2],
+  [["tostador", "horno"], 4],
+  [["batidora"], 2],
+  [["secadora de pelo", "secadora de cabello"], 0.5],
+  [["aspiradora"], 6],
+  [["lampara", "lámpara", "foco", "tubo led"], 0.15],
+  // Accesorios
+  [["cargador"], 0.2],
+  [["cable", "conector", "adaptador", "extension", "extensión"], 0.15],
+  [["audifonos", "audífonos", "diadema", "headset"], 0.25],
+  // Baterías por unidad
+  [["bateria de auto", "batería de auto", "acumulador"], 15],
+  [["bateria", "batería"], 0.4],
+  [["pila"], 0.05],
+];
+
+function normalizar(txt) {
+  return String(txt || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+}
+
+// Peso estimado de UNA unidad según el tipo de artículo capturado.
+// Orden de búsqueda: material/subcategoría → categoría personalizada con
+// peso definido → promedio de la categoría → 1 kg.
+export function pesoEstimadoUnidad({ categoria, subcategoria, material }, customCats = []) {
+  const texto = normalizar(`${material || ""} ${subcategoria || ""}`);
+  if (texto) {
+    for (const [claves, peso] of PESOS_CLAVE) {
+      if (claves.some((k) => texto.includes(normalizar(k)))) return peso;
+    }
+  }
+  const custom = (customCats || []).find((c) => c.nombre === categoria);
+  if (custom && Number(custom.peso_estimado) > 0) return Number(custom.peso_estimado);
+  return PESO_PROMEDIO_UNIDAD[categoria] ?? 1;
+}
+
 // kg CO2e evitados por kg de residuo electrónico reciclado correctamente
 export const FACTOR_EWASTE = 1.4;
 
-// Calcula el desglose por categoría a partir de los registros de entradas
-// (materiales de bodega + electrónicos) ya filtrados por periodo.
-export function calcularHuella(materiales, electronicos) {
+// Calcula el desglose a partir de los registros de entradas (bodega +
+// electrónicos) ya filtrados por periodo. Los artículos por unidad se
+// agrupan por TIPO (material/subcategoría) porque no pesa lo mismo una
+// laptop que un monitor: cada grupo usa su propio peso estimado.
+export function calcularHuella(materiales, electronicos, customCats = []) {
   const mapa = {};
-  const add = (cat, cant, medida) => {
-    if (!cat) return;
-    if (!mapa[cat]) mapa[cat] = { categoria: cat, label: CAT_LABEL_BODEGA[cat] || cat, cantidad: 0, medida: medida || "unidades" };
-    mapa[cat].cantidad += Number(cant) || 0;
+  const add = (reg) => {
+    if (!reg.categoria) return;
+    const medida = reg.tipo_registro === "procesado" ? "kg" : (reg.medida || "unidades");
+    // En kg se agrupa por categoría; en unidades por tipo de artículo
+    const tipo = medida === "kg" ? "" : normalizar(reg.material || reg.subcategoria || "");
+    const llave = `${reg.categoria}|${medida}|${tipo}`;
+    if (!mapa[llave]) {
+      const etiqueta = medida === "kg"
+        ? (CAT_LABEL_BODEGA[reg.categoria] || reg.categoria)
+        : (reg.material || reg.subcategoria || CAT_LABEL_BODEGA[reg.categoria] || reg.categoria);
+      mapa[llave] = { categoria: reg.categoria, subcategoria: reg.subcategoria, material: reg.material, label: etiqueta, cantidad: 0, medida };
+    }
+    mapa[llave].cantidad += Number(reg.cantidad) || 0;
   };
-  (materiales || []).forEach((m) => add(m.categoria, m.cantidad, m.tipo_registro === "procesado" ? "kg" : m.medida));
-  (electronicos || []).forEach((m) => add(m.categoria, m.cantidad, m.tipo_registro === "procesado" ? "kg" : m.medida));
+  (materiales || []).forEach(add);
+  (electronicos || []).forEach(add);
 
   const desglose = Object.values(mapa).map((d) => {
-    let kg = 0, co2e = 0, factor = 0;
+    let kg = 0, co2e = 0, factor = 0, pesoU = null;
     if (d.medida === "kg") {
       kg = d.cantidad;
       factor = FACTORES_KG[d.categoria] ?? 1.0;
       co2e = kg * factor;
     } else {
-      const pesoU = PESO_PROMEDIO_UNIDAD[d.categoria] ?? 1;
+      pesoU = pesoEstimadoUnidad(d, customCats);
       kg = d.cantidad * pesoU;
       factor = FACTOR_EWASTE;
       co2e = kg * factor;
     }
     return {
       ...d,
+      peso_u: pesoU,
       kg_estimados: Math.round(kg * 100) / 100,
       factor,
       co2e: Math.round(co2e * 100) / 100,
@@ -191,7 +276,7 @@ export async function generarPdfHuella(reporte) {
     if (y > H - 60) { doc.addPage(); y = 24; dibujarCabecera(y); y += 4; doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); }
     if (i % 2 === 0) { doc.setFillColor(240, 248, 245); doc.rect(M, y - 4.5, W - 2 * M, 6.5, "F"); }
     doc.setTextColor(40, 40, 40);
-    const label = doc.splitTextToSize(`${d.label}${d.medida === "unidades" ? " (unidades)" : ""}`, 48);
+    const label = doc.splitTextToSize(`${d.label}${d.medida === "unidades" ? ` (u × ${d.peso_u ?? 1} kg)` : ""}`, 48);
     doc.text(label[0], cols[0] + 2, y);
     doc.text(String(d.cantidad), cols[2] - 2, y, { align: "right" });
     doc.text(d.kg_estimados.toLocaleString("es-MX"), cols[3] - 2, y, { align: "right" });
@@ -235,7 +320,7 @@ export async function generarPdfHuella(reporte) {
   // Nota metodológica
   doc.setFontSize(7.5);
   doc.setTextColor(120, 120, 120);
-  const nota = "Metodología: las emisiones evitadas se estiman multiplicando el peso del material recibido por un factor de emisión evitada al reciclar en lugar de producir material virgen. Para artículos por unidad se usa un peso promedio estimado por categoría. Factores de referencia: plásticos 1.5, metales 2.5, cartón 0.9, vidrio 0.3, cobre 4.0, aluminio 9.0, hierro 1.5, PCB 5.0 kg CO2e/kg; residuo electrónico 1.4 kg CO2e/kg. Valores aproximados con fines de reporte interno.";
+  const nota = "Metodología: las emisiones evitadas se estiman multiplicando el peso del material recibido por un factor de emisión evitada al reciclar en lugar de producir material virgen. Para artículos por unidad se usa el peso típico del tipo de artículo (laptop, monitor, celular, etc.) y, si no se reconoce, el promedio de su categoría. Factores de referencia: plásticos 1.5, metales 2.5, cartón 0.9, vidrio 0.3, cobre 4.0, aluminio 9.0, hierro 1.5, PCB 5.0 kg CO2e/kg; residuo electrónico 1.4 kg CO2e/kg. Valores aproximados con fines de reporte interno.";
   doc.text(doc.splitTextToSize(nota, W - 2 * M - 4), M + 2, y);
   y += 24;
 
