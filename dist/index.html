@@ -8,11 +8,14 @@
     <meta name="theme-color" content="#050505" />
     <script>
       /* Aplica el tema guardado antes del primer render (evita parpadeo).
-         Por defecto el sitio es oscuro (Aurora); .light activa el modo claro. */
+         Por defecto el sitio es oscuro (Aurora); .light / .selva son los
+         otros temas que el usuario puede elegir (solo en su dispositivo). */
       try {
-        if (localStorage.getItem("ucp-theme") === "light") {
-          document.documentElement.classList.add("light");
-          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#f4f5fa");
+        var ucpTema = localStorage.getItem("ucp-theme");
+        var ucpColores = { dark: "#050505", light: "#f4f5fa", selva: "#FFF5E5" };
+        if (ucpTema === "light" || ucpTema === "selva") {
+          document.documentElement.classList.add(ucpTema);
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", ucpColores[ucpTema]);
         }
       } catch (e) {}
     </script>
@@ -23,8 +26,8 @@
     <meta name="apple-mobile-web-app-title" content="UCP Horas" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>UCP Horas</title>
-    <script type="module" crossorigin src="/assets/index-CJH2ykTz.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-SZJxdOrX.css">
+    <script type="module" crossorigin src="/assets/index-B7X_6Ifb.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-FI-Vj8jb.css">
   </head>
   <body>
     <div id="root"></div>
