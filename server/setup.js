@@ -635,6 +635,38 @@ db.exec(`
 `);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_mensajes_canal ON mensajes(canal, created_date)`);
 
+// Comunidad v2: avisos fijados, respuestas con cita, presencia y moderación
+addColumnIfMissing('mensajes', 'fijado', 'fijado INTEGER DEFAULT 0');
+addColumnIfMissing('mensajes', 'cita_id', 'cita_id TEXT');
+addColumnIfMissing('mensajes', 'cita_texto', 'cita_texto TEXT');
+addColumnIfMissing('mensajes', 'cita_nombre', 'cita_nombre TEXT');
+addColumnIfMissing('users', 'ultima_actividad', 'ultima_actividad TEXT');
+addColumnIfMissing('users', 'silenciado', 'silenciado INTEGER DEFAULT 0');
+
+// Reacciones rápidas a mensajes (una por usuario y emoji)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reacciones (
+    id TEXT PRIMARY KEY,
+    mensaje TEXT NOT NULL,
+    usuario TEXT NOT NULL,
+    emoji TEXT,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_reacciones_unq ON reacciones(mensaje, usuario, emoji)`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_reacciones_msg ON reacciones(mensaje)`);
+
+// Confirmación de lectura de avisos fijados ("visto por X de Y")
+db.exec(`
+  CREATE TABLE IF NOT EXISTS avisos_vistos (
+    id TEXT PRIMARY KEY,
+    mensaje TEXT NOT NULL,
+    usuario TEXT NOT NULL,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_avisos_vistos_unq ON avisos_vistos(mensaje, usuario)`);
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {

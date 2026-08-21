@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
+import { db } from '../database.js';
 
 // En producción debe definirse JWT_SECRET (variable de entorno).
 // Si no existe, se genera una aleatoria por proceso: más seguro que una
@@ -40,7 +41,21 @@ export function authMiddleware(req, res, next) {
   }
   
   req.user = decoded;
+  registrarPresencia(decoded.id);
   next();
+}
+
+// Presencia ("en línea"): actualiza users.ultima_actividad como mucho una
+// vez por minuto por usuario para no escribir en la BD en cada petición.
+const ultimaVez = new Map();
+function registrarPresencia(userId) {
+  if (!userId) return;
+  const ahora = Date.now();
+  if (ahora - (ultimaVez.get(userId) || 0) < 60 * 1000) return;
+  ultimaVez.set(userId, ahora);
+  try {
+    db.prepare(`UPDATE users SET ultima_actividad = datetime('now') WHERE id = ?`).run(userId);
+  } catch { /* presencia es best-effort */ }
 }
 
 export function optionalAuth(req, res, next) {
