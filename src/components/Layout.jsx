@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, UserCircle, Calendar, QrCode, ClipboardCheck, Image,
-  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck
+  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, MessagesSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROL_LABEL } from "@/lib/roles";
@@ -23,6 +23,7 @@ const NAV = {
     { to: "/admin/pases-lista", label: "Pase de lista", icon: UserCheck, grupo: "Horas y asistencia" },
     { to: "/admin/qr", label: "Códigos QR", icon: QrCode, grupo: "Horas y asistencia" },
     { to: "/admin/personal", label: "Personal", icon: UserCog, grupo: "Personas" },
+    { to: "/comunidad", label: "Comunidad", icon: MessagesSquare, grupo: "Personas" },
     { to: "/admin/evaluaciones", label: "Evaluaciones", icon: GraduationCap, grupo: "Personas" },
     { to: "/admin/actividades", label: "Actividades", icon: FolderKanban, grupo: "Actividades y eventos" },
     { to: "/admin/eventos", label: "Eventos", icon: CalendarDays, grupo: "Actividades y eventos" },
@@ -41,6 +42,7 @@ const NAV = {
     { to: "/encargado/personal", label: "Personal", icon: UserCog, grupo: "Personas" },
     { to: "/encargado/alumnos", label: "Mis alumnos", icon: Users, grupo: "Personas" },
     { to: "/encargado/evaluaciones", label: "Evaluaciones", icon: GraduationCap, grupo: "Personas" },
+    { to: "/comunidad", label: "Comunidad", icon: MessagesSquare, grupo: "Personas" },
     { to: "/encargado/registros", label: "Registros abiertos", icon: ClipboardCheck, grupo: "Horas y asistencia" },
     { to: "/encargado/pases-lista", label: "Pase de lista", icon: UserCheck, grupo: "Horas y asistencia" },
     { to: "/encargado/evidencias", label: "Revisar evidencias", icon: Image, grupo: "Evidencias" },
@@ -54,6 +56,7 @@ const NAV = {
   ],
   servicio_social: [
     { to: "/alumno", label: "Mi progreso", icon: LayoutDashboard, end: true },
+    { to: "/comunidad", label: "Comunidad", icon: MessagesSquare },
     { to: "/alumno/actividades", label: "Actividades", icon: FolderKanban },
     { to: "/alumno/constancias", label: "Mis constancias", icon: FileBadge },
     { to: "/alumno/encuestas", label: "Encuestas", icon: ClipboardList },
@@ -65,6 +68,7 @@ const NAV = {
   ],
   voluntario: [
     { to: "/alumno", label: "Mi progreso", icon: LayoutDashboard, end: true },
+    { to: "/comunidad", label: "Comunidad", icon: MessagesSquare },
     { to: "/alumno/actividades", label: "Actividades", icon: FolderKanban },
     { to: "/alumno/constancias", label: "Mis constancias", icon: FileBadge },
     { to: "/alumno/encuestas", label: "Encuestas", icon: ClipboardList },

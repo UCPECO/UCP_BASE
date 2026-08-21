@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import entityRoutes from './routes/entities.js';
 import functionRoutes from './routes/functions.js';
 import pushRoutes from './routes/push.js';
+import mensajesRoutes from './routes/mensajes.js';
 import { inicializarPush } from './lib/push.js';
 import { cerrarFichajesOlvidados } from './lib/gestion.js';
 import { respaldarBD, db } from './database.js';
@@ -33,6 +34,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/entities', entityRoutes);
 app.use('/api/functions', functionRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/mensajes', mensajesRoutes);
 
 // Upload endpoint (simulado - guarda en servidor)
 app.post('/api/upload', (req, res) => {

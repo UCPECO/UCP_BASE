@@ -55,6 +55,7 @@ const AdminValidacion = lazy(() => import('@/pages/admin/AdminValidacion'));
 const Calendario = lazy(() => import('@/pages/Calendario'));
 const Disponibilidad = lazy(() => import('@/pages/Disponibilidad'));
 const ChecklistBodega = lazy(() => import('@/pages/ChecklistBodega'));
+const Comunidad = lazy(() => import('@/pages/Comunidad'));
 
 const Cargando = () => (
   <div className="fixed inset-0 flex items-center justify-center">
@@ -102,6 +103,7 @@ const AuthenticatedApp = () => {
             {/* Compartidas por todos los roles autenticados */}
             <Route path="/fichar" element={<Fichar />} />
             <Route path="/checklist-bodega" element={<ChecklistBodega />} />
+            <Route path="/comunidad" element={<Comunidad />} />
             {/* Encargado (el admin también puede entrar) */}
             <Route element={<RutaRol roles={["admin", "encargado"]} />}>
               <Route path="/encargado" element={<EncargadoDashboard />} />

@@ -622,6 +622,19 @@ db.exec(`
   );
 `);
 
+// Chat interno (Comunidad): canal 'general', 'area:<Nombre>' o 'dm:<idA>:<idB>'
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mensajes (
+    id TEXT PRIMARY KEY,
+    canal TEXT NOT NULL,
+    usuario TEXT NOT NULL,
+    usuario_nombre TEXT,
+    texto TEXT,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_mensajes_canal ON mensajes(canal, created_date)`);
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {

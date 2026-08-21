@@ -66,7 +66,7 @@ export default function CampanaNotificaciones({ usuarioId, alinear = "derecha" }
   useEffect(() => {
     vistasRef.current = null;
     cargar();
-    const t = setInterval(cargar, 30000);
+    const t = setInterval(cargar, 15000);
     return () => clearInterval(t);
   }, [usuarioId]);
 
