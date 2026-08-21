@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import QRCode from "qrcode";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { QrCode, Plus, Power, Download, Copy, Trash2, Printer, AlertTriangle } from "lucide-react";
@@ -151,7 +152,7 @@ export default function AdminQr() {
   const expirado = (c) => c.fecha_expiracion && c.fecha_expiracion < new Date().toISOString().slice(0, 10);
   const esLegacy = (c) => !c.token;
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
 
   return (
     <div className="space-y-6">

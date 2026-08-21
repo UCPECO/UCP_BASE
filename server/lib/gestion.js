@@ -130,6 +130,84 @@ export function verificarConstanciaAutomatica(usuarioId) {
   }
 }
 
+// ===== Resumen semanal por push =====
+// Cada lunes por la mañana (hora CDMX) se envía a cada participante activo:
+// horas de la semana pasada, % de su meta y su racha de días laborales.
+// Se registra el envío para no duplicarlo aunque el servidor reinicie.
+export function resumenSemanalSiCorresponde() {
+  try {
+    const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+    if (ahora.getDay() !== 1) return 0; // solo lunes
+    const hora = ahora.getHours();
+    if (hora < 8 || hora > 11) return 0; // ventana de envío: 8–11 am
+
+    db.exec(`CREATE TABLE IF NOT EXISTS envios_programados (clave TEXT PRIMARY KEY, fecha TEXT DEFAULT (datetime('now')))`);
+    const pad = (n) => String(n).padStart(2, '0');
+    const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const hoy = iso(ahora);
+    const clave = `resumen-${hoy}`;
+    if (db.prepare('SELECT 1 FROM envios_programados WHERE clave = ?').get(clave)) return 0;
+    db.prepare('INSERT INTO envios_programados (clave) VALUES (?)').run(clave);
+
+    // Semana pasada: lunes a domingo anterior
+    const finSemana = new Date(ahora); finSemana.setDate(finSemana.getDate() - 1); // domingo
+    const inicioSemana = new Date(ahora); inicioSemana.setDate(inicioSemana.getDate() - 7); // lunes pasado
+    const desde = iso(inicioSemana), hasta = iso(finSemana);
+
+    const esLaboral = (d) => d.getDay() !== 0 && d.getDay() !== 6;
+
+    const usuarios = db.prepare(`
+      SELECT id, nombre_completo, full_name, email FROM users
+      WHERE role IN ('servicio_social', 'voluntario', 'practicas_profesionales', 'residente', 'practicante')
+        AND (archivado IS NULL OR archivado = 0)
+    `).all();
+
+    let enviados = 0;
+    for (const u of usuarios) {
+      // Solo quien tiene asignación activa (participa actualmente)
+      const asig = db.prepare(`SELECT * FROM asignaciones WHERE usuario = ? AND estado = 'activo' ORDER BY created_date DESC LIMIT 1`).get(u.id);
+      if (!asig) continue;
+
+      const horasSemana = db.prepare(`
+        SELECT COALESCE(SUM(horas), 0) AS t FROM registros_qr
+        WHERE usuario = ? AND fecha BETWEEN ? AND ? AND estado_registro IN ('cerrado', 'incompleto')
+      `).get(u.id, desde, hasta)?.t || 0;
+
+      // Meta de su actividad
+      let meta = 480;
+      if (asig.actividad) {
+        const act = db.prepare('SELECT meta_horas FROM actividades WHERE id = ?').get(asig.actividad);
+        if (act && Number(act.meta_horas) > 0) meta = Number(act.meta_horas);
+      }
+      const total = horasValidadasDe(u.id);
+      const pct = Math.min(100, Math.round((total / meta) * 100));
+
+      // Racha de días laborales con fichaje (misma regla que el dashboard)
+      const fechas = new Set(db.prepare(`
+        SELECT DISTINCT fecha FROM registros_qr WHERE usuario = ? ORDER BY fecha DESC LIMIT 400
+      `).all(u.id).map((r) => r.fecha));
+      let cursor = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      while (!esLaboral(cursor)) cursor.setDate(cursor.getDate() - 1);
+      if (!fechas.has(iso(cursor))) { do { cursor.setDate(cursor.getDate() - 1); } while (!esLaboral(cursor)); }
+      let racha = 0;
+      while (fechas.has(iso(cursor))) { racha++; do { cursor.setDate(cursor.getDate() - 1); } while (!esLaboral(cursor)); }
+
+      const nombre = (u.nombre_completo || u.full_name || u.email || '').split(' ')[0] || 'Hola';
+      const hs = Math.round(horasSemana * 100) / 100;
+      const mensaje = hs > 0
+        ? `La semana pasada sumaste ${hs} h · llevas ${pct}% de tu meta · racha de ${racha} ${racha === 1 ? 'día' : 'días'}. ¡Sigue así!`
+        : `La semana pasada no registraste horas. Llevas ${pct}% de tu meta — ¡esta semana es la buena!`;
+      notificar(u.id, `📊 Tu resumen semanal, ${nombre}`, mensaje, '/alumno');
+      enviados++;
+    }
+    console.log(`Resumen semanal: ${enviados} notificaciones enviadas (${desde} a ${hasta})`);
+    return enviados;
+  } catch (e) {
+    console.error('Error en resumen semanal:', e.message);
+    return 0;
+  }
+}
+
 // ===== Cierre automático de fichajes olvidados =====
 // Todo fichaje abierto de un día anterior se cierra a la hora de cierre
 // configurada, queda pendiente de validación y genera incidencia + aviso.

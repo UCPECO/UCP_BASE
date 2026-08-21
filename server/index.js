@@ -10,7 +10,7 @@ import functionRoutes from './routes/functions.js';
 import pushRoutes from './routes/push.js';
 import mensajesRoutes from './routes/mensajes.js';
 import { inicializarPush } from './lib/push.js';
-import { cerrarFichajesOlvidados } from './lib/gestion.js';
+import { cerrarFichajesOlvidados, resumenSemanalSiCorresponde } from './lib/gestion.js';
 import { respaldarBD, db } from './database.js';
 import { securityHeaders, rateLimit } from './middleware/security.js';
 
@@ -72,4 +72,8 @@ app.listen(PORT, () => {
   const mantenimiento = () => { cerrarFichajesOlvidados(); respaldarBD(); };
   mantenimiento();
   setInterval(mantenimiento, 6 * 60 * 60 * 1000);
+  // Resumen semanal por push: la función misma decide si hoy corresponde
+  // (lunes 8–11 am CDMX, una sola vez por semana)
+  resumenSemanalSiCorresponde();
+  setInterval(resumenSemanalSiCorresponde, 60 * 60 * 1000);
 });

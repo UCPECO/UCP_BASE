@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useEncargadoData } from "@/lib/useEncargadoData";
@@ -41,7 +42,7 @@ export default function Disponibilidad() {
   const alumnoSel = lista.find(a => a.id === selId);
 
   if (loading && !isAdmin) {
-    return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+    return <div className="py-6"><ListaSkeleton filas={4} /></div>;
   }
 
   return (
@@ -81,7 +82,7 @@ export default function Disponibilidad() {
               <EmptyState title="Selecciona un alumno" message="Elige un alumno para ver su disponibilidad semanal." icon={Clock} />
             </SectionCard>
           ) : loadingHorarios ? (
-            <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
+            <div className="py-6"><ListaSkeleton filas={4} /></div>
           ) : (
             <div className="space-y-4">
               <SectionCard title={alumnoSel.nombre_completo || alumnoSel.full_name} subtitle={`${alumnoSel.matricula || "Sin matrícula"} · ${alumnoSel.carrera || "—"}`}>

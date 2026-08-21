@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { base44 } from "@/api/base44Client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, LineChart, Line } from "recharts";
 import { BarChart3, PieChart as PieIcon, GraduationCap, Users, AlertTriangle, Trophy, Leaf, TrendingUp } from "lucide-react";
@@ -192,7 +193,7 @@ export default function AdminEstadisticas() {
     })();
   }, []);
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
   if (!data) return <EmptyState title="Sin datos" message="No se pudieron cargar las estadísticas." />;
 
   return (

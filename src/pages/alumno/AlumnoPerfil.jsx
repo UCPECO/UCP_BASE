@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { UserCircle, Save, Camera, FileDown } from "lucide-react";
+import { UserCircle, Save, Camera, FileDown, FileSpreadsheet } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Image as ImageIcon } from "lucide-react";
 import { generarReportePdfMensual } from "@/lib/generarReporte";
+import { descargarCsv, fechaArchivo } from "@/lib/exportarCsv";
 import HistorialFichajes from "@/components/ucp/HistorialFichajes";
 import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { comprimirImagen } from "@/lib/imagen";
@@ -23,6 +24,7 @@ export default function AlumnoPerfil() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
   const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [generandoExcel, setGenerandoExcel] = useState(false);
   const [mesReporte, setMesReporte] = useState(new Date().getMonth());
 
   useEffect(() => {
@@ -71,6 +73,47 @@ export default function AlumnoPerfil() {
       toast({ title: "Error al generar reporte", variant: "destructive" });
     } finally {
       setGenerandoPdf(false);
+    }
+  };
+
+  // Historial de fichajes + bonos en CSV (Excel lo abre con columnas)
+  const handleExcel = async () => {
+    setGenerandoExcel(true);
+    try {
+      const userId = user?.id;
+      const [regs, bons] = await Promise.all([
+        base44.entities.Registros_QR.filter({ usuario: userId }, "-fecha", 500),
+        base44.entities.Bonos.filter({ usuario: userId }, "-fecha", 200),
+      ]);
+      const filas = [
+        ...regs.map((r) => ({
+          fecha: r.fecha, tipo: "Fichaje",
+          entrada: r.hora_entrada || "", salida: r.hora_salida || "",
+          horas: r.horas ?? "", area: r.area || "",
+          estado: r.estado_registro || "", validado: r.validado ? "Sí" : "No",
+        })),
+        ...bons.map((b) => ({
+          fecha: b.fecha, tipo: "Hora de premio",
+          entrada: "", salida: "",
+          horas: b.horas ?? "", area: "",
+          estado: b.motivo || "", validado: "Sí",
+        })),
+      ].sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+      descargarCsv(`mis-horas-${fechaArchivo()}`, [
+        { clave: "fecha", titulo: "Fecha" },
+        { clave: "tipo", titulo: "Tipo" },
+        { clave: "entrada", titulo: "Entrada" },
+        { clave: "salida", titulo: "Salida" },
+        { clave: "horas", titulo: "Horas" },
+        { clave: "area", titulo: "Área" },
+        { clave: "estado", titulo: "Estado / Motivo" },
+        { clave: "validado", titulo: "Validado" },
+      ], filas);
+      toast({ title: "Excel generado", description: `${filas.length} registros exportados` });
+    } catch (e) {
+      toast({ title: "Error al generar Excel", variant: "destructive" });
+    } finally {
+      setGenerandoExcel(false);
     }
   };
 
@@ -179,6 +222,9 @@ export default function AlumnoPerfil() {
           </div>
           <Button onClick={handleReportePdf} disabled={generandoPdf}>
             <FileDown className="h-4 w-4 mr-2" /> {generandoPdf ? "Generando..." : "Descargar PDF"}
+          </Button>
+          <Button variant="outline" onClick={handleExcel} disabled={generandoExcel}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" /> {generandoExcel ? "Generando..." : "Descargar Excel"}
           </Button>
         </div>
       </SectionCard>

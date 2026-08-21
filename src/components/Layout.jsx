@@ -12,6 +12,7 @@ import { esAreaBodega } from "@/lib/areas";
 import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
 import BotonInstalar from "@/components/ucp/BotonInstalar";
 import ThemeToggle from "@/components/ucp/ThemeToggle";
+import TourBienvenida, { debeMostrarTour } from "@/components/ucp/TourBienvenida";
 
 const NAV = {
   admin: [
@@ -64,7 +65,6 @@ const NAV = {
     { to: "/fichar", label: "Fichar (QR)", icon: QrCode },
     { to: "/alumno/horario", label: "Mi horario", icon: Calendar },
     { to: "/alumno/evidencias", label: "Mis evidencias", icon: Image },
-    { to: "/alumno/eventos", label: "Eventos UCP", icon: CalendarDays },
   ],
   voluntario: [
     { to: "/alumno", label: "Mi progreso", icon: LayoutDashboard, end: true },
@@ -76,7 +76,6 @@ const NAV = {
     { to: "/fichar", label: "Fichar (QR)", icon: QrCode },
     { to: "/alumno/horario", label: "Mi horario", icon: Calendar },
     { to: "/alumno/evidencias", label: "Mis evidencias", icon: Image },
-    { to: "/alumno/eventos", label: "Eventos UCP", icon: CalendarDays },
   ],
 };
 
@@ -104,6 +103,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [tour, setTour] = useState(false);
 
   const role = user?.role || profile?.role || "voluntario";
   // El checklist de bodega solo aparece al personal de esa área (y al admin).
@@ -118,7 +118,12 @@ export default function Layout({ children }) {
   }
 
   useEffect(() => {
-    base44.auth.me().then(setProfile).catch(() => {});
+    base44.auth.me().then((p) => {
+      setProfile(p);
+      // Tour de bienvenida: solo participantes, solo la primera vez
+      const rol = p?.role || user?.role;
+      if (debeMostrarTour(rol)) setTour(true);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
@@ -173,6 +178,9 @@ export default function Layout({ children }) {
           tabsStaff={BOTTOM_STAFF[role] || []}
           onMenu={() => setOpen(true)}
         />
+
+        {/* Tour de bienvenida (primera vez, solo participantes) */}
+        {tour && <TourBienvenida alTerminar={() => setTour(false)} />}
       </div>
     </div>
   );

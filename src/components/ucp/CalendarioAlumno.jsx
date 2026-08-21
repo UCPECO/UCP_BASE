@@ -154,19 +154,22 @@ export default function CalendarioAlumno({ horarios = [], eventos = [] }) {
         </div>
       )}
 
-      {/* Próximos eventos */}
+      {/* Próximos eventos: vista fusionada (antes era una página aparte) */}
       {eventos.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Próximos eventos</p>
           <div className="space-y-1.5">
             {eventos
               .filter(e => new Date(e.fecha) >= new Date(new Date().toDateString()))
-              .slice(0, 3)
+              .slice(0, 5)
               .map(e => (
-                <div key={e.id} className="flex items-center gap-2 text-sm">
-                  <span className={`h-2 w-2 rounded-full ${COLOR_EVENTO[e.color] || "bg-blue-500"}`} />
-                  <span className="font-medium">{formatearFecha(e.fecha)}</span>
-                  <span className="text-muted-foreground">· {e.titulo}</span>
+                <div key={e.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded-lg px-3 py-2">
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${COLOR_EVENTO[e.color] || "bg-blue-500"}`} />
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium">{e.titulo}</span>
+                    {e.descripcion && <p className="text-xs text-muted-foreground truncate">{e.descripcion}</p>}
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{formatearFecha(e.fecha)}{e.hora_inicio ? ` · ${e.hora_inicio}` : ""}</span>
                 </div>
               ))}
             {eventos.filter(e => new Date(e.fecha) >= new Date(new Date().toDateString())).length === 0 && (

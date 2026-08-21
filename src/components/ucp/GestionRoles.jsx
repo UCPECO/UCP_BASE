@@ -60,7 +60,7 @@ export default function GestionRoles() {
       </div>
       <div className="p-3 max-h-96 overflow-y-auto scrollbar-thin space-y-1">
         {loading ? (
-          <div className="flex justify-center py-6"><div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
+          <div className="skeleton h-20 w-full rounded-xl" />
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">Sin resultados.</p>
         ) : filtered.map(u => (

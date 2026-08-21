@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { BadgeDollarSign, Plus, Trash2, Search, Download, Loader2, ShoppingCart } from "lucide-react";
@@ -160,7 +161,7 @@ export default function AdminVentas({ embedded = false }) {
     const a = document.createElement("a"); a.href = url; a.download = `ventas_${mesFiltro || "todas"}.csv`; a.click();
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
 
   return (
     <div className="space-y-6">

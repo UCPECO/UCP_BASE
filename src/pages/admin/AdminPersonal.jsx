@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { base44 } from "@/api/base44Client";
 import { UserCog, Search, Mail, X, UserPlus, Eye, EyeOff, Eye as EyeIcon, FileDown, Trash2, Archive, ArchiveRestore, Key, RefreshCw, Copy, Check, Download, CalendarX2 } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
@@ -358,7 +359,7 @@ export default function AdminPersonal() {
     (mostrarArchivados || !u.archivado)
   );
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
 
   return (
     <div className="space-y-6">

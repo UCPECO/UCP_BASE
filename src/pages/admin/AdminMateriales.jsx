@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { base44 } from "@/api/base44Client";
 import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
 import { useAuth } from "@/lib/AuthContext";
@@ -394,7 +395,7 @@ export default function AdminMateriales({ embedded = false }) {
         }
       >
         {loading ? (
-          <div className="flex justify-center py-10"><div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
+          <div className="py-6"><ListaSkeleton filas={3} /></div>
         ) : filtrados.length === 0 ? (
           <EmptyState title="Sin registros" message="Aún no se han registrado materiales en bodega." icon={Package} />
         ) : (

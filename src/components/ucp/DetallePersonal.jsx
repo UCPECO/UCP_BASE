@@ -309,7 +309,7 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-10"><div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
+          <div className="skeleton h-24 w-full rounded-xl" />
         ) : (
           <Tabs defaultValue="datos">
             <TabsList className="w-full justify-start flex-wrap h-auto">

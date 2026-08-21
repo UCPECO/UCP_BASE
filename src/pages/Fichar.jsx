@@ -116,24 +116,18 @@ export default function Fichar() {
   useEffect(() => () => { if (html5QrRef.current) { try { html5QrRef.current.stop(); } catch {} } }, []);
 
   // Extrae el token del QR. Formatos aceptados:
-  //  - URL nueva:  https://sitio/fichar?t=<token>
+  //  - URL:  https://sitio/fichar?t=<token>
   //  - token plano (por si el QR solo codifica el token)
-  // Las URLs viejas (?area=...) se detectan para dar un mensaje claro.
   const extraerTokenQr = (text) => {
     const limpio = (text || "").trim();
     const m = limpio.match(/[?&]t=([A-Za-z0-9-]+)/);
     if (m) return { token: m[1] };
     if (/^[A-Za-z0-9-]{16,64}$/.test(limpio)) return { token: limpio };
-    if (/[?&]area=/.test(limpio)) return { legacy: true };
     return { invalido: true, contenido: limpio.slice(0, 80) };
   };
 
   const handleQrDetected = (text) => {
     const r = extraerTokenQr(text);
-    if (r.legacy) {
-      toast({ title: "QR del sistema anterior", description: "Este código ya no sirve. Pide al encargado el QR nuevo del área.", variant: "destructive" });
-      return;
-    }
     if (r.invalido) {
       toast({ title: "QR no reconocido", description: r.contenido ? `Contenido: "${r.contenido}"` : "No se pudo leer el código.", variant: "destructive" });
       return;
@@ -198,15 +192,10 @@ export default function Fichar() {
   useEffect(() => {
     if (loading || !user?.id || urlProcesadaRef.current) return;
     const token = searchParams.get("t");
-    const areaLegacy = searchParams.get("area");
-    if (!token && !areaLegacy) return;
+    if (!token) return;
     urlProcesadaRef.current = true;
     setSearchParams({}, { replace: true });
-    if (token) {
-      ficharConToken(token);
-    } else {
-      toast({ title: "QR del sistema anterior", description: "Este código ya no sirve. Pide al encargado el QR nuevo del área.", variant: "destructive" });
-    }
+    ficharConToken(token);
   }, [loading, user?.id]);
 
   if (loading) return (

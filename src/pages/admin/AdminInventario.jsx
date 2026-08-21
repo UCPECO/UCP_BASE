@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import useRecargarAlVolver from "@/hooks/useRecargarAlVolver";
-import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Settings, Cpu, Warehouse, Leaf, Tags, Trash2, ChevronRight, History, BadgeDollarSign } from "lucide-react";
+import { Package, Loader2, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Settings, Cpu, Warehouse, Leaf, Tags, Trash2, ChevronRight, History, BadgeDollarSign, FileSpreadsheet } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import KpiCard from "@/components/ucp/KpiCard";
@@ -15,7 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { formatearFecha, nombreUsuario } from "@/lib/ucpUtils";
+import { descargarCsv, fechaArchivo } from "@/lib/exportarCsv";
 import { CATEGORIAS_FLAT_BODEGA, CAT_LABEL_BODEGA, MEDIDA_LABEL } from "@/lib/catalogoBodega";
 import { esAreaBodega } from "@/lib/areas";
 import { fusionarFlat, invalidarCategoriasCustom, obtenerCategoriasCustom } from "@/lib/categoriasDinamicas";
@@ -101,6 +103,66 @@ export default function AdminInventario() {
       toast({ title: "Categoría desactivada", description: c.nombre });
       cargarCats();
     } catch (e) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+
+  // Eliminar una salida de material (solo admin). El stock se recalcula solo
+  // porque se deriva de entradas menos salidas.
+  const eliminarSalida = async (s) => {
+    const ok = await confirmarGlobal({
+      titulo: "¿Eliminar esta salida?",
+      descripcion: `${labelDe(s.categoria)} · ${s.cantidad} ${MEDIDA_LABEL[s.medida] || "u"} · ${formatearFecha(s.fecha)}\nEl stock se recalculará automáticamente. Esta acción no se puede deshacer.`,
+      destructivo: true,
+      textoConfirmar: "Eliminar",
+    });
+    if (!ok) return;
+    try {
+      await base44.entities.Salidas_Materiales.delete(s.id);
+      toast({ title: "Salida eliminada" });
+      cargar();
+    } catch (e) { toast({ title: "Error al eliminar", description: e.message, variant: "destructive" }); }
+  };
+
+  // Exporta todo el inventario a un CSV que Excel abre con columnas:
+  // entradas de bodega, electrónicos, salidas y una foto del stock actual.
+  const exportarExcel = () => {
+    const filas = [
+      ...materiales.map((m) => ({
+        tipo: "Entrada bodega", fecha: m.fecha_recepcion, categoria: labelDe(m.categoria),
+        detalle: [m.subcategoria, m.material].filter(Boolean).join(" · "),
+        cantidad: m.cantidad || 0, medida: MEDIDA_LABEL[m.medida] || m.medida || "u",
+        quien: m.proveedor || "", motivo: m.descripcion || "", folio: m.folio || "",
+      })),
+      ...electronicos.map((m) => ({
+        tipo: "Entrada electrónicos", fecha: m.fecha_recepcion, categoria: labelDe(m.categoria),
+        detalle: [m.subcategoria, m.material].filter(Boolean).join(" · "),
+        cantidad: m.cantidad || 0, medida: MEDIDA_LABEL[m.medida] || m.medida || "u",
+        quien: m.proveedor || "", motivo: "", folio: m.folio || "",
+      })),
+      ...salidas.map((s) => ({
+        tipo: "Salida", fecha: s.fecha, categoria: labelDe(s.categoria),
+        detalle: "",
+        cantidad: s.cantidad || 0, medida: MEDIDA_LABEL[s.medida] || s.medida || "u",
+        quien: s.retirado_por || s.registrado_por_nombre || "", motivo: s.motivo || s.area || "", folio: s.folio || "",
+      })),
+      ...Object.entries(stockPorCat).map(([cat, v]) => ({
+        tipo: "Stock actual", fecha: "", categoria: labelDe(cat),
+        detalle: `Entradas ${v.entradas} - salidas ${v.salidas}`,
+        cantidad: v.entradas - v.salidas, medida: MEDIDA_LABEL[v.medida] || v.medida || "u",
+        quien: "", motivo: "", folio: "",
+      })),
+    ];
+    descargarCsv(`inventario-ucp-${fechaArchivo()}`, [
+      { clave: "tipo", titulo: "Tipo" },
+      { clave: "fecha", titulo: "Fecha" },
+      { clave: "categoria", titulo: "Categoría" },
+      { clave: "detalle", titulo: "Detalle" },
+      { clave: "cantidad", titulo: "Cantidad" },
+      { clave: "medida", titulo: "Medida" },
+      { clave: "quien", titulo: "Proveedor / Retirado por" },
+      { clave: "motivo", titulo: "Motivo / Descripción" },
+      { clave: "folio", titulo: "Folio" },
+    ], filas);
+    toast({ title: "Excel generado", description: `${filas.length} filas exportadas` });
   };
 
   useEffect(() => {
@@ -270,6 +332,7 @@ export default function AdminInventario() {
       {tab === "stock" && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={exportarExcel}><FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel</Button>
             {esAdmin && (
               <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDialogMin(true)}><Settings className="h-4 w-4 mr-2" /> Stock mínimo</Button>
             )}
@@ -305,7 +368,7 @@ export default function AdminInventario() {
 
           <SectionCard title="Stock actual por categoría" subtitle="Entradas (bodega + electrónicos) menos salidas">
             {loading ? (
-              <div className="flex justify-center py-10"><Loader2 className="h-7 w-7 text-primary animate-spin" /></div>
+              <div className="py-6"><ListaSkeleton filas={3} /></div>
             ) : Object.keys(stockPorCat).length === 0 ? (
               <EmptyState title="Sin movimientos" message="Registra materiales en las pestañas de entradas para ver el stock." icon={Package} />
             ) : (
@@ -369,6 +432,11 @@ export default function AdminInventario() {
                       <p className="font-medium text-sm">{labelDe(s.categoria)} · {s.cantidad} {MEDIDA_LABEL[s.medida] || "u"}</p>
                       <p className="text-xs text-muted-foreground">{s.folio && <span className="font-mono">{s.folio} · </span>}{formatearFecha(s.fecha)} · {s.registrado_por_nombre || "—"} {s.area ? "· " + s.area : ""} {s.motivo ? "· " + s.motivo : ""}</p>
                     </div>
+                    {esAdmin && (
+                      <button onClick={() => eliminarSalida(s)} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0" title="Eliminar salida">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

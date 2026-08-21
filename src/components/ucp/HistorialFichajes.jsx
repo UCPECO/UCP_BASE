@@ -49,7 +49,7 @@ export default function HistorialFichajes() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8"><div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
+        <div className="skeleton h-24 w-full rounded-xl" />
       ) : filtrados.length === 0 ? (
         <EmptyState title="Sin fichajes" message="Aún no has registrado entradas ni salidas." icon={Clock} />
       ) : (

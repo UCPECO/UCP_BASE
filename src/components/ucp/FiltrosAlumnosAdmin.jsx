@@ -78,7 +78,7 @@ export default function FiltrosAlumnosAdmin() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8"><div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
+        <div className="skeleton h-16 w-full rounded-xl" />
       ) : filtrados.length === 0 ? (
         <EmptyState title="Sin resultados" message="No hay alumnos que coincidan con los filtros." icon={Filter} />
       ) : (

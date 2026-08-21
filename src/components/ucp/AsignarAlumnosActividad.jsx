@@ -77,7 +77,7 @@ export default function AsignarAlumnosActividad({ actividad, onClose }) {
     >
       {loading ? (
         <div className="flex justify-center py-6">
-          <div className="w-7 h-7 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" />
+          <div className="skeleton h-20 w-full rounded-xl" />
         </div>
       ) : alumnos.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6">No hay alumnos registrados.</p>

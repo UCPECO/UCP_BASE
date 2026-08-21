@@ -22,7 +22,6 @@ const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
 const AlumnoPerfil = lazy(() => import('@/pages/alumno/AlumnoPerfil'));
 const AlumnoHorario = lazy(() => import('@/pages/alumno/AlumnoHorario'));
 const AlumnoEvidencias = lazy(() => import('@/pages/alumno/AlumnoEvidencias'));
-const AlumnoEventos = lazy(() => import('@/pages/alumno/AlumnoEventos'));
 const AlumnoActividades = lazy(() => import('@/pages/alumno/AlumnoActividades'));
 const AlumnoConstancias = lazy(() => import('@/pages/alumno/AlumnoConstancias'));
 const AlumnoEncuestas = lazy(() => import('@/pages/alumno/AlumnoEncuestas'));
@@ -58,8 +57,9 @@ const ChecklistBodega = lazy(() => import('@/pages/ChecklistBodega'));
 const Comunidad = lazy(() => import('@/pages/Comunidad'));
 
 const Cargando = () => (
-  <div className="fixed inset-0 flex items-center justify-center">
-    <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin"></div>
+  <div className="fixed inset-0 flex flex-col items-center justify-center gap-5 bg-background">
+    <img src="/branding/logo-mono.png" alt="UCP" className="h-16 w-16 object-contain animate-pulse" />
+    <div className="skeleton h-2 w-36 rounded-full" />
   </div>
 );
 
@@ -95,7 +95,6 @@ const AuthenticatedApp = () => {
               <Route path="/alumno/perfil" element={<AlumnoPerfil />} />
               <Route path="/alumno/horario" element={<AlumnoHorario />} />
               <Route path="/alumno/evidencias" element={<AlumnoEvidencias />} />
-              <Route path="/alumno/eventos" element={<AlumnoEventos />} />
               <Route path="/alumno/actividades" element={<AlumnoActividades />} />
               <Route path="/alumno/constancias" element={<AlumnoConstancias />} />
               <Route path="/alumno/encuestas" element={<AlumnoEncuestas />} />
