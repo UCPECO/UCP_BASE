@@ -64,7 +64,28 @@ export default function AdminEvaluaciones() {
         ) : filtradas.length === 0 ? (
           <EmptyState title="Sin evaluaciones" message="No hay evaluaciones que coincidan con el filtro." icon={Star} />
         ) : (
-          <div className="overflow-x-auto scrollbar-thin">
+          <>
+          {/* Móvil: tarjetas apiladas */}
+          <div className="md:hidden space-y-3">
+            {filtradas.map((e) => (
+              <div key={e.id} className="p-3 rounded-xl border border-border bg-card">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium truncate">{e.usuario_nombre}</p>
+                  <span className="font-semibold text-primary shrink-0">{promedio(e).toFixed(1)} ★</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{labelArea(e.area)} · {e.evaluado_por_nombre || "—"} · {formatearFecha(e.fecha)}</p>
+                <div className="grid grid-cols-5 gap-1 mt-2 text-center">
+                  <div><p className="text-sm">{e.puntualidad}</p><p className="text-[10px] text-muted-foreground">Punt.</p></div>
+                  <div><p className="text-sm">{e.actitud}</p><p className="text-[10px] text-muted-foreground">Act.</p></div>
+                  <div><p className="text-sm">{e.calidad_trabajo}</p><p className="text-[10px] text-muted-foreground">Cal.</p></div>
+                  <div><p className="text-sm">{e.cumplimiento}</p><p className="text-[10px] text-muted-foreground">Cump.</p></div>
+                  <div><p className="text-sm">{e.iniciativa}</p><p className="text-[10px] text-muted-foreground">Inic.</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Escritorio: tabla */}
+          <div className="overflow-x-auto scrollbar-thin hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground uppercase border-b border-border">
@@ -98,6 +119,7 @@ export default function AdminEvaluaciones() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </SectionCard>
     </div>

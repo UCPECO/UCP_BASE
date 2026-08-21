@@ -173,7 +173,25 @@ export default function AdminBonos() {
             {bonos.length === 0 ? (
               <EmptyState title="Sin bonos asignados" message="Las horas de premio que asignes aparecerán aquí." icon={Award} />
             ) : (
-              <div className="overflow-x-auto scrollbar-thin">
+              <>
+              {/* Móvil: tarjetas apiladas */}
+              <div className="md:hidden space-y-3">
+                {bonos.map(b => (
+                  <div key={b.id} className="p-3 rounded-xl border border-border bg-card">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium truncate">{nombreUsuario(alumnosById[b.usuario])}</p>
+                      <span className="inline-flex items-center gap-1 text-primary font-semibold shrink-0"><Sparkles className="h-3.5 w-3.5" />{b.horas}h</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{b.motivo || "—"}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-muted-foreground">{formatearFecha(b.fecha)}</p>
+                      <button onClick={() => handleDelete(b.id)} className="p-2 -m-1 text-muted-foreground hover:text-destructive" title="Eliminar"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Escritorio: tabla */}
+              <div className="overflow-x-auto scrollbar-thin hidden md:block">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground uppercase tracking-wide border-b border-border">
@@ -197,6 +215,7 @@ export default function AdminBonos() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </SectionCard>
         </div>

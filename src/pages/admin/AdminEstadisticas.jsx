@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, LineChart, Line } from "recharts";
 import { BarChart3, PieChart as PieIcon, GraduationCap, Users, AlertTriangle, Trophy, Leaf, TrendingUp } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
+import { useIsMobile } from "@/hooks/use-mobile";
 import KpiCard from "@/components/ucp/KpiCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { calcularHoras, aMinutos, nombreUsuario } from "@/lib/ucpUtils";
@@ -14,6 +15,7 @@ const COLOR_ACCENT = "#e08a3e";
 const COLOR_ROSE = "#e2533f";
 
 export default function AdminEstadisticas() {
+  const esMovil = useIsMobile();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -212,11 +214,11 @@ export default function AdminEstadisticas() {
           {data.horasFacultad.length === 0 ? (
             <EmptyState title="Sin datos" message="Aún no hay horas registradas por facultad." icon={BarChart3} />
           ) : (
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={data.horasFacultad} margin={{ top: 10, right: 10, left: 0, bottom: 40 }}>
+            <ResponsiveContainer width="100%" height={esMovil ? 300 : 340}>
+              <BarChart data={data.horasFacultad} margin={{ top: 10, right: 10, left: esMovil ? -12 : 0, bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="facultad" angle={-30} textAnchor="end" interval={0} height={60} tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <XAxis dataKey="facultad" angle={esMovil ? -45 : -30} textAnchor="end" interval={0} height={esMovil ? 72 : 60} tick={{ fontSize: esMovil ? 10 : 11 }} />
+                <YAxis tick={{ fontSize: esMovil ? 10 : 11 }} />
                 <Tooltip formatter={(v) => `${v}h`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
                 <Bar dataKey="horas" name="Horas" fill={COLOR_PRIMARY} radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -227,11 +229,11 @@ export default function AdminEstadisticas() {
         <SectionCard title="Alumnos activos vs con incidencias" subtitle="Distribución de alumnos activos" icon={PieIcon}>
           <ResponsiveContainer width="100%" height={340}>
             <PieChart>
-              <Pie data={data.distribucion} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}>
+              <Pie data={data.distribucion} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={esMovil ? 42 : 55} outerRadius={esMovil ? 68 : 90} paddingAngle={2}>
                 {data.distribucion.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip formatter={(v) => `${v} alumnos`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: esMovil ? 11 : 12 }} />
             </PieChart>
           </ResponsiveContainer>
         </SectionCard>
@@ -244,10 +246,10 @@ export default function AdminEstadisticas() {
             <EmptyState title="Sin recepciones" message="Aún no hay materiales recibidos con empresa registrada." icon={Leaf} />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.topDonantes} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <BarChart data={data.topDonantes} layout="vertical" margin={{ top: 5, right: 20, left: esMovil ? 0 : 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="empresa" width={130} tick={{ fontSize: 11 }} />
+                <XAxis type="number" tick={{ fontSize: esMovil ? 10 : 11 }} />
+                <YAxis type="category" dataKey="empresa" width={esMovil ? 88 : 130} tick={{ fontSize: esMovil ? 10 : 11 }} />
                 <Tooltip formatter={(v, name) => name === "co2e" ? `${v} kg CO2e` : `${v} kg`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
                 <Bar dataKey="co2e" name="co2e" fill={COLOR_PRIMARY} radius={[0, 6, 6, 0]} />
               </BarChart>
@@ -257,10 +259,10 @@ export default function AdminEstadisticas() {
 
         <SectionCard title="Progreso de la cohorte" subtitle="Participantes activos según % de su meta de horas" icon={Users}>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.cohorte} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+            <BarChart data={data.cohorte} margin={{ top: 10, right: 10, left: esMovil ? -14 : 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="rango" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <XAxis dataKey="rango" tick={{ fontSize: esMovil ? 10 : 12 }} />
+              <YAxis tick={{ fontSize: esMovil ? 10 : 11 }} allowDecimals={false} width={esMovil ? 28 : 40} />
               <Tooltip formatter={(v) => `${v} participantes`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
               <Bar dataKey="alumnos" name="Participantes" fill={COLOR_ACCENT} radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -273,10 +275,10 @@ export default function AdminEstadisticas() {
           <EmptyState title="Sin fichajes" message="Aún no hay registros cerrados para graficar." icon={TrendingUp} />
         ) : (
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={data.tendenciaSemanal} margin={{ top: 10, right: 15, left: 0, bottom: 5 }}>
+            <LineChart data={data.tendenciaSemanal} margin={{ top: 10, right: 15, left: esMovil ? -14 : 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <XAxis dataKey="semana" tick={{ fontSize: esMovil ? 10 : 11 }} />
+              <YAxis tick={{ fontSize: esMovil ? 10 : 11 }} width={esMovil ? 30 : 40} />
               <Tooltip formatter={(v) => `${v} h`} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7e0" }} />
               <Line type="monotone" dataKey="horas" name="Horas" stroke={COLOR_PRIMARY} strokeWidth={2.5} dot={{ r: 3 }} />
             </LineChart>
@@ -308,7 +310,24 @@ export default function AdminEstadisticas() {
         {data.kpisPersona.length === 0 ? (
           <EmptyState title="Sin datos" message="No hay alumnos registrados." icon={Users} />
         ) : (
-          <div className="overflow-x-auto scrollbar-thin">
+          <>
+          {/* Móvil: tarjetas apiladas */}
+          <div className="md:hidden space-y-3">
+            {data.kpisPersona.map((p) => (
+              <div key={p.id} className="p-3 rounded-xl border border-border bg-card">
+                <p className="font-medium truncate">{p.nombre}</p>
+                <div className="grid grid-cols-3 gap-2 mt-2 text-center">
+                  <div><p className="text-sm font-semibold text-primary">{p.validadas} h</p><p className="text-[10px] text-muted-foreground">Validadas</p></div>
+                  <div><p className={`text-sm font-medium ${p.porValidar > 0 ? "text-amber-600" : ""}`}>{p.porValidar > 0 ? `${p.porValidar} h` : "—"}</p><p className="text-[10px] text-muted-foreground">Por validar</p></div>
+                  <div><p className="text-sm">{p.puntualidad === null ? "—" : `${p.puntualidad}%`}</p><p className="text-[10px] text-muted-foreground">Puntualidad</p></div>
+                  <div><p className="text-sm">{p.evidencias === null ? "—" : `${p.evidencias}%`}</p><p className="text-[10px] text-muted-foreground">Evidencias</p></div>
+                  <div><p className={`text-sm ${p.incidencias > 0 ? "text-rose-600 font-medium" : ""}`}>{p.incidencias || 0}</p><p className="text-[10px] text-muted-foreground">Incidencias</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Escritorio: tabla */}
+          <div className="overflow-x-auto scrollbar-thin hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground uppercase tracking-wide border-b border-border">
@@ -334,6 +353,7 @@ export default function AdminEstadisticas() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </SectionCard>
     </div>

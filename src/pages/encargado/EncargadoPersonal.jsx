@@ -78,7 +78,34 @@ export default function EncargadoPersonal() {
         <SectionCard><EmptyState title="Sin personal" message="No hay registros que coincidan con el filtro." icon={UserCog} /></SectionCard>
       ) : (
         <SectionCard title={`Personal (${filtered.length})`} icon={UserCog}>
-          <div className="overflow-x-auto scrollbar-thin">
+          {/* Móvil: tarjetas apiladas */}
+          <div className="md:hidden space-y-3">
+            {filtered.map((u) => (
+              <button key={u.id} onClick={() => setDetalleUser(u)} className="w-full text-left p-3 rounded-xl border border-border bg-card hover:bg-muted/40 transition-colors">
+                <div className="flex items-center gap-3">
+                  {u.foto_perfil ? (
+                    <img src={u.foto_perfil} alt="" className="h-11 w-11 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary shrink-0">
+                      {(u.nombre_completo || u.full_name || "?").charAt(0)}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{u.nombre_completo || u.full_name || "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email || "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {u.matricula || "Sin matrícula"}{(u.facultad || u.carrera) ? ` · ${u.facultad || ""}${u.carrera ? ` · ${u.carrera}` : ""}` : ""}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${ROLE_STYLE[u.role] || ROLE_STYLE.voluntario}`}>
+                    {ROLES.find((r) => r.value === u.role)?.label || u.role || "—"}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+          {/* Escritorio: tabla */}
+          <div className="overflow-x-auto scrollbar-thin hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">

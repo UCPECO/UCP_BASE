@@ -50,6 +50,10 @@ const PARTICIPANT_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias',
 const READ_ADMIN_ONLY = new Set(['Invitaciones', 'Bitacora_Auditoria', 'Codigos_QR']);
 const READ_STAFF_ONLY = new Set(['Historial_Areas', 'Ventas']); // solo admin/encargado pueden leerlo
 const NO_CLIENT_WRITE = new Set(['Historial_Areas']); // solo el servidor escribe (hooks internos)
+// Lectura compartida para cualquier usuario autenticado (contenido general)
+const SHARED_READ = new Set(['Actividades', 'Eventos', 'Encuestas', 'Pases_Lista']);
+// Participantes solo leen SUS propios registros de estas entidades (se fuerza usuario = yo)
+const SCOPE_OWN = new Set(['Asignaciones', 'Horarios_Clase', 'Evidencias', 'Respuestas_Encuesta', 'Respuestas_Pases_Lista', 'Registros_QR', 'Notificaciones', 'Checklist_Bodega', 'Bonos', 'Constancias', 'Ajustes_Horas']);
 
 // Cache de columnas reales por tabla (evita SQL injection en identificadores
 // y errores por columnas inexistentes, ej. updated_date)
@@ -68,6 +72,33 @@ function getMe(req) {
 
 function esAdmin(me) { return me?.role === 'admin'; }
 function esAdminOEncargado(me) { return me?.role === 'admin' || me?.role === 'encargado'; }
+
+// Verifica permiso de lectura; devuelve `me` si autorizado, null si ya respondió error.
+// Participantes: solo SHARED_READ (contenido general) y SCOPE_OWN (sus propios datos).
+function checkRead(req, res, entity) {
+  const me = getMe(req);
+  if (!me) { res.status(401).json({ error: 'No autorizado' }); return null; }
+
+  if (READ_ADMIN_ONLY.has(entity) && !esAdmin(me)) {
+    res.status(403).json({ error: 'Solo el administrador' });
+    return null;
+  }
+  if (READ_STAFF_ONLY.has(entity) && !esAdminOEncargado(me)) {
+    res.status(403).json({ error: 'Solo admin o encargado' });
+    return null;
+  }
+  if (esAdminOEncargado(me)) return me;
+
+  // Participante (servicio_social / voluntario / practicas_profesionales)
+  if (entity === 'User') {
+    res.status(403).json({ error: 'Solo puedes ver tu propio perfil' });
+    return null;
+  }
+  if (SHARED_READ.has(entity) || SCOPE_OWN.has(entity) || entity === 'Comentarios_Evidencia') return me;
+
+  res.status(403).json({ error: 'Sin permiso de lectura' });
+  return null;
+}
 
 // better-sqlite3 no acepta booleanos JS: convertir a 1/0
 // Folio consecutivo por prefijo y año. ENT es una sola serie compartida
@@ -178,6 +209,12 @@ function checkWrite(req, res, entity, existingRow) {
   if (PARTICIPANT_OWN.has(entity)) {
     // Dueño del registro o admin/encargado
     if (esAdminOEncargado(me)) return true;
+    // Los fichajes NUNCA se crean ni modifican a mano desde el cliente:
+    // entran por las funciones de escaneo QR (validan token, área y hora)
+    if (entity === 'Registros_QR') {
+      res.status(403).json({ error: 'Los fichajes solo se generan escaneando el código QR' });
+      return false;
+    }
     if (existingRow && existingRow.usuario === me.id) return true;
     if (existingRow === undefined) return true; // creación: se fuerza usuario=self más abajo
     res.status(403).json({ error: 'Solo puedes modificar tus propios registros' });
@@ -196,30 +233,38 @@ router.get('/:entity', authMiddleware, (req, res) => {
   const table = getTable(req, res);
   if (!table) return;
 
-  const me = getMe(req);
-  if (READ_ADMIN_ONLY.has(req.params.entity) && !esAdmin(me)) {
-    return res.status(403).json({ error: 'Solo el administrador' });
-  }
-  if (READ_STAFF_ONLY.has(req.params.entity) && !esAdminOEncargado(me)) {
-    return res.status(403).json({ error: 'Solo admin o encargado' });
-  }
+  const me = checkRead(req, res, req.params.entity);
+  if (!me) return;
 
   const cols = validColumns(table);
   const { sort, limit, ...filters } = req.query;
 
   try {
-    let query = `SELECT * FROM ${table}`;
+    const conditions = [];
     const params = [];
 
     // Aplicar filtros (solo columnas reales → sin inyección SQL)
     const filterKeys = Object.keys(filters).filter(k => cols.has(k));
-    if (filterKeys.length > 0) {
-      const conditions = filterKeys.map(k => {
-        params.push(filters[k]);
-        return `${k} = ?`;
-      });
-      query += ` WHERE ${conditions.join(' AND ')}`;
+    for (const k of filterKeys) {
+      params.push(filters[k]);
+      conditions.push(`${k} = ?`);
     }
+
+    // Participantes: se fuerza el alcance a sus propios registros,
+    // sin importar los filtros que mande el cliente
+    if (!esAdminOEncargado(me)) {
+      if (SCOPE_OWN.has(req.params.entity) && cols.has('usuario')) {
+        conditions.push('usuario = ?');
+        params.push(me.id);
+      } else if (req.params.entity === 'Comentarios_Evidencia') {
+        // Solo comentarios de evidencias propias
+        conditions.push('evidencia IN (SELECT id FROM evidencias WHERE usuario = ?)');
+        params.push(me.id);
+      }
+    }
+
+    let query = `SELECT * FROM ${table}`;
+    if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
 
     // Ordenar (columna validada)
     if (sort) {
@@ -253,17 +298,27 @@ router.get('/:entity/:id', authMiddleware, (req, res) => {
   const table = getTable(req, res);
   if (!table) return;
 
-  const me = getMe(req);
-  if (READ_ADMIN_ONLY.has(req.params.entity) && !esAdmin(me)) {
-    return res.status(403).json({ error: 'Solo el administrador' });
-  }
-  if (READ_STAFF_ONLY.has(req.params.entity) && !esAdminOEncargado(me)) {
-    return res.status(403).json({ error: 'Solo admin o encargado' });
-  }
+  const me = checkRead(req, res, req.params.entity);
+  if (!me) return;
 
   try {
     let row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.params.id);
     if (!row) return res.status(404).json({ error: 'No encontrado' });
+
+    // Participantes: solo sus propios registros
+    if (!esAdminOEncargado(me)) {
+      if (req.params.entity === 'User' && row.id !== me.id) {
+        return res.status(404).json({ error: 'No encontrado' });
+      }
+      if (SCOPE_OWN.has(req.params.entity) && 'usuario' in row && row.usuario !== me.id) {
+        return res.status(404).json({ error: 'No encontrado' });
+      }
+      if (req.params.entity === 'Comentarios_Evidencia') {
+        const ev = db.prepare('SELECT usuario FROM evidencias WHERE id = ?').get(row.evidencia);
+        if (!ev || ev.usuario !== me.id) return res.status(404).json({ error: 'No encontrado' });
+      }
+    }
+
     if (table === 'users') row = stripPassword(row);
     res.json(row);
   } catch (error) {
@@ -470,6 +525,10 @@ router.delete('/:entity/:id', authMiddleware, (req, res) => {
   if (req.params.entity === 'Evidencias' && !esAdminOEncargado(me) && existing.estado_evidencia !== 'pendiente') {
     return res.status(403).json({ error: 'Solo puedes eliminar evidencias pendientes' });
   }
+  // Las respuestas (pase de lista / encuestas) no se borran: son el registro de participación
+  if (!esAdminOEncargado(me) && (req.params.entity === 'Respuestas_Pases_Lista' || req.params.entity === 'Respuestas_Encuesta')) {
+    return res.status(403).json({ error: 'Las respuestas enviadas no se pueden eliminar' });
+  }
 
   try {
     // Al eliminar una venta se revierte el stock: se borra la salida ligada
@@ -496,6 +555,10 @@ router.post('/:entity/bulk', authMiddleware, (req, res) => {
 
   const cols = validColumns(table);
 
+  // Participantes: en lote también se fuerza que todo quede a su nombre
+  const meBulk = getMe(req);
+  const forzarPropietario = PARTICIPANT_OWN.has(req.params.entity) && !esAdminOEncargado(meBulk);
+
   // Recepciones por lote: TODAS las filas comparten un solo folio ENT,
   // porque juntas forman una sola "nota de recepción"
   const esRecepcion = req.params.entity === 'Materiales_Recibidos' || req.params.entity === 'Electronicos_Reciclados';
@@ -505,6 +568,7 @@ router.post('/:entity/bulk', authMiddleware, (req, res) => {
     const created = [];
     for (const raw of items) {
       const data = { ...raw };
+      if (forzarPropietario) data.usuario = meBulk.id;
       if (folioLote && !data.folio) data.folio = folioLote;
       if (req.params.entity === 'Salidas_Materiales' && !data.folio) data.folio = siguienteFolio('SAL');
       const id = data.id || uuidv4();

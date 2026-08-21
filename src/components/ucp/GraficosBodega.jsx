@@ -2,11 +2,13 @@ import React, { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, LineChart, Line, Legend, Cell } from "recharts";
 import { BarChart3, TrendingUp } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const COLORES = ["hsl(168 58% 34%)", "hsl(35 85% 55%)", "hsl(200 70% 50%)", "hsl(280 60% 55%)", "hsl(340 70% 55%)", "hsl(168 48% 45%)"];
 
 export default function GraficosBodega({ registros, categorias, catMedida, catLabel }) {
+  const esMovil = useIsMobile();
   const porCategoria = useMemo(() => {
     return categorias
       .map((c) => {
@@ -47,10 +49,10 @@ export default function GraficosBodega({ registros, categorias, catMedida, catLa
       <SectionCard title="Volumen por categoría" subtitle="Registros recibidos por tipo de material" icon={BarChart3}>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={porCategoria} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+            <BarChart data={porCategoria} margin={{ top: 10, right: 10, left: esMovil ? -22 : -10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(150 18% 88%)" />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(168 15% 42%)" }} angle={-25} textAnchor="end" height={70} interval={0} />
-              <YAxis tick={{ fontSize: 11, fill: "hsl(168 15% 42%)" }} allowDecimals={false} />
+              <XAxis dataKey="name" tick={{ fontSize: esMovil ? 9 : 10, fill: "hsl(168 15% 42%)" }} angle={esMovil ? -40 : -25} textAnchor="end" height={70} interval={0} />
+              <YAxis tick={{ fontSize: esMovil ? 10 : 11, fill: "hsl(168 15% 42%)" }} allowDecimals={false} width={esMovil ? 26 : 36} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid hsl(150 18% 88%)", fontSize: 12 }}
                 formatter={(v, n, p) => [`${v} registros`, "Registros"]}
@@ -67,12 +69,12 @@ export default function GraficosBodega({ registros, categorias, catMedida, catLa
       <SectionCard title="Recepción mensual" subtitle="Últimos 12 meses · registros y peso (kg)" icon={TrendingUp}>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={mensual} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+            <LineChart data={mensual} margin={{ top: 10, right: 10, left: esMovil ? -22 : -10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(150 18% 88%)" />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(168 15% 42%)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "hsl(168 15% 42%)" }} allowDecimals={false} />
+              <XAxis dataKey="name" tick={{ fontSize: esMovil ? 9 : 10, fill: "hsl(168 15% 42%)" }} />
+              <YAxis tick={{ fontSize: esMovil ? 10 : 11, fill: "hsl(168 15% 42%)" }} allowDecimals={false} width={esMovil ? 26 : 36} />
               <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(150 18% 88%)", fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: esMovil ? 11 : 12 }} />
               <Line type="monotone" dataKey="registros" name="Registros" stroke="hsl(168 58% 34%)" strokeWidth={2.5} dot={{ r: 3 }} />
               <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="hsl(35 85% 55%)" strokeWidth={2.5} dot={{ r: 3 }} />
             </LineChart>
