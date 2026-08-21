@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Bell, BellRing, CheckCheck, Trash2, X } from "lucide-react";
 import { formatearFecha } from "@/lib/ucpUtils";
+import { suscribirseAPush, pushDisponible } from "@/lib/push";
 
 // ¿El navegador soporta notificaciones nativas?
 const soportaNativas = typeof window !== "undefined" && "Notification" in window;
@@ -84,10 +85,20 @@ export default function CampanaNotificaciones({ usuarioId, alinear = "derecha" }
       const p = await Notification.requestPermission();
       setPermiso(p);
       if (p === "granted") {
-        new Notification("UCP Horas", { body: "Avisos activados. Te llegarán aquí las notificaciones nuevas.", icon: "/branding/logo-mono.png" });
+        // Registrar el dispositivo para push: los avisos llegan aunque la app esté cerrada
+        await suscribirseAPush();
+        new Notification("UCP Horas", { body: "Avisos activados. Te llegarán aquí y aunque cierres la app.", icon: "/branding/logo-mono.png" });
       }
     } catch { /* navegador sin soporte de requestPermission asíncrono */ }
   };
+
+  // Si el permiso ya estaba concedido de antes, re-suscribir en silencio
+  // (idempotente: cubre tokens caducados o dispositivos reinstalados)
+  useEffect(() => {
+    if (usuarioId && pushDisponible() && Notification.permission === "granted") {
+      suscribirseAPush();
+    }
+  }, [usuarioId]);
 
   const marcarLeida = async (n) => {
     try {

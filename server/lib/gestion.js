@@ -2,6 +2,7 @@
 // notificaciones internas, constancia automática al llegar a la meta
 // y cierre automático de fichajes olvidados.
 import { db } from '../database.js';
+import { enviarPush } from './push.js';
 
 function nuevoId() {
   return db.prepare('SELECT lower(hex(randomblob(16))) AS id').get().id;
@@ -25,6 +26,9 @@ export function notificar(usuarioId, titulo, mensaje, enlace = null) {
       INSERT INTO notificaciones (id, usuario, titulo, mensaje, enlace, leida)
       VALUES (?, ?, ?, ?, ?, 0)
     `).run(nuevoId(), usuarioId, titulo, mensaje || '', enlace);
+    // Push nativa al dispositivo (llega aunque la app esté cerrada);
+    // fire-and-forget: nunca debe frenar ni romper el flujo principal
+    enviarPush(usuarioId, { titulo, mensaje, enlace }).catch(() => {});
   } catch (e) {
     console.error('Error creando notificación:', e.message);
   }

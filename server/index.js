@@ -7,6 +7,8 @@ import './setup.js';
 import authRoutes from './routes/auth.js';
 import entityRoutes from './routes/entities.js';
 import functionRoutes from './routes/functions.js';
+import pushRoutes from './routes/push.js';
+import { inicializarPush } from './lib/push.js';
 import { cerrarFichajesOlvidados } from './lib/gestion.js';
 import { respaldarBD, db } from './database.js';
 import { securityHeaders, rateLimit } from './middleware/security.js';
@@ -30,6 +32,7 @@ app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 400, mensaje: 'Demasiadas 
 app.use('/api/auth', authRoutes);
 app.use('/api/entities', entityRoutes);
 app.use('/api/functions', functionRoutes);
+app.use('/api/push', pushRoutes);
 
 // Upload endpoint (simulado - guarda en servidor)
 app.post('/api/upload', (req, res) => {
@@ -62,6 +65,7 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 UCP Horas Server running on http://localhost:${PORT}`);
+  inicializarPush();
   // Cerrar fichajes olvidados al arrancar y luego cada 6 horas, con respaldo de la BD
   const mantenimiento = () => { cerrarFichajesOlvidados(); respaldarBD(); };
   mantenimiento();

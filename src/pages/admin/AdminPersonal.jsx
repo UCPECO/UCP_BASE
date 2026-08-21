@@ -4,6 +4,7 @@ import { UserCog, Search, Mail, X, UserPlus, Eye, EyeOff, Eye as EyeIcon, FileDo
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import DetallePersonal from "@/components/ucp/DetallePersonal";
+import BotonPoke from "@/components/ucp/BotonPoke";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -539,6 +540,7 @@ export default function AdminPersonal() {
                     <p className="text-xs text-muted-foreground truncate">{u.email || "—"}{u.matricula ? ` · Mat. ${u.matricula}` : ""}</p>
                     {u.etiqueta && <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">{u.etiqueta}</span>}
                   </div>
+                  <BotonPoke usuarioId={u.id} nombre={u.nombre_completo || u.full_name} size="icon" />
                   <button onClick={() => setDetalleUser(u)} title="Ver historial completo" className="p-2 rounded-lg hover:bg-muted text-primary shrink-0"><Eye className="h-4 w-4" /></button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -678,6 +680,7 @@ export default function AdminPersonal() {
                       <td className="py-2 sm:py-3 pr-2 sm:pr-4">
                         <div className="flex items-center gap-2 sm:gap-3">
                           <button onClick={() => setDetalleUser(u)} title="Ver historial completo" className="p-1.5 rounded-lg hover:bg-muted text-primary shrink-0"><Eye className="h-4 w-4" /></button>
+                          <BotonPoke usuarioId={u.id} nombre={u.nombre_completo || u.full_name} size="icon" />
                           {u.foto_perfil ? (
                             <img src={u.foto_perfil} alt="" className="h-8 w-8 sm:h-9 sm:w-9 rounded-full object-cover shrink-0" />
                           ) : (

@@ -1,8 +1,42 @@
 // Service Worker de UCP Horas
 // - Estáticos: cache-first (la app funciona sin conexión una vez instalada)
 // - API: network-first (los datos siempre frescos; sin conexión responde error claro)
-const CACHE = 'ucp-horas-v1';
+// - Push: muestra notificaciones nativas aunque la app esté cerrada
+const CACHE = 'ucp-horas-v2';
 const SHELL = ['/', '/index.html', '/manifest.json'];
+
+// ===== Notificaciones push (llegan con la app cerrada) =====
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch { data = { mensaje: e.data ? e.data.text() : '' }; }
+  e.waitUntil(
+    self.registration.showNotification(data.titulo || 'UCP Horas', {
+      body: data.mensaje || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: 'ucp-aviso',
+      renotify: true,
+      data: { enlace: data.enlace || '/' },
+    })
+  );
+});
+
+// Al tocar la notificación: abrir/enfocar la app en el enlace indicado
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const destino = e.notification.data?.enlace || '/';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((lista) => {
+      for (const c of lista) {
+        if ('focus' in c) {
+          try { c.navigate(destino); } catch {}
+          return c.focus();
+        }
+      }
+      return clients.openWindow(destino);
+    })
+  );
+});
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));

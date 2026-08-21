@@ -600,6 +600,28 @@ db.exec(`
 // huella de carbono (si no se define, se usa el promedio de la categoría)
 addColumnIfMissing('categorias_material', 'peso_estimado', 'peso_estimado REAL');
 
+// Claves internas del sistema (par VAPID para notificaciones push, etc.)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS claves_sistema (
+    clave TEXT PRIMARY KEY,
+    valor TEXT,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// Suscripciones Web Push: una por dispositivo/navegador de cada usuario.
+// Permiten que las notificaciones lleguen aunque la app esté cerrada.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id TEXT PRIMARY KEY,
+    usuario TEXT NOT NULL,
+    endpoint TEXT UNIQUE,
+    p256dh TEXT,
+    auth TEXT,
+    created_date TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Insertar usuario admin por defecto
 const adminExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get('admin@ucp.local');
 if (!adminExists) {

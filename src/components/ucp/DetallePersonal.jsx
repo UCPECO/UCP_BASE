@@ -17,6 +17,7 @@ import { formatearFecha, calcularHoras, sumarHorasRegistros, sumarHorasPorValida
 import { generarReportePdfMensual } from "@/lib/generarReporte";
 import { AREAS, labelArea, labelEtiqueta } from "@/lib/areas";
 import { esParticipante, ROL_LABEL } from "@/lib/roles";
+import BotonPoke from "@/components/ucp/BotonPoke";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
@@ -280,6 +281,9 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
               </div>
             )}
             {datos?.nombre_completo || datos?.full_name || "—"}
+            {puedeCorregir && datos?.id && datos.id !== meId && (
+              <BotonPoke usuarioId={datos.id} nombre={datos?.nombre_completo || datos?.full_name} />
+            )}
           </DialogTitle>
           <DialogDescription>
             {datos?.email} · Rol: {ROL_LABEL[datos?.role] || datos?.role} · {datos?.matricula || "Sin matrícula"} ·{" "}
