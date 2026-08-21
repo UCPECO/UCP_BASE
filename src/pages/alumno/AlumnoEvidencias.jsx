@@ -6,6 +6,7 @@ import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import StatusBadge from "@/components/ucp/StatusBadge";
 import ComentariosEvidencia from "@/components/ucp/ComentariosEvidencia";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -151,7 +152,7 @@ export default function AlumnoEvidencias() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
 
   return (
     <div className="space-y-6">

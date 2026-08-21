@@ -5,7 +5,11 @@ import { useAlumnoData } from "@/lib/useAlumnoData";
 import { Link } from "react-router-dom";
 import { Clock, Award, TrendingUp, Calendar, QrCode, History, Sparkles } from "lucide-react";
 import KpiCard from "@/components/ucp/KpiCard";
-import ProgressBar from "@/components/ucp/ProgressBar";
+import AnilloProgreso from "@/components/ucp/AnilloProgreso";
+import NumeroAnimado from "@/components/ucp/NumeroAnimado";
+import RachaFichajes from "@/components/ucp/RachaFichajes";
+import HeatmapAsistencia from "@/components/ucp/HeatmapAsistencia";
+import { DashboardSkeleton } from "@/components/ucp/Skeleton";
 import SectionCard from "@/components/ucp/SectionCard";
 import StatusBadge from "@/components/ucp/StatusBadge";
 import EmptyState from "@/components/ucp/EmptyState";
@@ -24,7 +28,7 @@ export default function AlumnoDashboard() {
     setRegistroAbierto(registros.find(r => r.estado_registro === "abierto") || null);
   }, [registros]);
 
-  if (loading) return <Loading />;
+  if (loading) return <DashboardSkeleton />;
 
   return (
     <div className="space-y-6">
@@ -44,14 +48,22 @@ export default function AlumnoDashboard() {
         <img src="/branding/mascota-saludo.png" alt="" aria-hidden="true" className="hidden sm:block h-20 w-20 object-contain shrink-0" />
       </div>
 
-      {/* Progreso al inicio */}
+      {/* Progreso al inicio: anillo protagonista + cifras grandes */}
       <SectionCard title="Mi progreso hacia la meta" subtitle={`Meta: ${meta} hrs · ${actividad?.nombre || "Sin actividad"}`}>
-        <ProgressBar value={totalHoras} max={meta} label="Avance general" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-          <InfoMini label="Acumulado" value={`${totalHoras} h`} />
-          <InfoMini label="Completado" value={`${porcentaje}%`} />
-          <InfoMini label="Restantes" value={`${restantes} h`} />
-          <InfoMini label="Estado" value={<StatusBadge status={asignacion?.estado} />} />
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <AnilloProgreso value={totalHoras} max={meta} />
+          <div className="flex-1 w-full text-center sm:text-left">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Horas acumuladas</p>
+            <p className="font-heading font-extrabold text-4xl sm:text-5xl leading-none mt-2">
+              <NumeroAnimado value={totalHoras} decimals={totalHoras % 1 ? 1 : 0} />
+              <span className="text-lg sm:text-xl font-bold text-muted-foreground"> / {meta} h</span>
+            </p>
+            <div className="grid grid-cols-3 gap-4 mt-6 text-left">
+              <InfoMini label="Restantes" value={`${restantes} h`} />
+              <InfoMini label="Completado" value={`${porcentaje}%`} />
+              <InfoMini label="Estado" value={<StatusBadge status={asignacion?.estado} />} />
+            </div>
+          </div>
         </div>
         {horasPorValidar > 0 && (
           <p className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
@@ -80,6 +92,9 @@ export default function AlumnoDashboard() {
         </div>
       </div>
 
+      {/* Racha de asistencia */}
+      <RachaFichajes registros={registros} />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={Clock} label="Horas acumuladas" value={horasAcumuladas} hint="por registros QR" tone="primary" />
@@ -87,6 +102,11 @@ export default function AlumnoDashboard() {
         <KpiCard icon={TrendingUp} label="Total horas" value={totalHoras} hint={`Meta: ${meta} hrs`} tone="blue" />
         <KpiCard icon={Award} label="Restantes" value={restantes} hint={`${porcentaje}% completado`} tone="rose" />
       </div>
+
+      {/* Heatmap de constancia */}
+      <SectionCard title="Tu constancia" subtitle="Mapa de asistencia de las últimas semanas" icon={Calendar}>
+        <HeatmapAsistencia registros={registros} />
+      </SectionCard>
 
       {/* Historial QR */}
       <SectionCard title="Historial de fichajes" subtitle="Tus registros QR recientes" icon={History}>
@@ -146,14 +166,6 @@ function InfoMini({ label, value }) {
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-sm font-medium mt-0.5">{value}</p>
-    </div>
-  );
-}
-
-function Loading() {
-  return (
-    <div className="flex items-center justify-center py-20">
-      <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" />
     </div>
   );
 }

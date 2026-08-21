@@ -26,8 +26,9 @@ export default function Home() {
   }, [user, navigate]);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" />
+    <div className="fixed inset-0 flex flex-col items-center justify-center gap-5 bg-background">
+      <img src="/branding/logo-mono.png" alt="UCP" className="h-16 w-16 object-contain animate-pulse" />
+      <div className="skeleton h-2 w-36 rounded-full" />
     </div>
   );
 }

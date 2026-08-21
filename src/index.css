@@ -188,6 +188,72 @@
   .glow-aurora {
     box-shadow: 0 0 22px hsl(261 88% 63% / 0.45), 0 4px 14px rgb(0 0 0 / 0.35);
   }
+  /* Vidrio esmerilado para topbar móvil y barra inferior: el contenido
+     se insinúa detrás al hacer scroll */
+  .glass-bar {
+    background-color: hsl(var(--sidebar-background) / 0.72);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  }
+  /* Curva de easing de la casa: entrada rápida, aterrizaje suave */
+  .ease-aurora { transition-timing-function: cubic-bezier(.23,.34,.18,1); }
+  /* Esqueleto de carga con brillo que barre de izquierda a derecha */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: hsl(var(--muted));
+    border-radius: calc(var(--radius) - 6px);
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.07), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+  /* Celebración de fichaje: anillos que se expanden y check que se dibuja */
+  .animate-pop-in { animation: pop-in 0.55s cubic-bezier(.23,.34,.18,1) both; }
+  .animate-pulse-ring { animation: pulse-ring 1.4s cubic-bezier(.23,.34,.18,1) infinite; }
+  .animate-pulse-ring-delay { animation: pulse-ring 1.4s cubic-bezier(.23,.34,.18,1) 0.35s infinite; }
+  .animate-check-circle { animation: draw-stroke 0.7s cubic-bezier(.23,.34,.18,1) 0.1s both; }
+  .animate-check-mark { animation: draw-stroke 0.45s cubic-bezier(.23,.34,.18,1) 0.65s both; }
+  /* Las barras/aro de progreso arrancan en 0 y se llenan al entrar en pantalla
+     (el estado inicial lo fija el componente; aquí solo la curva) */
+  .anim-fill { transition: width 1.1s cubic-bezier(.23,.34,.18,1), stroke-dashoffset 1.2s cubic-bezier(.23,.34,.18,1); }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes draw-stroke {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes pop-in {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.7); opacity: 0.7; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* Accesibilidad: sin animaciones para quien las desactiva en el sistema */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after,
+  .animate-pop-in,
+  .animate-pulse-ring,
+  .animate-pulse-ring-delay,
+  .animate-check-circle,
+  .animate-check-mark {
+    animation: none !important;
+  }
+  .animate-check-circle,
+  .animate-check-mark {
+    stroke-dashoffset: 0 !important;
+  }
+  .anim-fill { transition: none !important; }
 }
 /* ============================================================
    Compatibilidad MODO OSCURO para utilidades de tonos claros

@@ -151,7 +151,7 @@ export default function Layout({ children }) {
       {/* Main */}
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
         {/* Mobile topbar */}
-        <header className="lg:hidden sticky top-0 z-20 bg-sidebar text-sidebar-foreground px-4 h-14 flex items-center justify-between">
+        <header className="lg:hidden sticky top-0 z-20 glass-bar text-sidebar-foreground border-b border-sidebar-border px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-heading font-bold">
             <img src="/branding/logo-mono.png" alt="UCP" className="h-6 w-6 object-contain" /> UCP
           </div>
@@ -214,7 +214,7 @@ function BarraInferior({ items, esParticipante, tabsStaff, onMenu }) {
   );
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-sidebar text-sidebar-foreground border-t border-sidebar-border shadow-[0_-4px_16px_rgba(0,0,0,0.15)] pb-[env(safe-area-inset-bottom)]">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-bar text-sidebar-foreground border-t border-sidebar-border shadow-[0_-4px_16px_rgba(0,0,0,0.15)] pb-[env(safe-area-inset-bottom)]">
       {esParticipante ? (
         <div className="grid grid-cols-5 items-end px-1">
           {BOTTOM_PARTICIPANTE.izquierda.map((to) => {

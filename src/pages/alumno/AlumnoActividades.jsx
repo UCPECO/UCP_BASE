@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { FolderKanban, Plus, Check, UserCog, Users } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { labelArea } from "@/lib/areas";
@@ -78,7 +79,7 @@ export default function AlumnoActividades() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
 
   return (
     <div className="space-y-6">

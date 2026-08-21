@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { QrCode, LogIn, LogOut, Camera, CameraOff, CheckCircle2, AlertCircle, Clock, Timer } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import StatusBadge from "@/components/ucp/StatusBadge";
+import CelebracionFichaje from "@/components/ucp/CelebracionFichaje";
+import { Skeleton, ListaSkeleton } from "@/components/ucp/Skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { calcularHoras, formatearFecha, fechaHoy, horaActual } from "@/lib/ucpUtils";
@@ -42,6 +44,7 @@ export default function Fichar() {
   const [qrResult, setQrResult] = useState("");
   const [segundos, setSegundos] = useState(0);
   const [areaManual, setAreaManual] = useState("");
+  const [celebracion, setCelebracion] = useState(null);
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -154,10 +157,12 @@ export default function Fichar() {
         const areaTxt = data.registro?.area ? ` · Área: ${labelArea(data.registro.area) || data.registro.area}` : "";
         if (data?.ya_abierto) {
           toast({ title: "Ya tienes un fichaje abierto", description: `Entrada: ${data.registro.hora_entrada}. Escanea para registrar tu salida.` });
-        } else if (data?.es_manual) {
-          toast({ title: "✓ Entrada registrada (manual)", description: `Hora: ${data.registro.hora_entrada}${areaTxt} · Se avisó al encargado del área.` });
         } else {
-          toast({ title: "✓ Entrada registrada", description: `Hora: ${data.registro.hora_entrada}${areaTxt}${data.clase ? ` · ${data.clase}` : ""}` });
+          // Celebración a pantalla completa (check animado + vibración)
+          setCelebracion({ tipo: "entrada", hora: data.registro.hora_entrada });
+          if (data?.es_manual) {
+            toast({ title: "Entrada manual registrada", description: `Hora: ${data.registro.hora_entrada}${areaTxt} · Se avisó al encargado del área.` });
+          }
         }
       } else if (data?.tipo === "incidencia") {
         toast({ title: "Fichaje fuera de horario laboral", description: "Estás fuera del horario autorizado. Se registró una incidencia.", variant: "destructive" });
@@ -175,10 +180,14 @@ export default function Fichar() {
       const data = res.data;
       if (data?.error) { toast({ title: data.error, variant: "destructive" }); return; }
       const horas = data?.horas ?? calcularHoras(registroAbierto.hora_entrada, horaActual());
-      toast({
-        title: manual ? "✓ Salida registrada (manual)" : "✓ Salida registrada",
-        description: `Horas: ${horas}h${data?.incidencia_generada ? " · Incidencia por rebasar 17:15" : ""}${manual ? " · Se avisó al encargado del área" : ""}`,
-      });
+      // Celebración a pantalla completa con las horas sumadas
+      setCelebracion({ tipo: "salida", horas });
+      if (manual || data?.incidencia_generada) {
+        toast({
+          title: manual ? "Salida manual registrada" : "Salida registrada",
+          description: `${data?.incidencia_generada ? "Incidencia por rebasar 17:15" : ""}${manual ? " · Se avisó al encargado del área" : ""}`,
+        });
+      }
       setRegistroAbierto(null);
       load();
     } catch (e) { toast({ title: "Error al registrar salida", variant: "destructive" }); }
@@ -200,7 +209,19 @@ export default function Fichar() {
     }
   }, [loading, user?.id]);
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return (
+    <div className="space-y-6 max-w-2xl mx-auto" aria-hidden="true">
+      <div className="text-center space-y-2 flex flex-col items-center">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-64 w-full rounded-2xl" />
+      <div className="bg-card rounded-2xl border border-border p-5">
+        <ListaSkeleton filas={3} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -329,6 +350,16 @@ export default function Fichar() {
           </div>
         )}
       </SectionCard>
+
+      {/* Celebración a pantalla completa al fichar */}
+      {celebracion && (
+        <CelebracionFichaje
+          tipo={celebracion.tipo}
+          hora={celebracion.hora}
+          horas={celebracion.horas}
+          onClose={() => setCelebracion(null)}
+        />
+      )}
     </div>
   );
 }

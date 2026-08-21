@@ -4,6 +4,7 @@ import { Award, Download, Loader2, FileText } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import StatusBadge from "@/components/ucp/StatusBadge";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { Button } from "@/components/ui/button";
 import { formatearFecha } from "@/lib/ucpUtils";
 import { generarConstanciaPDF } from "@/lib/generarConstancia";
@@ -45,7 +46,7 @@ export default function AlumnoConstancias() {
 
       <SectionCard title="Constancias emitidas" subtitle={`${constancias.length} documento(s)`}>
         {loading ? (
-          <div className="flex justify-center py-10"><Loader2 className="h-7 w-7 text-primary animate-spin" /></div>
+          <ListaSkeleton filas={3} />
         ) : constancias.length === 0 ? (
           <EmptyState title="Sin constancias" message="Aún no tienes constancias emitidas. Cuando completes tu servicio social, el administrador generará tu constancia." icon={Award} />
         ) : (

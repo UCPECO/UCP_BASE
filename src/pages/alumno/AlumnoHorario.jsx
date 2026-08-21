@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { calcularHoras } from "@/lib/ucpUtils";
 
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -97,7 +98,7 @@ export default function AlumnoHorario() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>
+        <div className="py-6"><ListaSkeleton filas={3} /></div>
       ) : horario.length === 0 ? (
         <SectionCard>
           <EmptyState title="Sin clases registradas" message="Agrega tu horario de clases para que UCP sepa tu disponibilidad." icon={Calendar} action={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4 mr-2" /> Agregar clase</Button>} />

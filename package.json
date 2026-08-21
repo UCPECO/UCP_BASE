@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node start-hostinger.js",
+    "dev": "node dev.js",
     "build": "echo 'Frontend precompilado en dist/ - no requiere build'"
   },
   "dependencies": {

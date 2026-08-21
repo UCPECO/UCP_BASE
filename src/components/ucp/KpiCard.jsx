@@ -1,9 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import NumeroAnimado from "@/components/ucp/NumeroAnimado";
 
 // Tarjeta de KPI. Si recibe `to`, toda la tarjeta es un enlace (ataljo
 // de navegación, muy útil en móvil) con respuesta táctil.
+// Los valores numéricos cuentan de 0 a su valor al entrar en pantalla.
 export default function KpiCard({ icon: Icon, label, value, hint, tone = "primary", to }) {
   const tones = {
     primary: "from-violet-500/15 to-cyan-500/10 text-violet-700",
@@ -12,12 +14,15 @@ export default function KpiCard({ icon: Icon, label, value, hint, tone = "primar
     rose: "from-pink-500/10 to-rose-500/5 text-pink-700",
     slate: "from-slate-500/10 to-slate-400/5 text-slate-700",
   };
+  const esNumero = typeof value === "number" && Number.isFinite(value);
   const contenido = (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
         <p className="text-[11px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
-        <p className="text-lg sm:text-3xl font-bold mt-1.5 sm:mt-2 font-heading break-words">{value}</p>
-        {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+        <p className="text-2xl sm:text-4xl font-extrabold mt-1.5 sm:mt-2 font-heading break-words leading-none">
+          {esNumero ? <NumeroAnimado value={value} decimals={value % 1 ? 1 : 0} /> : value}
+        </p>
+        {hint && <p className="text-xs text-muted-foreground mt-1.5">{hint}</p>}
       </div>
       {Icon && (
         <div className={cn("h-9 w-9 sm:h-11 sm:w-11 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0", tones[tone])}>

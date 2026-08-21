@@ -5,6 +5,7 @@ import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { ListaSkeleton } from "@/components/ucp/Skeleton";
 import { nombreUsuario } from "@/lib/ucpUtils";
 
 export default function AlumnoEncuestas() {
@@ -63,7 +64,7 @@ export default function AlumnoEncuestas() {
 
   const setResp = (encId, pi, valor) => setRespuestas((r) => ({ ...r, [encId + "_" + pi]: valor }));
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
+  if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
 
   const pendientes = encuestas.filter((e) => !yaRespondi(e.id));
 
