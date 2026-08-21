@@ -33,7 +33,7 @@ export default function EncargadoEventos() {
     })();
   }, []);
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" /></div>;
 
   const proximos = eventos.filter(e => new Date(e.fecha) >= new Date(new Date().toDateString()));
 

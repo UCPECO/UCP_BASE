@@ -55,7 +55,7 @@ export default function EncargadoDashboard() {
   useEffect(() => { cargar(); }, [asignaciones, alumnos, misActividades]);
   useRecargarAlVolver(cargar);
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
@@ -111,7 +111,7 @@ export default function EncargadoDashboard() {
         <SectionCard title={`Sin actividad reciente (${inactivos.length})`} subtitle="Tus alumnos sin fichar en más de 7 días" icon={UserX}>
           <div className="space-y-2">
             {inactivos.map(({ user: u, ultima }) => (
-              <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+              <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-200 bg-amber-100">
                 <p className="text-sm font-medium truncate">{nombreUsuario(u)}</p>
                 <p className="text-xs text-muted-foreground shrink-0">
                   {ultima ? `Último fichaje: ${formatearFecha(ultima)}` : "Nunca ha fichado"}

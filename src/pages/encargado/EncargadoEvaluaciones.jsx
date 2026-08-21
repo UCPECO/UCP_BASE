@@ -115,7 +115,7 @@ export default function EncargadoEvaluaciones() {
                 <div className="flex items-center gap-2">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} type="button" onClick={() => setForm({ ...form, [d.key]: n })}
-                      className={"h-9 w-9 rounded-lg border flex items-center justify-center text-sm font-medium transition-colors " +
+                      className={"h-11 w-11 sm:h-10 sm:w-10 rounded-lg border flex items-center justify-center text-sm font-medium transition-colors " +
                         (form[d.key] === n ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted")}>
                       {n}
                     </button>
