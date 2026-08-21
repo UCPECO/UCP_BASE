@@ -11,17 +11,30 @@ function isoDe(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-// Cuenta los días consecutivos con al menos un fichaje, hacia atrás desde hoy.
-// Si hoy aún no hay fichaje, la racha no se rompe: empieza a contar desde ayer.
+// Días laborales globales de UCP: lunes a viernes (fines de semana no cuentan
+// ni rompen la racha; simplemente se saltan al retroceder).
+function esLaboral(d) {
+  return d.getDay() !== 0 && d.getDay() !== 6;
+}
+function retrocederLaboral(d) {
+  do { d.setDate(d.getDate() - 1); } while (!esLaboral(d));
+  return d;
+}
+
+// Cuenta los días laborales consecutivos con al menos un fichaje, hacia atrás
+// desde hoy. Si el día laboral actual aún no tiene fichaje, la racha no se
+// rompe: empieza a contar desde el día laboral anterior.
 export function calcularRacha(registros) {
   const dias = new Set((registros || []).map((r) => r.fecha).filter(Boolean));
   const hoy = new Date();
   let cursor = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-  if (!dias.has(isoDe(cursor))) cursor.setDate(cursor.getDate() - 1);
+  // En fin de semana la racha no se juega: arranca en el último día laboral
+  while (!esLaboral(cursor)) cursor.setDate(cursor.getDate() - 1);
+  if (!dias.has(isoDe(cursor))) retrocederLaboral(cursor);
   let racha = 0;
   while (dias.has(isoDe(cursor))) {
     racha++;
-    cursor.setDate(cursor.getDate() - 1);
+    retrocederLaboral(cursor);
   }
   return racha;
 }
@@ -43,7 +56,7 @@ export default function RachaFichajes({ registros }) {
           <NumeroAnimado value={racha} /> <span className="text-base sm:text-lg font-bold text-muted-foreground">{racha === 1 ? "día" : "días"}</span>
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {activa ? "Sigue viniendo: cada día cuenta para tu racha." : "Ficha hoy para encender tu racha."}
+          {activa ? "Cuenta de lunes a viernes: cada día laboral suma." : "Ficha hoy para encender tu racha."}
         </p>
       </div>
     </div>
