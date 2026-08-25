@@ -8,6 +8,8 @@ const TIPOS_LABEL = {
 
 const AREA_LABEL = {
   Bodega: "Bodega",
+  "Bodega CU1": "Bodega CU1",
+  "Bodega CU2": "Bodega CU2",
   "Recolección de Pilas": "Recolección de Pilas",
   "Redes Sociales": "Redes Sociales",
   "Presentación y Relaciones": "Presentación y Relaciones",

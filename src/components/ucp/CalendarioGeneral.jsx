@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatearFecha } from "@/lib/ucpUtils";
+import { formatearFecha, parseFechaLocal } from "@/lib/ucpUtils";
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -21,13 +21,13 @@ export default function CalendarioGeneral({ eventos = [] }) {
   const diasEnMes = new Date(anio, mes + 1, 0).getDate();
 
   const eventosMes = useMemo(() => eventos.filter(e => {
-    const f = new Date(e.fecha);
-    return f.getMonth() === mes && f.getFullYear() === anio;
+    const f = parseFechaLocal(e.fecha);
+    return f && f.getMonth() === mes && f.getFullYear() === anio;
   }), [eventos, mes, anio]);
 
   const porDia = useMemo(() => {
     const m = {};
-    eventosMes.forEach(e => { const d = new Date(e.fecha).getDate(); if (!m[d]) m[d] = []; m[d].push(e); });
+    eventosMes.forEach(e => { const d = parseFechaLocal(e.fecha).getDate(); if (!m[d]) m[d] = []; m[d].push(e); });
     return m;
   }, [eventosMes]);
 

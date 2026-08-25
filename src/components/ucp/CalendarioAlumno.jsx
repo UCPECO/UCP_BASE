@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, BookOpen, CalendarDays } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
-import { formatearFecha } from "@/lib/ucpUtils";
+import { formatearFecha, parseFechaLocal } from "@/lib/ucpUtils";
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -32,8 +32,8 @@ export default function CalendarioAlumno({ horarios = [], eventos = [] }) {
   // Eventos del mes actual
   const eventosMes = useMemo(() => {
     return eventos.filter(e => {
-      const f = new Date(e.fecha);
-      return f.getMonth() === mesActual && f.getFullYear() === anioActual;
+      const f = parseFechaLocal(e.fecha);
+      return f && f.getMonth() === mesActual && f.getFullYear() === anioActual;
     });
   }, [eventos, mesActual, anioActual]);
 
@@ -41,7 +41,7 @@ export default function CalendarioAlumno({ horarios = [], eventos = [] }) {
   const eventosPorDia = useMemo(() => {
     const m = {};
     eventosMes.forEach(e => {
-      const d = new Date(e.fecha).getDate();
+      const d = parseFechaLocal(e.fecha).getDate();
       if (!m[d]) m[d] = [];
       m[d].push(e);
     });
@@ -160,7 +160,7 @@ export default function CalendarioAlumno({ horarios = [], eventos = [] }) {
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Próximos eventos</p>
           <div className="space-y-1.5">
             {eventos
-              .filter(e => new Date(e.fecha) >= new Date(new Date().toDateString()))
+              .filter(e => parseFechaLocal(e.fecha) >= new Date(new Date().toDateString()))
               .slice(0, 5)
               .map(e => (
                 <div key={e.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded-lg px-3 py-2">
@@ -172,7 +172,7 @@ export default function CalendarioAlumno({ horarios = [], eventos = [] }) {
                   <span className="text-xs text-muted-foreground shrink-0">{formatearFecha(e.fecha)}{e.hora_inicio ? ` · ${e.hora_inicio}` : ""}</span>
                 </div>
               ))}
-            {eventos.filter(e => new Date(e.fecha) >= new Date(new Date().toDateString())).length === 0 && (
+            {eventos.filter(e => parseFechaLocal(e.fecha) >= new Date(new Date().toDateString())).length === 0 && (
               <p className="text-sm text-muted-foreground">No hay eventos próximos.</p>
             )}
           </div>

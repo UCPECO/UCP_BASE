@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { generarReportePersonalPdfMensual } from "@/lib/reportePersonal";
 import { useAuth } from "@/lib/AuthContext";
-import { AREAS, labelArea, ETIQUETAS_BODEGA, labelEtiqueta } from "@/lib/areas";
+import { AREAS, AREA_VALUES, labelArea, ETIQUETAS_BODEGA, labelEtiqueta } from "@/lib/areas";
 import { esParticipante, TIPOS_PARTICIPANTE } from "@/lib/roles";
 import { calcularHoras, fechaHoy } from "@/lib/ucpUtils";
 
@@ -49,6 +49,19 @@ const NUEVO_VACIO = {
   carrera: "",
   periodo: "",
 };
+
+// CU1/CU2 son áreas independientes ("Bodega CU1" / "Bodega CU2").
+// La etiqueta se deriva del área para mantener compatibilidad con
+// pantallas que aún la muestran; el valor legacy "Bodega" ya no se ofrece.
+const etiquetaDeArea = (area) =>
+  area === "Bodega CU1" ? "CU1" : area === "Bodega CU2" ? "CU2" : "";
+
+// Opciones de área para los selectores: catálogo actual + el valor legacy
+// del usuario si aún lo tiene (p. ej. "Bodega"), para que no se vea vacío.
+const opcionesArea = (actual) =>
+  AREAS.some((a) => a.value === actual) || !actual
+    ? AREAS
+    : [...AREAS, { value: actual, label: labelArea(actual) }];
 
 function generarPasswordAleatoria() {
   const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -138,8 +151,8 @@ export default function AdminPersonal() {
         payload.area_asignada = nuevo.area;
         payload.tipo_participante = nuevo.role;
         payload.periodo_asignado = nuevo.periodo.trim();
-        // La etiqueta CU1/CU2 solo aplica cuando el área es Bodega
-        payload.etiqueta = nuevo.area === "Bodega" ? nuevo.etiqueta : "";
+        // La etiqueta CU1/CU2 se deriva del área elegida
+        payload.etiqueta = etiquetaDeArea(nuevo.area);
       }
 
       const creado = await base44.auth.adminCreateUser(payload);
@@ -204,8 +217,8 @@ export default function AdminPersonal() {
   const changeAreaAsignada = async (userId, area) => {
     setSavingId(userId);
     try {
-      // Si el área deja de ser Bodega, la etiqueta CU1/CU2 ya no aplica
-      const patch = area === "Bodega" ? { area_asignada: area } : { area_asignada: area, etiqueta: "" };
+      // La etiqueta CU1/CU2 se deriva del área (o se limpia si no es bodega)
+      const patch = { area_asignada: area, etiqueta: etiquetaDeArea(area) };
       await base44.entities.User.update(userId, patch);
       setUsers((us) => us.map((u) => (u.id === userId ? { ...u, ...patch } : u)));
       toast({ title: "Área designada", description: area ? labelArea(area) : "Sin área" });
@@ -216,12 +229,20 @@ export default function AdminPersonal() {
     }
   };
 
+  // Solo aplica a usuarios legacy con área genérica "Bodega": elegir la
+  // etiqueta CU1/CU2 los migra automáticamente al área separada.
   const changeEtiqueta = async (userId, etiqueta) => {
     setSavingId(userId);
     try {
-      await base44.entities.User.update(userId, { etiqueta });
-      setUsers((us) => us.map((u) => (u.id === userId ? { ...u, etiqueta } : u)));
-      toast({ title: "Etiqueta actualizada", description: etiqueta ? labelEtiqueta(etiqueta) : "Sin etiqueta" });
+      const u = users.find((x) => x.id === userId);
+      const areaNueva = u?.area_asignada === "Bodega" && etiqueta ? `Bodega ${etiqueta}` : u?.area_asignada;
+      const patch = { etiqueta, ...(areaNueva && areaNueva !== u?.area_asignada ? { area_asignada: areaNueva } : {}) };
+      await base44.entities.User.update(userId, patch);
+      setUsers((us) => us.map((x) => (x.id === userId ? { ...x, ...patch } : x)));
+      toast({
+        title: "Etiqueta actualizada",
+        description: patch.area_asignada ? `Movido a ${labelArea(patch.area_asignada)}` : (etiqueta ? labelEtiqueta(etiqueta) : "Sin etiqueta"),
+      });
     } catch (e) {
       toast({ title: "Error al asignar etiqueta", variant: "destructive" });
     } finally {
@@ -428,20 +449,10 @@ export default function AdminPersonal() {
                 {(nuevo.role === "encargado" || esParticipante(nuevo.role)) && (
                   <div className="space-y-1">
                     <Label className="text-xs">{nuevo.role === "encargado" ? "Área que encarga" : "Área asignada"}</Label>
-                    <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={nuevo.area} onChange={(e) => setNuevo((n) => ({ ...n, area: e.target.value, etiqueta: e.target.value === "Bodega" ? n.etiqueta : "" }))}>
+                    <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={nuevo.area} onChange={(e) => setNuevo((n) => ({ ...n, area: e.target.value, etiqueta: etiquetaDeArea(e.target.value) }))}>
                       <option value="">Sin área</option>
                       {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
                     </select>
-                  </div>
-                )}
-                {esParticipante(nuevo.role) && nuevo.area === "Bodega" && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">Etiqueta de bodega</Label>
-                    <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={nuevo.etiqueta} onChange={(e) => setCampo("etiqueta", e.target.value)}>
-                      <option value="">Sin etiqueta</option>
-                      {ETIQUETAS_BODEGA.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                    <p className="text-[11px] text-muted-foreground">Indica en qué bodega física trabaja (CU1 o CU2).</p>
                   </div>
                 )}
                 <div className="space-y-1">
@@ -539,7 +550,7 @@ export default function AdminPersonal() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate">{u.nombre_completo || u.full_name || "—"}</p>
                     <p className="text-xs text-muted-foreground truncate">{u.email || "—"}{u.matricula ? ` · Mat. ${u.matricula}` : ""}</p>
-                    {u.etiqueta && <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">{u.etiqueta}</span>}
+                    {u.area_asignada === "Bodega" && u.etiqueta && <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">{u.etiqueta}</span>}
                   </div>
                   <BotonPoke usuarioId={u.id} nombre={u.nombre_completo || u.full_name} size="icon" />
                   <button onClick={() => setDetalleUser(u)} title="Ver historial completo" className="p-2 rounded-lg hover:bg-muted text-primary shrink-0"><Eye className="h-4 w-4" /></button>
@@ -566,7 +577,7 @@ export default function AdminPersonal() {
                         className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
                       >
                         <option value="">Sin área</option>
-                        {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                        {opcionesArea(u.area_encargada || "").map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
                       </select>
                     ) : (esParticipante(u.role)) ? (
                       <select
@@ -576,7 +587,7 @@ export default function AdminPersonal() {
                         className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
                       >
                         <option value="">Sin área</option>
-                        {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                        {opcionesArea(u.area_asignada || "").map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
                       </select>
                     ) : (
                       <p className="text-xs text-muted-foreground h-9 flex items-center">—</p>
@@ -584,16 +595,17 @@ export default function AdminPersonal() {
                   </div>
                   {esParticipante(u.role) && u.area_asignada === "Bodega" && (
                     <div className="col-span-2 space-y-1">
-                      <Label className="text-[11px]">Etiqueta de bodega</Label>
+                      <Label className="text-[11px]">Bodega física (área legacy)</Label>
                       <select
                         value={u.etiqueta || ""}
                         disabled={savingId === u.id}
                         onChange={(e) => changeEtiqueta(u.id, e.target.value)}
                         className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
                       >
-                        <option value="">Sin etiqueta</option>
+                        <option value="">Sin asignar</option>
                         {ETIQUETAS_BODEGA.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
+                      <p className="text-[10px] text-muted-foreground">Al elegir CU1/CU2 se moverá al área Bodega CU1/CU2 correspondiente.</p>
                     </div>
                   )}
                 </div>
@@ -696,7 +708,7 @@ export default function AdminPersonal() {
                             <p className="text-[11px] text-muted-foreground mt-0.5 sm:hidden truncate">
                               {ROLES.find((r) => r.value === u.role)?.label || "Voluntario"}
                               {(u.area_asignada || u.area_encargada) ? ` · ${labelArea(u.area_encargada || u.area_asignada || "")}` : ""}
-                              {u.etiqueta ? ` · ${u.etiqueta}` : ""}
+                              {u.area_asignada === "Bodega" && u.etiqueta ? ` · ${u.etiqueta}` : ""}
                             </p>
                           </div>
                         </div>
@@ -727,7 +739,7 @@ export default function AdminPersonal() {
                               className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50 cursor-pointer"
                             >
                               <option value="">Sin área</option>
-                              {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
+                              {opcionesArea(u.area_encargada || "").map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
                             </select>
                           </span>
                         ) : (esParticipante(u.role)) ? (
@@ -748,7 +760,7 @@ export default function AdminPersonal() {
                               title="Cambiar área asignada"
                             >
                               <option value="">Sin área</option>
-                              {AREAS.map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
+                              {opcionesArea(u.area_asignada || "").map((a) => <option key={a.value} value={a.value} className="bg-card text-foreground">{a.label}</option>)}
                             </select>
                             {u.area_asignada === "Bodega" && (
                               <select
@@ -756,9 +768,9 @@ export default function AdminPersonal() {
                                 disabled={savingId === u.id}
                                 onChange={(e) => changeEtiqueta(u.id, e.target.value)}
                                 className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50 cursor-pointer"
-                                title="Etiqueta de bodega (CU1/CU2)"
+                                title="Mover a Bodega CU1/CU2 (área legacy)"
                               >
-                                <option value="">Sin etiqueta</option>
+                                <option value="">Sin asignar</option>
                                 {ETIQUETAS_BODEGA.map((t) => <option key={t.value} value={t.value} className="bg-card text-foreground">{t.label}</option>)}
                               </select>
                             )}

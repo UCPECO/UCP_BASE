@@ -155,6 +155,12 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
         periodo_asignado: form.periodo_asignado.trim(),
         area_asignada: form.area_asignada,
         area_encargada: form.area_encargada,
+        // La etiqueta CU1/CU2 se deriva del área; el valor legacy "Bodega"
+        // conserva la etiqueta que ya tuviera.
+        etiqueta: form.area_asignada === "Bodega CU1" ? "CU1"
+          : form.area_asignada === "Bodega CU2" ? "CU2"
+          : form.area_asignada === "Bodega" ? (datos?.etiqueta || "")
+          : "",
       };
       const actualizado = await base44.entities.User.update(datos.id, payload);
       setDatos(actualizado);
@@ -397,6 +403,9 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
                         <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.area_encargada} onChange={(e) => setForm((f) => ({ ...f, area_encargada: e.target.value }))}>
                           <option value="">Sin área</option>
                           {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                          {form.area_encargada && !AREAS.some((a) => a.value === form.area_encargada) && (
+                            <option value={form.area_encargada}>{labelArea(form.area_encargada)}</option>
+                          )}
                         </select>
                       </div>
                     ) : (esParticipante(datos?.role)) && (
@@ -405,6 +414,9 @@ export default function DetallePersonal({ usuario, onClose, onUpdated }) {
                         <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.area_asignada} onChange={(e) => setForm((f) => ({ ...f, area_asignada: e.target.value }))}>
                           <option value="">Sin área</option>
                           {AREAS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                          {form.area_asignada && !AREAS.some((a) => a.value === form.area_asignada) && (
+                            <option value={form.area_asignada}>{labelArea(form.area_asignada)}</option>
+                          )}
                         </select>
                       </div>
                     )}

@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { CalendarClock, Loader2 } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
-import { formatearFecha } from "@/lib/ucpUtils";
+import { formatearFecha, parseFechaLocal } from "@/lib/ucpUtils";
 
 export default function EventosGoogleCalendar() {
   const [eventos, setEventos] = useState([]);
@@ -38,7 +38,7 @@ export default function EventosGoogleCalendar() {
           {eventos.slice(0, 8).map((e) => (
             <div key={e.id} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 border border-border">
               <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold">
-                {new Date(e.fecha).getDate()}
+                {parseFechaLocal(e.fecha)?.getDate()}
               </div>
               <div className="min-w-0">
                 <p className="font-medium text-sm text-foreground truncate">{e.titulo}</p>

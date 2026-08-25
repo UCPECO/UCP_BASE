@@ -151,7 +151,8 @@ function checkWrite(req, res, entity, existingRow) {
 
   // Personal de bodega solo registra ENTRADAS:
   // las salidas y las ventas las hace el administrador.
-  const AREAS_BODEGA = ['Bodega'];
+  // "Bodega" es el valor legacy; CU1 y CU2 son áreas independientes.
+  const AREAS_BODEGA = ['Bodega', 'Bodega CU1', 'Bodega CU2'];
   if ((entity === 'Salidas_Materiales' || entity === 'Ventas') && existingRow === undefined
       && me.role === 'encargado' && AREAS_BODEGA.includes(me.area_encargada)) {
     res.status(403).json({ error: 'El personal de bodega solo puede registrar entradas de material. Las salidas y ventas las registra el administrador.' });

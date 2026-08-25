@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { formatearFecha } from "@/lib/ucpUtils";
+import { formatearFecha, parseFechaLocal } from "@/lib/ucpUtils";
 import { textoEnvuelto } from "@/lib/pdfUtils";
 
 export function generarReportePdfMensual({ perfil, actividad, registros, bonos, mes, anio }) {
@@ -10,13 +10,13 @@ export function generarReportePdfMensual({ perfil, actividad, registros, bonos, 
 
   // Filtrar registros del mes
   const regsMesTodos = registros.filter(r => {
-    const f = new Date(r.fecha);
-    return f.getMonth() === mes && f.getFullYear() === anio && (r.estado_registro === "cerrado" || r.estado_registro === "incompleto");
+    const f = parseFechaLocal(r.fecha);
+    return f && f.getMonth() === mes && f.getFullYear() === anio && (r.estado_registro === "cerrado" || r.estado_registro === "incompleto");
   });
   const regsMes = regsMesTodos.filter(r => r.validado);
   const bonosMes = bonos.filter(b => {
-    const f = new Date(b.fecha);
-    return f.getMonth() === mes && f.getFullYear() === anio;
+    const f = parseFechaLocal(b.fecha);
+    return f && f.getMonth() === mes && f.getFullYear() === anio;
   });
 
   const horasDe = (r) => {

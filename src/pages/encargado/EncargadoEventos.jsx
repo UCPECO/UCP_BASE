@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { CalendarDays, MapPin, Clock } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
-import { formatearFecha } from "@/lib/ucpUtils";
+import { formatearFecha, parseFechaLocal } from "@/lib/ucpUtils";
 
 const COLOR_MAP = {
   azul: "bg-blue-100 text-blue-700 border-blue-200",
@@ -27,7 +27,7 @@ export default function EncargadoEventos() {
       try {
         const evs = await base44.entities.Eventos.list("fecha", 100);
         const visibles = evs.filter(e => e.visible_para === "todos" || e.visible_para === "encargados");
-        setEventos(visibles.sort((a, b) => new Date(a.fecha) - new Date(b.fecha)));
+        setEventos(visibles.sort((a, b) => parseFechaLocal(a.fecha) - parseFechaLocal(b.fecha)));
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     })();
@@ -35,7 +35,7 @@ export default function EncargadoEventos() {
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" /></div>;
 
-  const proximos = eventos.filter(e => new Date(e.fecha) >= new Date(new Date().toDateString()));
+  const proximos = eventos.filter(e => parseFechaLocal(e.fecha) >= new Date(new Date().toDateString()));
 
   return (
     <div className="space-y-6">

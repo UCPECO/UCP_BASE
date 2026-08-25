@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { formatearFecha } from "@/lib/ucpUtils";
+import { formatearFecha, parseFechaLocal } from "@/lib/ucpUtils";
 import { textoEnvuelto, celdaCorta } from "@/lib/pdfUtils";
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -10,8 +10,8 @@ export function generarReporteBodega({ titulo, registros, categorias, catMedida,
   const nombreMes = MESES[mes];
   const medidaDe = (m) => m.medida || catMedida[m.categoria] || "unidades";
   const enMes = (r) => {
-    const f = new Date(r.fecha_recepcion);
-    return f.getMonth() === mes && f.getFullYear() === anio;
+    const f = parseFechaLocal(r.fecha_recepcion);
+    return f && f.getMonth() === mes && f.getFullYear() === anio;
   };
   const regsMes = registros.filter(enMes);
 

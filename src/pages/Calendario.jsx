@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { CalendarDays } from "lucide-react";
 import CalendarioGeneral from "@/components/ucp/CalendarioGeneral";
 import SectionCard from "@/components/ucp/SectionCard";
-import { formatearFecha } from "@/lib/ucpUtils";
+import { formatearFecha, parseFechaLocal } from "@/lib/ucpUtils";
 
 const TIPO_LABEL = {
   capacitacion: "Capacitación", junta: "Junta", actividad_especial: "Actividad especial",
@@ -28,8 +28,8 @@ export default function Calendario() {
 
   const eventosFiltrados = filtro === "todos" ? eventos : eventos.filter(e => e.tipo_evento === filtro);
   const proximos = eventos
-    .filter(e => new Date(e.fecha) >= new Date(new Date().toDateString()))
-    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    .filter(e => parseFechaLocal(e.fecha) >= new Date(new Date().toDateString()))
+    .sort((a, b) => parseFechaLocal(a.fecha) - parseFechaLocal(b.fecha));
 
   return (
     <div className="space-y-6">

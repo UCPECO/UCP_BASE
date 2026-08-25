@@ -5,7 +5,7 @@ import SectionCard from "@/components/ucp/SectionCard";
 import EmptyState from "@/components/ucp/EmptyState";
 import { Input } from "@/components/ui/input";
 import { formatearFecha } from "@/lib/ucpUtils";
-import { labelArea } from "@/lib/areas";
+import { labelArea, AREA_VALUES } from "@/lib/areas";
 
 const DIM_LABELS = {
   puntualidad: "Puntualidad",
@@ -34,7 +34,7 @@ export default function AdminEvaluaciones() {
     return txt.includes(busqueda.toLowerCase()) && (!filtroArea || e.area === filtroArea);
   });
 
-  const areas = ["Bodega", "Recolección de Pilas", "Redes Sociales", "Presentación y Relaciones"];
+  const areas = [...AREA_VALUES, "Bodega"]; // "Bodega" legacy al final, por si hay evaluaciones históricas
 
   return (
     <div className="space-y-6">

@@ -353,7 +353,7 @@ export default function AdminValidacion() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">{nombreDe(a.usuario)} · {fmtMinutos(a.minutos)}</p>
-                  <p className="text-xs text-muted-foreground truncate">{a.motivo} · {a.creado_por_nombre || "admin"} · {formatearFecha((a.created_date || "").slice(0, 10))}</p>
+                  <p className="text-xs text-muted-foreground truncate">{a.motivo} · {a.creado_por_nombre || "admin"} · {formatearFecha(a.created_date)}</p>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">{a.tipo}</span>
               </div>

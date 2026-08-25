@@ -64,12 +64,24 @@ export function horasRestantes(totalHoras, meta) {
   return Math.max(0, Math.round((m - totalHoras) * 100) / 100);
 }
 
+// Convierte una fecha a Date sin corrimiento de zona horaria.
+// Las fechas SIN hora ("YYYY-MM-DD") se interpretan en hora LOCAL:
+// new Date("2026-08-25") es medianoche UTC y en México (UTC-6) se
+// mostraría como el día ANTERIOR. Las cadenas con hora (ISO completo)
+// se parsean tal cual.
+export function parseFechaLocal(fecha) {
+  if (!fecha) return null;
+  const s = String(fecha);
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 // Formatea fecha ISO a legible
 export function formatearFecha(fecha) {
   if (!fecha) return "—";
-  try {
-    return new Date(fecha).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
-  } catch { return fecha; }
+  const d = parseFechaLocal(fecha);
+  if (!d) return String(fecha);
+  return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // Día de la semana actual en español (zona Centro de México)

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, LineChart, Line, Legend, Cell } from "recharts";
 import { BarChart3, TrendingUp } from "lucide-react";
 import SectionCard from "@/components/ucp/SectionCard";
+import { parseFechaLocal } from "@/lib/ucpUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -31,8 +32,8 @@ export default function GraficosBodega({ registros, categorias, catMedida, catLa
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const m = d.getMonth(); const y = d.getFullYear();
       const enMes = registros.filter(r => {
-        const f = new Date(r.fecha_recepcion);
-        return f.getMonth() === m && f.getFullYear() === y;
+        const f = parseFechaLocal(r.fecha_recepcion);
+        return f && f.getMonth() === m && f.getFullYear() === y;
       });
       const peso = enMes.filter(r => (r.medida || catMedida[r.categoria]) === "kg").reduce((a, r) => a + (r.cantidad || 0), 0);
       arr.push({ name: `${MESES[m]} ${String(y).slice(2)}`, registros: enMes.length, peso: Math.round(peso * 100) / 100 });

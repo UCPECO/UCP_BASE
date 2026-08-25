@@ -481,8 +481,21 @@ addColumnIfMissing('users', 'facultad', 'facultad TEXT');
 addColumnIfMissing('users', 'periodo_asignado', 'periodo_asignado TEXT');
 addColumnIfMissing('users', 'fecha_baja', 'fecha_baja TEXT');
 addColumnIfMissing('users', 'motivo_baja', 'motivo_baja TEXT');
-// Etiqueta interna del personal de Bodega (CU1/CU2). No es un área.
+// Etiqueta interna del personal de Bodega (CU1/CU2). DEPRECADO:
+// CU1/CU2 ahora son áreas independientes ("Bodega CU1" / "Bodega CU2").
+// La columna se conserva solo para datos históricos.
 addColumnIfMissing('users', 'etiqueta', 'etiqueta TEXT');
+
+// Migración: personal con área genérica "Bodega" + etiqueta CU1/CU2 pasa
+// a tener el área separada correspondiente. Así cada encargado ve solo lo
+// de su bodega sin tener que reasignar a mano a toda la gente.
+{
+  const mig1 = db.prepare(`UPDATE users SET area_asignada = 'Bodega CU1' WHERE area_asignada = 'Bodega' AND etiqueta = 'CU1'`).run();
+  const mig2 = db.prepare(`UPDATE users SET area_asignada = 'Bodega CU2' WHERE area_asignada = 'Bodega' AND etiqueta = 'CU2'`).run();
+  if (mig1.changes || mig2.changes) {
+    console.log(`Migración: ${mig1.changes + mig2.changes} usuarios de Bodega pasaron a Bodega CU1/CU2 según su etiqueta`);
+  }
+}
 
 // Constancias: campos que el generador de PDF y el admin ya usaban
 addColumnIfMissing('constancias', 'usuario_nombre', 'usuario_nombre TEXT');

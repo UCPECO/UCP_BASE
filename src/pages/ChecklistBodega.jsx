@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { formatearFecha, fechaHoy, nombreUsuario } from "@/lib/ucpUtils";
+import { esAreaBodega } from "@/lib/areas";
 
 export const ITEMS_CHECKLIST = [
   "Herramientas en su lugar",
@@ -36,7 +37,7 @@ export default function ChecklistBodega() {
 
   const hoy = fechaHoy();
   const esStaff = perfil?.role === "admin" || perfil?.role === "encargado";
-  const esDeBodega = esStaff || perfil?.area_asignada === "Bodega" || perfil?.area_encargada === "Bodega";
+  const esDeBodega = esStaff || esAreaBodega(perfil?.area_asignada) || esAreaBodega(perfil?.area_encargada);
 
   const cargar = async () => {
     try {
