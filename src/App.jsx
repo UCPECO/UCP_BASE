@@ -56,6 +56,8 @@ const Disponibilidad = lazy(() => import('@/pages/Disponibilidad'));
 const ChecklistBodega = lazy(() => import('@/pages/ChecklistBodega'));
 const Comunidad = lazy(() => import('@/pages/Comunidad'));
 const Tetris = lazy(() => import('@/pages/Tetris'));
+const Blackjack = lazy(() => import('@/pages/Blackjack'));
+const AdminBlackjack = lazy(() => import('@/pages/admin/AdminBlackjack'));
 
 const Cargando = () => (
   <div className="fixed inset-0 flex flex-col items-center justify-center gap-5 bg-background">
@@ -105,6 +107,7 @@ const AuthenticatedApp = () => {
             <Route path="/checklist-bodega" element={<ChecklistBodega />} />
             <Route path="/comunidad" element={<Comunidad />} />
             <Route path="/tetris" element={<Tetris />} />
+            <Route path="/blackjack" element={<Blackjack />} />
             {/* Encargado (el admin también puede entrar) */}
             <Route element={<RutaRol roles={["admin", "encargado"]} />}>
               <Route path="/encargado" element={<EncargadoDashboard />} />
@@ -148,6 +151,7 @@ const AuthenticatedApp = () => {
               <Route path="/admin/inventario" element={<AdminInventario />} />
               <Route path="/admin/bitacora" element={<AdminBitacora />} />
               <Route path="/admin/config" element={<AdminConfig />} />
+              <Route path="/admin/blackjack" element={<AdminBlackjack />} />
               <Route path="/admin/calendario" element={<Calendario />} />
               <Route path="/admin/disponibilidad" element={<Disponibilidad />} />
             </Route>

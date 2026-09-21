@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, UserCircle, Calendar, QrCode, ClipboardCheck, Image,
-  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, MessagesSquare, Gamepad2
+  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, MessagesSquare, Gamepad2, Spade
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROL_LABEL } from "@/lib/roles";
@@ -13,6 +13,7 @@ import CampanaNotificaciones from "@/components/ucp/CampanaNotificaciones";
 import BotonInstalar from "@/components/ucp/BotonInstalar";
 import ThemeToggle from "@/components/ucp/ThemeToggle";
 import TourBienvenida, { debeMostrarTour } from "@/components/ucp/TourBienvenida";
+import { blackjack as blackjackApi } from "@/api/blackjackClient";
 
 const NAV = {
   admin: [
@@ -37,6 +38,7 @@ const NAV = {
     { to: "/admin/incidencias", label: "Incidencias", icon: AlertTriangle, grupo: "Sistema" },
     { to: "/admin/bitacora", label: "Bitácora", icon: ScrollText, grupo: "Sistema" },
     { to: "/admin/config", label: "Configuración", icon: Settings, grupo: "Sistema" },
+    { to: "/admin/blackjack", label: "Blackjack", icon: Spade, grupo: "Sistema" },
   ],
   encargado: [
     { to: "/encargado", label: "Dashboard", icon: LayoutDashboard, end: true, grupo: "Inicio" },
@@ -104,6 +106,9 @@ export default function Layout({ children }) {
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState(null);
   const [tour, setTour] = useState(false);
+  // Blackjack: opción temporal. Solo se muestra en el menú cuando el admin la
+  // tiene activada, para no dejar un acceso muerto.
+  const [bjActivo, setBjActivo] = useState(false);
 
   const role = user?.role || profile?.role || "voluntario";
   // El checklist de bodega solo aparece al personal de esa área (y al admin).
@@ -120,6 +125,20 @@ export default function Layout({ children }) {
   // del menu para que su encabezado de grupo aparezca una sola vez y no
   // altere el orden de las secciones existentes.
   items = [...items, { to: "/tetris", label: "Tetris", icon: Gamepad2, grupo: "Juegos" }];
+  if (bjActivo) {
+    items = [...items, { to: "/blackjack", label: "Blackjack", icon: Spade, grupo: "Juegos" }];
+  }
+
+  // Una sola consulta al montar el layout (envuelve todas las rutas, así que es
+  // una petición por sesión, no por pantalla). Si falla, el acceso no aparece:
+  // mejor ocultar la opción que dejar un enlace muerto.
+  useEffect(() => {
+    let vivo = true;
+    blackjackApi.estado()
+      .then((e) => { if (vivo) setBjActivo(!!e?.activo); })
+      .catch(() => { if (vivo) setBjActivo(false); });
+    return () => { vivo = false; };
+  }, []);
 
   useEffect(() => {
     base44.auth.me().then((p) => {
