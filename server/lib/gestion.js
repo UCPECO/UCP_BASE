@@ -111,7 +111,13 @@ export function verificarConstanciaAutomatica(usuarioId) {
 
     const { fecha } = ahoraMexico();
     const anio = fecha.slice(0, 4);
-    const consecutivo = (db.prepare(`SELECT COUNT(*) AS n FROM constancias WHERE tipo = 'constancia_termino'`).get().n || 0) + 1;
+    // MAX del consecutivo ya emitido en la serie del año, no COUNT(*): al borrar
+    // una constancia el COUNT retrocedía y el siguiente folio REPETÍA uno ya
+    // emitido. Es un número de documento administrativo.
+    const previo = db.prepare(
+      `SELECT MAX(CAST(SUBSTR(folio, ?) AS INTEGER)) AS m FROM constancias WHERE folio LIKE ?`
+    ).get(`UCP-${anio}-`.length + 1, `UCP-${anio}-%`).m;
+    const consecutivo = (previo || 0) + 1;
     const folio = `UCP-${anio}-${String(consecutivo).padStart(3, '0')}`;
     const nombre = u.nombre_completo || u.full_name || u.email;
 
@@ -225,12 +231,17 @@ export function cerrarFichajesOlvidados() {
       const [h1, m1] = (r.hora_entrada || horaCierre).split(':').map(Number);
       const [h2, m2] = horaCierre.split(':').map(Number);
       let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+      // Si la entrada fue DESPUÉS de la hora de cierre no se puede cerrar a
+      // horaCierre: quedaría una salida anterior a la entrada y el recálculo de
+      // horas (que interpreta una diferencia negativa como cruce de medianoche)
+      // acreditaría 23 h al validar el fichaje. Se cierra a la propia entrada.
+      const salidaEfectiva = mins < 0 ? (r.hora_entrada || horaCierre) : horaCierre;
       if (mins < 0) mins = 0;
       const horas = Math.round((mins / 60) * 100) / 100;
 
       db.prepare(`
         UPDATE registros_qr SET hora_salida = ?, estado_registro = 'cerrado', horas = ?, fecha_modificacion = datetime('now') WHERE id = ?
-      `).run(horaCierre, horas, r.id);
+      `).run(salidaEfectiva, horas, r.id);
 
       db.prepare(`
         INSERT INTO incidencias (id, tipo_incidencia, usuario_afectado, asignacion, registro, descripcion, prioridad, estado_incidencia, creado_por)

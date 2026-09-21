@@ -12,8 +12,8 @@ export async function registrarBitacora(accion, modulo, detalle = "") {
       usuario_nombre: nombreUsuario(perfil),
       accion,
       modulo,
-      detalle,
-      fecha: new Date().toISOString(),
+      detalles: detalle,
+      fecha: new Date().toISOString().slice(0, 19).replace('T', ' '),
     });
   } catch (e) {
     // La bitácora nunca debe romper el flujo principal

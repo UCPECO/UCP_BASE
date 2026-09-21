@@ -77,7 +77,9 @@ export function registrarFalloLogin(email, ip) {
     registrarEnBitacora(null, 'Bloqueo de login', 'Seguridad', `5+ intentos fallidos para ${email} desde ${ip}; bloqueado 15 min`);
   }
   fallos.set(k, rec);
-  return MAX_FALLOS - rec.count;
+  // Si se acaba de aplicar el bloqueo, quedan 0 intentos (antes devolvía 5
+  // porque rec.count se reinicia justo al bloquear).
+  return rec.bloqueadoHasta > Date.now() ? 0 : MAX_FALLOS - rec.count;
 }
 
 export function limpiarFallosLogin(email, ip) {
@@ -114,7 +116,7 @@ export function verificarCaptcha(id, respuesta) {
 export function registrarEnBitacora(usuarioId, accion, modulo, detalles) {
   try {
     db.prepare(
-      'INSERT INTO bitacora_auditoria (id, usuario, accion, modulo, detalles) VALUES (?, ?, ?, ?, ?)'
+      "INSERT INTO bitacora_auditoria (id, usuario, accion, modulo, detalles, fecha) VALUES (?, ?, ?, ?, ?, datetime('now'))"
     ).run(uuidv4(), usuarioId || null, accion, modulo || 'Seguridad', detalles || '');
   } catch { /* la bitácora nunca debe romper el flujo principal */ }
 }

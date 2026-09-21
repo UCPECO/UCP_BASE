@@ -149,7 +149,7 @@ router.post('/reset-password-request', authLimiter, (req, res) => {
 });
 
 // Resetear password
-router.post('/reset-password', (req, res) => {
+router.post('/reset-password', authLimiter, (req, res) => {
   const { resetToken, newPassword } = req.body;
   if (!resetToken || !newPassword) {
     return res.status(400).json({ error: 'Token y nueva password requeridos' });
@@ -157,6 +157,23 @@ router.post('/reset-password', (req, res) => {
   
   try {
     const decoded = jwt.verify(resetToken, JWT_SECRET);
+
+    // Un token de SESIÓN no sirve para restablecer la contraseña. Antes se
+    // aceptaba cualquier JWT firmado con JWT_SECRET, así que un token de sesión
+    // robado (XSS, equipo compartido, historial) permitía fijar contraseña nueva
+    // y conservar la cuenta de forma permanente, más allá de sus 7 días de vida.
+    // Ningún código emite aún tokens con purpose='reset': el restablecimiento lo
+    // hace el admin vía /admin-reset-password. Este endpoint queda cerrado de
+    // forma segura hasta que exista un emisor propio.
+    if (decoded.purpose !== 'reset' || !decoded.id) {
+      return res.status(401).json({ error: 'Token invalido' });
+    }
+    if (!db.prepare('SELECT id FROM users WHERE id = ?').get(decoded.id)) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    if (String(newPassword).length < 4) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    }
     
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, decoded.id);
@@ -169,7 +186,11 @@ router.post('/reset-password', (req, res) => {
 // Actualizar perfil
 router.put('/me', authMiddleware, (req, res) => {
   const updates = req.body;
-  const allowedFields = ['full_name', 'nombre_completo', 'telefono', 'carrera', 'matricula', 'foto_perfil', 'area_asignada'];
+  // `area_asignada` fuera de la lista: un participante podía auto-asignarse el
+  // área, alterando estadísticas, inventario, canal de chat de área y a qué
+  // encargado se le notifica. El cambio de área es decisión del admin (de hecho
+  // entities.js lo registra en historial_areas, que aquí se bypaseaba).
+  const allowedFields = ['full_name', 'nombre_completo', 'telefono', 'carrera', 'matricula', 'foto_perfil'];
   const fields = Object.keys(updates).filter(k => allowedFields.includes(k));
   
   if (fields.length === 0) {

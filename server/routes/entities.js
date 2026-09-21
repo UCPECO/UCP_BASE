@@ -106,14 +106,22 @@ function checkRead(req, res, entity) {
 function siguienteFolio(prefijo) {
   const anio = new Date().getFullYear();
   const patron = `${prefijo}-${anio}-%`;
+  // MAX del consecutivo ya emitido en la serie del año, no COUNT(*): al borrar
+  // un registro el COUNT retrocedía y el siguiente folio REPETÍA uno ya emitido.
+  // ENT/SAL/HC son números de documento administrativo y duplicarlos rompe el
+  // kardex, las exportaciones y cualquier auditoría. `tabla` es un literal.
+  const inicioSerie = `${prefijo}-${anio}-`.length + 1;
+  const maxDe = (tabla) => db.prepare(
+    `SELECT MAX(CAST(SUBSTR(folio, ?) AS INTEGER)) AS m FROM ${tabla} WHERE folio LIKE ?`
+  ).get(inicioSerie, patron).m || 0;
   let n = 0;
   if (prefijo === 'ENT') {
-    n = db.prepare(`SELECT COUNT(*) AS n FROM materiales_recibidos WHERE folio LIKE ?`).get(patron).n
-      + db.prepare(`SELECT COUNT(*) AS n FROM electronicos_reciclados WHERE folio LIKE ?`).get(patron).n;
+    n = maxDe('materiales_recibidos')
+      + maxDe('electronicos_reciclados');
   } else if (prefijo === 'SAL') {
-    n = db.prepare(`SELECT COUNT(*) AS n FROM salidas_materiales WHERE folio LIKE ?`).get(patron).n;
+    n = maxDe('salidas_materiales');
   } else {
-    n = db.prepare(`SELECT COUNT(*) AS n FROM reportes_huella WHERE folio LIKE ?`).get(patron).n;
+    n = maxDe('reportes_huella');
   }
   return `${prefijo}-${anio}-${String(n + 1).padStart(4, '0')}`;
 }
@@ -422,6 +430,54 @@ router.post('/:entity', authMiddleware, (req, res) => {
   }
 });
 
+// UPDATE MANY - PUT /api/:entity/bulk
+router.put('/:entity/bulk', authMiddleware, (req, res) => {
+  const table = getTable(req, res);
+  if (!table) return;
+  if (!checkWrite(req, res, req.params.entity, {})) return;
+
+  const cols = validColumns(table);
+  const { filter, $set } = req.body;
+
+  // Sin filtro no hay actualización masiva. Antes un `filter` vacío u omitido
+  // generaba un UPDATE SIN cláusula WHERE: modificaba TODA la tabla. Y como
+  // checkWrite() no restringe por área para el rol 'encargado', una sola
+  // petición podía por ejemplo aprobar todas las evidencias del sistema.
+  const filterKeys = Object.keys(filter || {}).filter(k => cols.has(k));
+  if (filterKeys.length === 0) {
+    return res.status(400).json({
+      error: 'La actualización masiva requiere un "filter" con al menos una columna válida de la entidad.',
+    });
+  }
+
+  try {
+    const fields = Object.keys($set || {}).filter(f => cols.has(f));
+    if (fields.length === 0) return res.status(400).json({ error: 'No hay datos para actualizar' });
+
+    const setClause = fields.map(f => `${f} = ?`).join(', ');
+    const values = fields.map(f => coerce($set[f]));
+
+    let query = `UPDATE ${table} SET ${setClause}`;
+    if (cols.has('updated_date')) query += `, updated_date = datetime('now')`;
+
+    if (filter && Object.keys(filter).length > 0) {
+      const conditions = Object.keys(filter)
+        .filter(k => cols.has(k))
+        .map(k => {
+          values.push(coerce(filter[k]));
+          return `${k} = ?`;
+        });
+      if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    const result = db.prepare(query).run(...values);
+    res.json({ updated: result.changes });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // UPDATE - PUT /api/:entity/:id
 router.put('/:entity/:id', authMiddleware, (req, res) => {
   const table = getTable(req, res);
@@ -586,42 +642,6 @@ router.post('/:entity/bulk', authMiddleware, (req, res) => {
       created.push(row);
     }
     res.status(201).json(created);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// UPDATE MANY - PUT /api/:entity/bulk
-router.put('/:entity/bulk', authMiddleware, (req, res) => {
-  const table = getTable(req, res);
-  if (!table) return;
-  if (!checkWrite(req, res, req.params.entity, {})) return;
-
-  const cols = validColumns(table);
-  const { filter, $set } = req.body;
-
-  try {
-    const fields = Object.keys($set || {}).filter(f => cols.has(f));
-    if (fields.length === 0) return res.status(400).json({ error: 'No hay datos para actualizar' });
-
-    const setClause = fields.map(f => `${f} = ?`).join(', ');
-    const values = fields.map(f => coerce($set[f]));
-
-    let query = `UPDATE ${table} SET ${setClause}`;
-    if (cols.has('updated_date')) query += `, updated_date = datetime('now')`;
-
-    if (filter && Object.keys(filter).length > 0) {
-      const conditions = Object.keys(filter)
-        .filter(k => cols.has(k))
-        .map(k => {
-          values.push(filter[k]);
-          return `${k} = ?`;
-        });
-      if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
-    }
-
-    const result = db.prepare(query).run(...values);
-    res.json({ updated: result.changes });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
