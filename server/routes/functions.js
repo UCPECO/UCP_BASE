@@ -19,7 +19,21 @@ function ahoraMexico() {
   const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const diaSemana = dias[mexicoTime.getDay()];
   const minutos = mexicoTime.getHours() * 60 + mexicoTime.getMinutes();
-  return { hora, fecha, diaSemana, minutos, iso: mexicoTime.toISOString() };
+  // `iso` debe ser el instante REAL en UTC y con el mismo formato que
+  // datetime('now') de SQLite ("YYYY-MM-DD HH:MM:SS"). Antes se devolvía
+  // mexicoTime.toISOString(): la hora local de México etiquetada como UTC
+  // (desplazada 6 h) y con 'T'/'Z'/ms, que rompen las comparaciones
+  // lexicográficas contra el resto de columnas de fecha.
+  return { hora, fecha, diaSemana, minutos, iso: now.toISOString().slice(0, 19).replace('T', ' ') };
+}
+
+// Devuelve el id TEXT real de la fila recién insertada. Todas las tablas usan
+// `id TEXT PRIMARY KEY`, así que `lastInsertRowid` es el rowid interno y NO
+// coincide con el id que el cliente necesita para volver a consultar el
+// registro: antes se devolvía ese rowid y cualquier acción posterior (ver
+// detalle, resolver, borrar) daba 404. `tabla` es un literal del código.
+function idInsertado(tabla, info) {
+  return db.prepare(`SELECT id FROM ${tabla} WHERE rowid = ?`).get(info.lastInsertRowid)?.id ?? null;
 }
 
 function aMinutos(hhmm) {
@@ -43,6 +57,12 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
     // desde la BD. Así nadie puede inventar ?area=X y un QR viejo/desactivado
     // da un error claro en vez de "inválido".
     let areaQr = null;
+    // Sin `manual` explícito el fichaje DEBE llevar un token de QR válido.
+    // Antes, omitiendo ambos campos, se creaba un registro con es_manual = 0
+    // indistinguible de un escaneo real: fraude de horas sin incidencia ni aviso.
+    if (!esManual && !token) {
+      return res.status(400).json({ error: 'Debes escanear el código QR del área para fichar. Si el código no funciona, pide un fichaje manual a tu encargado.' });
+    }
     if (!esManual && token) {
       const qr = db.prepare('SELECT * FROM codigos_qr WHERE token = ?').get(token);
       if (!qr) return res.json({ error: 'QR no reconocido. Es de una versión anterior o ya fue eliminado: pide al encargado el código nuevo del área.' });
@@ -71,10 +91,20 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
       const apertura = config?.hora_apertura || '08:00';
       const cierre = config?.hora_cierre || '18:00';
       const diasLaborales = config?.dias_laborales || 'Lunes,Martes,Miércoles,Jueves,Viernes';
-      const TOLERANCIA_MIN = config?.tolerancia_minutos || 15;
+      // `|| 15` convertía una tolerancia configurada de 0 minutos en 15:
+      // el cero es un valor legítimo y `0 || 15` devuelve 15.
+      const tolRaw = config?.tolerancia_minutos;
+      const TOLERANCIA_MIN = (tolRaw === null || tolRaw === undefined || tolRaw === '' || !Number.isFinite(Number(tolRaw)))
+        ? 15
+        : Number(tolRaw);
 
       const diasArr = diasLaborales.split(',').map(d => d.trim());
-      const esDiaLaboral = diasArr.includes(diaSemana);
+      // Comparación sin acentos ni mayúsculas: si el administrador escribía
+      // "Miercoles" en configuración, la comparación exacta fallaba y TODOS los
+      // fichajes de ese día se rechazaban como "día no laboral", generando una
+      // incidencia de falta automática para cada usuario.
+      const sinAcento = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      const esDiaLaboral = diasArr.map(sinAcento).includes(sinAcento(diaSemana));
       const minApertura = aMinutos(apertura);
       const minCierre = aMinutos(cierre);
       const dentroDeHorario = esDiaLaboral && minApertura != null && minCierre != null &&
@@ -88,7 +118,7 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
           INSERT INTO incidencias (id, tipo_incidencia, usuario_afectado, asignacion, descripcion, prioridad, estado_incidencia, creado_por)
           VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, ?, ?)
         `).run('falta', user.id, asignacion_id, descripcion, 'media', 'reportada', user.id);
-        return res.json({ tipo: 'incidencia', incidencia: { id: incidencia.lastInsertRowid } });
+        return res.json({ tipo: 'incidencia', incidencia: { id: idInsertado('incidencias', incidencia) } });
       }
     }
 
@@ -107,7 +137,10 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
 
     // Área del fichaje: la que resolvió el token del QR, la indicada en manual,
     // el parámetro legacy, o la asignada al usuario
-    const areaFichaje = areaQr || area || user.area_asignada || null;
+    // El área la resuelve el token del QR. El campo `area` del cuerpo solo se
+    // acepta en fichaje manual: antes cualquiera podía atribuirse un área falsa
+    // y contaminar estadísticas y avisos al encargado equivocado.
+    const areaFichaje = areaQr || (esManual ? area : null) || user.area_asignada || null;
 
     const registro = db.prepare(`
       INSERT INTO registros_qr (id, usuario, asignacion, fecha, hora_entrada, estado_registro, es_manual, area)
@@ -157,8 +190,14 @@ router.post('/RegistrarSalidaFichaje', authMiddleware, (req, res) => {
     function calcularHoras(entrada, salida) {
       const ini = aMinutos(entrada);
       const fin = aMinutos(salida);
-      if (ini == null || fin == null || fin <= ini) return 0;
-      return Math.round(((fin - ini) / 60) * 100) / 100;
+      if (ini == null || fin == null) return 0;
+      // Turno que cruza la medianoche: mismo criterio que el cliente
+      // (redondeo.js / ucpUtils.js) y que horasValidadasDe() en gestion.js.
+      // Antes devolvía 0 h y marcaba el fichaje como 'incompleto' mientras el
+      // dashboard del alumno sí contaba las horas: la BD y la UI divergían.
+      let mins = fin - ini;
+      if (mins < 0) mins += 24 * 60;
+      return Math.round((mins / 60) * 100) / 100;
     }
 
     const horas = calcularHoras(registro.hora_entrada, horaSalida);
@@ -180,7 +219,7 @@ router.post('/RegistrarSalidaFichaje', authMiddleware, (req, res) => {
       `).run('fichaje_manual', user.id, registro.asignacion || null, registro_id,
         `${nombre} registró su SALIDA de forma manual (sin escanear QR) a las ${horaSalida}. Área: ${areaTxt}.`,
         user.id);
-      incidenciaManual = { id: incM.lastInsertRowid };
+      incidenciaManual = { id: idInsertado('incidencias', incM) };
       notificarEncargadosDeArea(registro.area || user.area_asignada,
         'Fichaje manual de salida',
         `${nombre} fichó su salida sin escanear el QR (${ahora.fecha} ${horaSalida}, área: ${areaTxt}). Revísalo en Registros.`);
@@ -199,7 +238,7 @@ router.post('/RegistrarSalidaFichaje', authMiddleware, (req, res) => {
       `).run('incumplimiento', user.id, registro.asignacion || null, registro_id,
         `Fichaje rebasó el límite de 17:15 (salida a las ${horaSalida}). Horas registradas: ${horas}h.`,
         'media', 'reportada', user.id);
-      incidencia = { id: inc.lastInsertRowid };
+      incidencia = { id: idInsertado('incidencias', inc) };
     }
 
     const actualizado = db.prepare('SELECT * FROM registros_qr WHERE id = ?').get(registro_id);
@@ -307,6 +346,14 @@ router.post('/AsignarBonoEvidencia', authMiddleware, (req, res) => {
     const evidencia = db.prepare('SELECT * FROM evidencias WHERE id = ?').get(evidencia_id);
     if (!evidencia) return res.status(404).json({ error: 'Evidencia no encontrada' });
 
+    // Idempotencia: sin esta guarda, un doble clic o un reintento por timeout
+    // insertaba un SEGUNDO bono y duplicaba las horas (horasValidadasDe suma
+    // SUM(bonos.horas)), pudiendo disparar además una constancia automática
+    // indebida. Dos encargados revisando a la vez tenían el mismo efecto.
+    if (evidencia.estado_evidencia === 'aprobada') {
+      return res.status(409).json({ error: 'Esta evidencia ya fue aprobada; no se puede asignar otro bono.' });
+    }
+
     // Las horas del bono las decide quien revisa; si no indica, se usa lo de la actividad
     let actividad = null;
     if (evidencia.actividad) {
@@ -327,7 +374,7 @@ router.post('/AsignarBonoEvidencia', authMiddleware, (req, res) => {
     notificar(evidencia.usuario, `Evidencia aprobada con bono +${horas} h`, motivo, '/alumno/evidencias');
     verificarConstanciaAutomatica(evidencia.usuario);
 
-    res.json({ ok: true, horas, bono: { id: bono.lastInsertRowid } });
+    res.json({ ok: true, horas, bono: { id: idInsertado('bonos', bono) } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -389,10 +436,21 @@ router.post('/ObtenerEventosGoogleCalendar', authMiddleware, (req, res) => {
 
 // RevisarIncidenciasSemanales
 router.post('/RevisarIncidenciasSemanales', authMiddleware, (req, res) => {
+  // Antes no había NINGÚN control de rol: cualquier usuario autenticado (incluso
+  // un voluntario) podía poner todas las asignaciones activas del sistema en
+  // 'bajo_revision' con una sola llamada, y el cambio es irreversible desde la UI.
+  const solicitante = db.prepare('SELECT role FROM users WHERE id = ?').get(req.user.id);
+  if (!solicitante || (solicitante.role !== 'admin' && solicitante.role !== 'encargado')) {
+    return res.status(403).json({ error: 'Solo admin o encargado pueden revisar incidencias semanales' });
+  }
   try {
-    const unaSemanaAtras = new Date();
-    unaSemanaAtras.setDate(unaSemanaAtras.getDate() - 7);
-    const fechaLimite = unaSemanaAtras.toISOString();
+    // El límite se calcula en SQL: `created_date` se guarda con datetime('now')
+    // ("YYYY-MM-DD HH:MM:SS") y compararlo contra un ISO-8601 con 'T'/'Z'/ms es
+    // lexicográficamente incorrecto (el espacio 0x20 ordena antes que la 'T'
+    // 0x54), así que el filtro descartaba registros de forma impredecible.
+    const fechaLimite = db.prepare(`SELECT datetime('now', '-7 days') AS t`).get().t;
+
+
 
     const incs = db.prepare(`
       SELECT * FROM incidencias WHERE estado_incidencia = 'reportada' AND created_date > ?

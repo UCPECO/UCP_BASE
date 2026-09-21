@@ -19,6 +19,16 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.disable('x-powered-by'); // no anunciar la tecnología del servidor
+app.set(
+  'trust proxy',
+  process.env.TRUST_PROXY === undefined
+    ? 1
+    : (process.env.TRUST_PROXY === 'false' || process.env.TRUST_PROXY === '0')
+      ? false
+      : /^\d+$/.test(process.env.TRUST_PROXY)
+        ? Number(process.env.TRUST_PROXY)
+        : process.env.TRUST_PROXY
+);
 app.use(securityHeaders);
 // El frontend se sirve desde el mismo dominio: no se necesita CORS
 // para orígenes externos; esto bloquea llamadas a la API desde otros sitios.
@@ -61,6 +71,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // In production, serve the built frontend
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
+// Los 404 de la API deben ser JSON: sin esto, cualquier ruta /api inexistente
+// cae en el catch-all de la SPA y devuelve index.html con HTTP 200, y el
+// cliente revienta al intentar parsear HTML como JSON.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Ruta de API no encontrada' });
+});
 app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });

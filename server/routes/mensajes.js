@@ -195,7 +195,7 @@ router.get('/canal/:canal/mensajes', authMiddleware, (req, res) => {
   const { desde } = req.query;
   let rows;
   if (desde) {
-    rows = db.prepare(`SELECT * FROM mensajes WHERE canal = ? AND created_date > ? ORDER BY created_date ASC LIMIT 200`).all(canal, desde);
+    rows = db.prepare(`SELECT * FROM mensajes WHERE canal = ? AND created_date >= ? ORDER BY created_date ASC LIMIT 200`).all(canal, desde);
   } else {
     rows = db.prepare(`SELECT * FROM (SELECT * FROM mensajes WHERE canal = ? ORDER BY created_date DESC LIMIT 60) ORDER BY created_date ASC`).all(canal);
   }

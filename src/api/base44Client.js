@@ -54,7 +54,15 @@ function buildQueryString(filters, sort, limit) {
   if (limit) params.set('limit', String(limit));
   if (filters) {
     Object.entries(filters).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) params.set(k, String(v));
+      if (v !== undefined && v !== null) {
+        // SQLite guarda los booleanos como INTEGER 1/0 (coerce() lo hace al
+        // escribir). Si aquí se serializa `true` como texto, la comparación
+        // `WHERE activa = 'true'` nunca es verdadera: en el orden de tipos de
+        // SQLite un INTEGER/REAL es SIEMPRE menor que cualquier TEXT, así que
+        // el filtro devolvía 0 filas (p. ej. las encuestas del alumno).
+        const valor = typeof v === 'boolean' ? (v ? 1 : 0) : v;
+        params.set(k, String(valor));
+      }
     });
   }
   const qs = params.toString();
