@@ -55,6 +55,7 @@ const Calendario = lazy(() => import('@/pages/Calendario'));
 const Disponibilidad = lazy(() => import('@/pages/Disponibilidad'));
 const ChecklistBodega = lazy(() => import('@/pages/ChecklistBodega'));
 const Comunidad = lazy(() => import('@/pages/Comunidad'));
+const Tetris = lazy(() => import('@/pages/Tetris'));
 
 const Cargando = () => (
   <div className="fixed inset-0 flex flex-col items-center justify-center gap-5 bg-background">
@@ -103,6 +104,7 @@ const AuthenticatedApp = () => {
             <Route path="/fichar" element={<Fichar />} />
             <Route path="/checklist-bodega" element={<ChecklistBodega />} />
             <Route path="/comunidad" element={<Comunidad />} />
+            <Route path="/tetris" element={<Tetris />} />
             {/* Encargado (el admin también puede entrar) */}
             <Route element={<RutaRol roles={["admin", "encargado"]} />}>
               <Route path="/encargado" element={<EncargadoDashboard />} />

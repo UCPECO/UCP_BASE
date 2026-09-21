@@ -1,0 +1,1 @@
+import{e as a,O as o}from"./index-Dp6shEvm.js";async function c(e,t,i=""){try{const r=await a.auth.me();if(!r)return;await a.entities.Bitacora_Auditoria.create({usuario:r.id,usuario_nombre:o(r),accion:e,modulo:t,detalles:i,fecha:new Date().toISOString().slice(0,19).replace("T"," ")})}catch(r){console.error("Error registrando bitácora:",r)}}export{c as r};

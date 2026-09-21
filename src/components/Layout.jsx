@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, UserCircle, Calendar, QrCode, ClipboardCheck, Image,
-  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, MessagesSquare
+  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, MessagesSquare, Gamepad2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROL_LABEL } from "@/lib/roles";
@@ -116,6 +116,10 @@ export default function Layout({ children }) {
   if (role === "encargado" && esAreaBodega(profile?.area_encargada)) {
     items = items.filter((i) => !i.to.endsWith("/ventas"));
   }
+  // Tetris: disponible para todos los roles autenticados. Se anade al final
+  // del menu para que su encabezado de grupo aparezca una sola vez y no
+  // altere el orden de las secciones existentes.
+  items = [...items, { to: "/tetris", label: "Tetris", icon: Gamepad2, grupo: "Juegos" }];
 
   useEffect(() => {
     base44.auth.me().then((p) => {
