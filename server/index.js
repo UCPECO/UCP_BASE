@@ -9,6 +9,7 @@ import entityRoutes from './routes/entities.js';
 import functionRoutes from './routes/functions.js';
 import pushRoutes from './routes/push.js';
 import mensajesRoutes from './routes/mensajes.js';
+import tetrisRoutes from './routes/tetris.js';
 import { inicializarPush } from './lib/push.js';
 import { cerrarFichajesOlvidados, resumenSemanalSiCorresponde } from './lib/gestion.js';
 import { respaldarBD, db } from './database.js';
@@ -45,6 +46,7 @@ app.use('/api/entities', entityRoutes);
 app.use('/api/functions', functionRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/mensajes', mensajesRoutes);
+app.use('/api/tetris', tetrisRoutes);
 
 // Upload endpoint (simulado - guarda en servidor)
 app.post('/api/upload', (req, res) => {

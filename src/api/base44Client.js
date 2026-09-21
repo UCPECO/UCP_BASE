@@ -348,4 +348,9 @@ export function createClient(config) {
   return base44;
 }
 
+// Exportados para que otros clientes de la app (p. ej. el de Tetris) reutilicen
+// el mismo manejo de token y de errores en lugar de reimplementarlo leyendo
+// localStorage por su cuenta.
+export { apiFetch, API_BASE, getToken };
+
 export default base44;
