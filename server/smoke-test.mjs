@@ -78,4 +78,9 @@ await check('BUG-10  mensajes del canal general -> 200', 200, () =>
   call('/api/mensajes/canal/general/mensajes?desde=' + encodeURIComponent('2000-01-01 00:00:00')));
 
 console.log(`\n=== RESULTADO: ${ok} correctas, ${mal} fallidas ===`);
-process.exit(mal > 0 ? 1 : 0);
+// Cerrar la BD y terminar de forma natural: en Node 24 sobre Windows,
+// process.exit() con handles asíncronos abiertos puede disparar un assert de
+// libuv durante el teardown y manchar el código de salida aunque todas las
+// pruebas hayan pasado (falsearía un CI).
+db.close();
+process.exitCode = mal > 0 ? 1 : 0;
