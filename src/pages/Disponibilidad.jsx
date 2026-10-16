@@ -9,6 +9,7 @@ import EmptyState from "@/components/ucp/EmptyState";
 import DisponibilidadSemanal from "@/components/ucp/DisponibilidadSemanal";
 import { calcularDisponibilidad } from "@/lib/ucpUtils";
 import { esParticipante } from "@/lib/roles";
+import PanelAsistencia, { PestanasAsistencia } from "@/components/ucp/PanelAsistencia";
 
 export default function Disponibilidad() {
   const { user } = useAuth();
@@ -18,6 +19,9 @@ export default function Disponibilidad() {
   const [horarios, setHorarios] = useState([]);
   const [selId, setSelId] = useState(null);
   const [loadingHorarios, setLoadingHorarios] = useState(false);
+  // "asistencia" es la vista por defecto: la pregunta real es quién fue y qué
+  // días, no quién dijo que podía ir.
+  const [pestana, setPestana] = useState("asistencia");
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -45,6 +49,15 @@ export default function Disponibilidad() {
     return <div className="py-6"><ListaSkeleton filas={4} /></div>;
   }
 
+  // La vista principal pasa a ser la asistencia REAL (qué días concurre cada
+  // persona, agregada en el servidor desde sus fichajes). La disponibilidad
+  // declarada —los horarios de clase que cada alumno captura— se conserva en la
+  // segunda pestaña porque sigue sirviendo para planear turnos, pero no dice
+  // quién asistió de verdad.
+  // Todos los hooks están por encima de este return, así no se violan las
+  // reglas de los hooks de React.
+  if (pestana === "asistencia") return <PanelAsistencia onCambiarPestana={setPestana} />;
+
   return (
     <div className="space-y-6">
       <div>
@@ -53,6 +66,8 @@ export default function Disponibilidad() {
         </h1>
         <p className="text-sm text-muted-foreground mt-1">Revisa si cada alumno está libre dentro del horario laboral (9:00–17:00)</p>
       </div>
+
+      <div className="mb-4"><PestanasAsistencia valor="declarada" onChange={setPestana} /></div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <SectionCard title="Alumnos" icon={Users}>
