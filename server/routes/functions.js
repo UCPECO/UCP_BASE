@@ -66,7 +66,12 @@ router.post('/ProcesarFichajeQR', authMiddleware, (req, res) => {
     if (!esManual && token) {
       const qr = db.prepare('SELECT * FROM codigos_qr WHERE token = ?').get(token);
       if (!qr) return res.json({ error: 'QR no reconocido. Es de una versión anterior o ya fue eliminado: pide al encargado el código nuevo del área.' });
-      if (!qr.activo) return res.json({ error: 'Este código QR está desactivado. Pide al encargado que lo reactive o genere uno nuevo.' });
+      // `activo` puede venir NULL en códigos migrados o importados, y NULL no
+      // significa "desactivado": `!qr.activo` lo trataba como inactivo y rechazaba
+      // códigos perfectamente válidos con un mensaje engañoso.
+      if (Number(qr.activo ?? 1) === 0) {
+        return res.json({ error: 'Este código QR está desactivado. Pide al encargado que lo reactive o genere uno nuevo.' });
+      }
       if (qr.fecha_expiracion && qr.fecha_expiracion < fecha) {
         return res.json({ error: `Este código QR expiró el ${qr.fecha_expiracion}. Pide uno nuevo al encargado.` });
       }
