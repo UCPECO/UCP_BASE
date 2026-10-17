@@ -12,6 +12,14 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmarGlobal } from "@/components/ucp/ConfirmDialog";
 import { AREAS, labelArea } from "@/lib/areas";
+import { fechaHoy } from "@/lib/ucpUtils";
+
+// `activo` puede venir NULL en códigos migrados o importados, y NULL no significa
+// "desactivado". El servidor usa el mismo criterio en ProcesarFichajeQR; si el
+// panel y el servidor discrepan, el admin ve "Inactivo" en un código que sí
+// funciona (o al revés).
+const estaActivo = (c) => Number(c?.activo ?? 1) !== 0;
+const esLegacy = (c) => !c?.token;
 
 // Token aleatorio criptográficamente seguro: identifica al QR ante el servidor.
 // El área NO viaja en el QR; el servidor la resuelve desde la BD, así un QR
@@ -86,7 +94,7 @@ export default function AdminQr() {
 
   // Crea de una vez los QR de las áreas que aún no tienen uno activo
   const generarTodasLasAreas = async () => {
-    const conActivo = new Set(codigos.filter((c) => c.activo).map((c) => c.ubicacion));
+    const conActivo = new Set(codigos.filter(estaActivo).map((c) => c.ubicacion));
     const faltantes = AREAS.filter((a) => !conActivo.has(a.value));
     if (faltantes.length === 0) { toast({ title: "Ya existe un QR activo para cada área" }); return; }
     setGenerandoTodas(true);
@@ -99,8 +107,12 @@ export default function AdminQr() {
   };
 
   const toggleActivo = async (c) => {
-    await base44.entities.Codigos_QR.update(c.id, { activo: !c.activo });
-    toast({ title: c.activo ? "QR desactivado" : "QR activado" });
+    // Con `activo` en NULL el código SÍ funciona (el servidor lo trata como
+    // activo), así que el botón debe desactivarlo. `!c.activo` haría lo contrario:
+    // convertiría NULL en true y "activaría" un código que ya lo estaba.
+    const estabaActivo = estaActivo(c);
+    await base44.entities.Codigos_QR.update(c.id, { activo: estabaActivo ? 0 : 1 });
+    toast({ title: estabaActivo ? "QR desactivado" : "QR activado" });
     load();
   };
 
@@ -149,8 +161,13 @@ export default function AdminQr() {
     w.document.close();
   };
 
-  const expirado = (c) => c.fecha_expiracion && c.fecha_expiracion < new Date().toISOString().slice(0, 10);
-  const esLegacy = (c) => !c.token;
+  // La fecha de hoy en hora de México, no en UTC. `new Date().toISOString()`
+  // devuelve la fecha UTC, que a partir de las ~18:00 de México ya es el día
+  // siguiente: el panel marcaba como "Expirado" códigos que el servidor (que
+  // compara contra la fecha de México) seguía aceptando.
+  const hoy = fechaHoy();
+  const expirado = (c) => !!c.fecha_expiracion && c.fecha_expiracion < hoy;
+
 
   if (loading) return <div className="py-6"><ListaSkeleton filas={4} /></div>;
 
@@ -159,7 +176,7 @@ export default function AdminQr() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold font-heading">Códigos QR</h1>
-          <p className="text-sm text-muted-foreground mt-1">{codigos.length} código(s) · {codigos.filter(c => c.activo).length} activos</p>
+          <p className="text-sm text-muted-foreground mt-1">{codigos.length} código(s) · {codigos.filter(estaActivo).length} activos · {codigos.filter((c) => !esLegacy(c) && (expirado(c) || !estaActivo(c))).length} que no sirven para fichar</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" disabled={generandoTodas} onClick={generarTodasLasAreas}>
@@ -212,9 +229,9 @@ export default function AdminQr() {
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                   esLegacy(c) ? "bg-amber-100 text-amber-700"
                   : expirado(c) ? "bg-rose-100 text-rose-700"
-                  : c.activo ? "bg-emerald-100 text-emerald-700"
+                  : estaActivo(c) ? "bg-emerald-100 text-emerald-700"
                   : "bg-slate-100 text-slate-500"}`}>
-                  {esLegacy(c) ? "Sistema anterior" : expirado(c) ? "Expirado" : c.activo ? "Activo" : "Inactivo"}
+                  {esLegacy(c) ? "Sistema anterior" : expirado(c) ? "Expirado" : estaActivo(c) ? "Activo" : "Inactivo"}
                 </span>
                 <span className="text-xs text-muted-foreground capitalize">{c.tipo?.replace(/_/g, " ") || "qr"}</span>
               </div>
@@ -232,6 +249,17 @@ export default function AdminQr() {
               <p className="font-semibold mt-3">{labelArea(c.ubicacion) || c.ubicacion || "Sin área"}</p>
               <p className="text-xs text-muted-foreground mt-1">Expira: {c.fecha_expiracion ? new Date(c.fecha_expiracion + "T00:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "Sin expiración"}</p>
               <p className="text-xs text-muted-foreground mt-1">{c.escaneos || 0} escaneos</p>
+              {!esLegacy(c) && !expirado(c) && estaActivo(c) ? (
+                <p className="text-[11px] text-emerald-600 mt-1.5">Listo para fichar</p>
+              ) : (
+                <p className="text-[11px] text-rose-600 mt-1.5 font-medium">
+                  {esLegacy(c)
+                    ? "No sirve: es del sistema anterior, sin token."
+                    : expirado(c)
+                      ? `No sirve: expiró el ${c.fecha_expiracion}.`
+                      : "No sirve: está desactivado."}
+                </p>
+              )}
               <div className="flex justify-center gap-2 mt-3">
                 {!esLegacy(c) && (
                   <>

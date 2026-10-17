@@ -164,7 +164,14 @@ export default function Fichar() {
         toast({ title: data.error, variant: "destructive" });
       }
       load();
-    } catch (e) { toast({ title: "Error al registrar entrada", variant: "destructive" }); }
+    } catch (e) {
+      // Antes se mostraba un genérico "Error al registrar entrada" y se tiraba
+      // e.message: cuando el servidor responde 4xx (QR expirado, desactivado,
+      // fuera de horario, límite alcanzado) el usuario no sabía por qué falló y
+      // el problema parecía "el QR dejó de funcionar". El motivo real va en la
+      // descripción del aviso.
+      toast({ title: "No se pudo registrar la entrada", description: e?.message || "Revisa tu conexión e intenta de nuevo.", variant: "destructive" });
+    }
   };
 
   const registrarSalida = async (manual = false) => {
@@ -184,7 +191,9 @@ export default function Fichar() {
       }
       setRegistroAbierto(null);
       load();
-    } catch (e) { toast({ title: "Error al registrar salida", variant: "destructive" }); }
+    } catch (e) {
+      toast({ title: "No se pudo registrar la salida", description: e?.message || "Revisa tu conexión e intenta de nuevo.", variant: "destructive" });
+    }
   };
 
   // Al abrir /fichar?t=<token> desde la cámara nativa del teléfono (sin usar

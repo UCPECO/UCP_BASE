@@ -1,20 +1,39 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Moon, Sun, Leaf, Check } from "lucide-react";
+import { Moon, Sun, Leaf, Check, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "ucp-theme";
-const THEME_COLOR = { dark: "#050505", light: "#f4f5fa", selva: "#FFF5E5" };
+const THEME_COLOR = { dark: "#050505", light: "#f4f5fa", selva: "#FFF5E5", muertos: "#120a1c" };
 
 const TEMAS = [
   { id: "dark", nombre: "Aurora (oscuro)", icon: Moon },
   { id: "light", nombre: "Claro", icon: Sun },
   { id: "selva", nombre: "Selva fresca", icon: Leaf },
+  { id: "muertos", nombre: "Día de Muertos", icon: Skull },
 ];
+
+// Temporada de Día de Muertos: del 15 de octubre al 5 de noviembre.
+// Solo se aplica como tema inicial si la persona NUNCA eligió uno; en cuanto
+// guarda su preferencia, esa manda y no se le vuelve a imponer nada.
+export function enTemporadaMuertos(fecha = new Date()) {
+  const mes = fecha.getMonth() + 1;
+  const dia = fecha.getDate();
+  return (mes === 10 && dia >= 15) || (mes === 11 && dia <= 5);
+}
+
+export function temaInicial() {
+  try {
+    const guardado = localStorage.getItem(STORAGE_KEY);
+    if (guardado) return guardado;
+  } catch { /* modo incógnito: no hay preferencia guardada */ }
+  return enTemporadaMuertos() ? "muertos" : "dark";
+}
 
 function aplicarTema(theme) {
   const root = document.documentElement;
   root.classList.toggle("light", theme === "light");
   root.classList.toggle("selva", theme === "selva");
+  root.classList.toggle("muertos", theme === "muertos");
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", THEME_COLOR[theme] || THEME_COLOR.dark);
   try { localStorage.setItem(STORAGE_KEY, theme); } catch { /* modo incógnito */ }
@@ -25,7 +44,7 @@ function aplicarTema(theme) {
 // oscuros (sidebar/topbar), por eso usa los colores del sidebar.
 export default function ThemeToggle({ className }) {
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) || "dark"; } catch { return "dark"; }
+    return temaInicial();
   });
   const [open, setOpen] = useState(false);
   const ref = useRef(null);

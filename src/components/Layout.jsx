@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, UserCircle, Calendar, QrCode, ClipboardCheck, Image,
-  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, MessagesSquare, Gamepad2, Spade
+  Users, FolderKanban, AlertTriangle, Settings, LogOut, Menu, X, Award, CalendarDays, Clock,   BarChart3, UserCog, UserCheck, FileBadge, ClipboardList, GraduationCap, Boxes, ScrollText, CheckCheck, MessagesSquare, Gamepad2, Spade, CalendarCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROL_LABEL } from "@/lib/roles";
@@ -30,7 +30,7 @@ const NAV = {
     { to: "/admin/actividades", label: "Actividades", icon: FolderKanban, grupo: "Actividades y eventos" },
     { to: "/admin/eventos", label: "Eventos", icon: CalendarDays, grupo: "Actividades y eventos" },
     { to: "/admin/calendario", label: "Calendario", icon: CalendarDays, grupo: "Actividades y eventos" },
-    { to: "/admin/disponibilidad", label: "Disponibilidad", icon: Clock, grupo: "Actividades y eventos" },
+    { to: "/admin/disponibilidad", label: "Asistencia", icon: CalendarCheck, grupo: "Horas y asistencia" },
     { to: "/admin/evidencias", label: "Evidencias", icon: Image, grupo: "Evidencias" },
     { to: "/admin/inventario", label: "Inventario", icon: Boxes, grupo: "Inventario" },
     { to: "/admin/constancias", label: "Constancias", icon: FileBadge, grupo: "Documentos" },
@@ -53,7 +53,7 @@ const NAV = {
     { to: "/encargado/actividades", label: "Mi área", icon: FolderKanban, grupo: "Actividades y eventos" },
     { to: "/encargado/eventos", label: "Eventos UCP", icon: CalendarDays, grupo: "Actividades y eventos" },
     { to: "/encargado/calendario", label: "Calendario", icon: CalendarDays, grupo: "Actividades y eventos" },
-    { to: "/encargado/disponibilidad", label: "Disponibilidad", icon: Clock, grupo: "Actividades y eventos" },
+    { to: "/encargado/disponibilidad", label: "Asistencia", icon: CalendarCheck, grupo: "Horas y asistencia" },
     { to: "/encargado/constancias", label: "Constancias", icon: FileBadge, grupo: "Documentos" },
     { to: "/encargado/incidencias", label: "Incidencias", icon: AlertTriangle, grupo: "Sistema" },
   ],

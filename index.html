@@ -12,9 +12,19 @@
          otros temas que el usuario puede elegir (solo en su dispositivo). */
       try {
         var ucpTema = localStorage.getItem("ucp-theme");
-        var ucpColores = { dark: "#050505", light: "#f4f5fa", selva: "#FFF5E5" };
-        if (ucpTema === "light" || ucpTema === "selva") {
+        var ucpColores = { dark: "#050505", light: "#f4f5fa", selva: "#FFF5E5", muertos: "#120a1c" };
+        /* Temporada de Día de Muertos (15 de octubre al 5 de noviembre): si la
+           persona nunca eligió tema, entra con el de la temporada. Debe coincidir
+           con temaInicial() de ThemeToggle.jsx, o se vería un parpadeo entre el
+           primer paint y el montaje de React. */
+        if (!ucpTema) {
+          var ahora = new Date(), mes = ahora.getMonth() + 1, dia = ahora.getDate();
+          if ((mes === 10 && dia >= 15) || (mes === 11 && dia <= 5)) ucpTema = "muertos";
+        }
+        if (ucpTema && ucpTema !== "dark") {
           document.documentElement.classList.add(ucpTema);
+        }
+        if (ucpTema && ucpColores[ucpTema]) {
           document.querySelector('meta[name="theme-color"]').setAttribute("content", ucpColores[ucpTema]);
         }
       } catch (e) {}

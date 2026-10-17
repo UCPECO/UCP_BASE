@@ -11,6 +11,7 @@ import pushRoutes from './routes/push.js';
 import mensajesRoutes from './routes/mensajes.js';
 import tetrisRoutes from './routes/tetris.js';
 import blackjackRoutes from './routes/blackjack.js';
+import asistenciaRoutes from './routes/asistencia.js';
 import { inicializarPush } from './lib/push.js';
 import { cerrarFichajesOlvidados, resumenSemanalSiCorresponde } from './lib/gestion.js';
 import { respaldarBD, db } from './database.js';
@@ -49,6 +50,7 @@ app.use('/api/push', pushRoutes);
 app.use('/api/mensajes', mensajesRoutes);
 app.use('/api/tetris', tetrisRoutes);
 app.use('/api/blackjack', blackjackRoutes);
+app.use('/api/asistencia', asistenciaRoutes);
 
 // Upload endpoint (simulado - guarda en servidor)
 app.post('/api/upload', (req, res) => {

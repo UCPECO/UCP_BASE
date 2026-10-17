@@ -146,8 +146,17 @@ afirma('el mazo en BD conserva 204 cartas', JSON.parse(filaP1.mazo).length === 2
 afirma('el cliente no recibe el mazo en ninguna clave', !JSON.stringify(vista1).includes(JSON.stringify(JSON.parse(filaP1.mazo).slice(0, 3))));
 
 // --- Control determinista: fijamos las manos en BD y comprobamos la resolución ---
-const forzar = (id, mano, dealer) => db.prepare('UPDATE blackjack_partidas SET mano = ?, dealer = ? WHERE id = ?')
-  .run(JSON.stringify(mano), JSON.stringify(dealer), id);
+// Prepara una mano en un estado CONOCIDO antes de probarla. No basta con
+// sobrescribir las cartas: si el reparto inicial ya fue blackjack natural, el
+// servidor resuelve la mano al crearla y nace 'terminada', así que la acción
+// siguiente respondería 409. Con 4 mazos eso ocurre ~9% de las veces y hacía la
+// prueba intermitente. Se fuerza estado/doble/resultado y se borra el movimiento
+// que esa resolución automática haya generado, para no contaminar la liquidación.
+const forzar = (id, mano, dealer) => {
+  db.prepare('DELETE FROM blackjack_movimientos WHERE partida = ?').run(id);
+  db.prepare(`UPDATE blackjack_partidas SET mano = ?, dealer = ?, estado = 'activa', doble = 0, resultado = NULL, delta_min = NULL WHERE id = ?`)
+    .run(JSON.stringify(mano), JSON.stringify(dealer), id);
+};
 
 // Caso A: jugador 18, dealer 17 -> victoria exacta
 forzar(vista1.id, [{ r: '10', p: 's' }, { r: '8', p: 's' }], [{ r: '10', p: 'h' }, { r: '7', p: 'h' }]);
@@ -214,8 +223,15 @@ await t('liquidar el mes en curso -> 400', 400, () => post('/api/blackjack/admin
 await t('periodo con formato inválido -> 400', 400, () => post('/api/blackjack/admin/liquidar', { periodo: 'septiembre' }));
 await t('voluntario no puede liquidar -> 403', 403, () => post('/api/blackjack/admin/liquidar', { periodo: '2026-08' }, HV));
 
-// Mover los movimientos al mes anterior para poder liquidarlos
-db.prepare(`UPDATE blackjack_movimientos SET periodo='2026-08' WHERE usuario='usr-prueba'`).run();
+// Montaje determinista de la liquidación (ver comentario abajo)
+// Las manos de las secciones anteriores se resuelven con cartas aleatorias, así
+// que su neto varía en cada corrida: esta prueba resultó intermitente porque un
+// neto de 0 no genera ajuste (comportamiento correcto y deliberado). Se apartan
+// a un periodo muerto y se insertan movimientos conocidos (+120 y -45, neto +75)
+// para verificar la liquidación de forma determinista.
+db.prepare(`UPDATE blackjack_movimientos SET periodo='2020-01' WHERE usuario='usr-prueba'`).run();
+db.prepare(`INSERT INTO blackjack_movimientos (id, usuario, usuario_nombre, partida, periodo, apuesta_min, delta_min, resultado, estado) VALUES ('mv-test-1','usr-prueba','Usuario Prueba','p-x','2026-08',120,120,'victoria','pendiente')`).run();
+db.prepare(`INSERT INTO blackjack_movimientos (id, usuario, usuario_nombre, partida, periodo, apuesta_min, delta_min, resultado, estado) VALUES ('mv-test-2','usr-prueba','Usuario Prueba','p-y','2026-08',45,-45,'derrota','pendiente')`).run();
 const antesDeLiquidar = db.prepare(`SELECT COUNT(*) AS n FROM ajustes_horas WHERE tipo='blackjack'`).get().n;
 const liq = await t('liquidar 2026-08 -> 200', 200, () => post('/api/blackjack/admin/liquidar', { periodo: '2026-08' }));
 const netoEsperado = db.prepare(`SELECT COALESCE(SUM(delta_min),0) AS n FROM blackjack_movimientos WHERE usuario='usr-prueba' AND periodo='2026-08'`).get().n;
@@ -225,7 +241,9 @@ const ajusteBj = db.prepare(`SELECT * FROM ajustes_horas WHERE tipo='blackjack' 
 afirma('el ajuste lleva el neto del mes', ajusteBj?.minutos === netoEsperado, `ajuste=${ajusteBj?.minutos} neto=${netoEsperado}`);
 afirma('el ajuste lleva periodo 2026-08', ajusteBj?.periodo === '2026-08');
 afirma('el motivo explica el origen', /Blackjack/.test(ajusteBj?.motivo || ''), ajusteBj?.motivo);
-const trasLiquidar = db.prepare(`SELECT estado, ajuste_id FROM blackjack_movimientos WHERE usuario='usr-prueba' AND estado != 'anulado'`).all();
+// Solo los del periodo liquidado: los apartados a 2020-01 siguen pendientes a
+// propósito y no deben contar aquí.
+const trasLiquidar = db.prepare(`SELECT estado, ajuste_id FROM blackjack_movimientos WHERE usuario='usr-prueba' AND periodo='2026-08' AND estado != 'anulado'`).all();
 afirma('los movimientos pasan a aplicado con su ajuste_id', trasLiquidar.every(m => m.estado === 'aplicado' && m.ajuste_id));
 const saldoLiquidado = (await call('/api/blackjack/estado', {}, HV)).body;
 afirma('las horas validadas ya incluyen el neto', saldoLiquidado?.horas_validadas === 10 + netoEsperado / 60, `obtenido ${saldoLiquidado?.horas_validadas}`);
